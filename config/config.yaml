@@ -1,0 +1,41 @@
+# TradingAgent-Muse config
+project: TradingAgent-Muse
+
+data:
+  symbol: BTC-USD
+  source: yfinance        # adapter; binance/alpaca pluggable later
+  interval: 15m           # cleanest yfinance volume at 60d (5m/1h ~50% zero-volume)
+  period: 60d
+
+features:
+  - vwap
+  - macd
+  - signal_line
+  - rsi_14
+  - atr
+  - sma_50
+  - price_change
+  - volatility_21
+  - volume_change
+
+paper_broker:
+  starting_balance: 10000
+  long_only: true
+  max_position_pct: 0.25   # 25% of equity per trade (Kass approved 2026-10-19)
+  stop_loss_pct: 0.05      # 5% stop-loss, no take-profit (Kass, 2026-10-19)
+  take_profit_pct: null
+
+reward:
+  type: binary_pnl
+  episode: 1d             # +1 if day net PnL > 0 else -1
+  paper_only: true
+
+retrain:
+  schedule: "0 0 * * *"   # midnight ET daily
+  warm_start: true        # continual learning from champion weights
+  promote_only_if_better: true
+
+dashboards:
+  training: training-dashboard   # artifact slug (planned)
+  trading: trading-dashboard     # artifact slug (planned)
+  sync_every_minutes: 5

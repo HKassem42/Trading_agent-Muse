@@ -1,0 +1,17 @@
+# TradingAgent-Muse
+pandas
+numpy
+scikit-learn
+yfinance
+joblib
+pyyaml
+sqlalchemy
+# RL (phase 2)
+torch
+gymnasium
+stable-baselines3
+# Stacker v2 (phase 2)
+xgboost
+lightgbm
+imbalanced-learn
+shap
