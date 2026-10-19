@@ -55,12 +55,18 @@ def log_run(kind: str, metrics: dict, promoted: bool) -> None:
         )
 
 
-def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> float:
-    """Mean episode reward over deterministic rollouts on the holdout."""
+def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
+    """Deterministic rollouts on the holdout.
+
+    Returns mean episode reward plus a risk-adjusted backtest score:
+    score = total day-P&L - 0.5 * max drawdown of the cumulative P&L curve.
+    Promotion uses the score, not raw reward — a challenger must make money
+    without wild swings to take the crown.
+    """
     from stable_baselines3 import PPO
 
     model = PPO.load(model_path)
-    rewards = []
+    rewards, pnls = [], []
     tmp = Path("/tmp") / "tam_eval.db"
     if tmp.exists():
         tmp.unlink()
@@ -69,13 +75,25 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> float:
                              max_position_pct=0.25, stop_loss_pct=0.05)
         env = TradingEnv(sup, p_up, broker)
         obs, _ = env.reset(seed=ep)
+        start_eq = env._day_start_equity
         done, ep_r = False, 0.0
         while not done:
             action, _ = model.predict(obs, deterministic=True)
             obs, r, done, _, _ = env.step(int(action))
             ep_r += r
         rewards.append(ep_r)
-    return float(np.mean(rewards))
+        pnls.append(env._prev_eq - start_eq)
+    pnls = np.array(pnls)
+    curve = np.cumsum(pnls)
+    peak = np.maximum.accumulate(curve)
+    max_dd = float(np.max(peak - curve)) if len(curve) else 0.0
+    total = float(np.sum(pnls))
+    return {
+        "mean_reward": float(np.mean(rewards)),
+        "total_pnl": total,
+        "max_drawdown": max_dd,
+        "score": total - 0.5 * max_dd,
+    }
 
 
 def main() -> None:
@@ -116,17 +134,23 @@ def main() -> None:
         ent_coef=0.05,  # keep exploring; sparse +/-1 rewards need it
     )
     if (MODELS / "ppo_champion.zip").exists():
-        champ_r = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
-        chall_r = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
-        ppo_promoted = chall_r >= champ_r
-        print(f"ppo: challenger mean reward={chall_r:.3f} "
-              f"champion={champ_r:.3f} promoted={ppo_promoted}", flush=True)
+        champ = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
+        chall = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
+        ppo_promoted = chall["score"] >= champ["score"]
+        print(f"ppo: challenger score={chall['score']:.2f} "
+              f"(pnl={chall['total_pnl']:.2f} dd={chall['max_drawdown']:.2f}) "
+              f"champion score={champ['score']:.2f} "
+              f"(pnl={champ['total_pnl']:.2f} dd={champ['max_drawdown']:.2f}) "
+              f"promoted={ppo_promoted}", flush=True)
     else:
-        champ_r, chall_r, ppo_promoted = -1.0, 0.0, True
+        champ = {"mean_reward": -1.0, "total_pnl": 0.0,
+                 "max_drawdown": 0.0, "score": -1.0}
+        chall = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
+        ppo_promoted = True
         print("ppo: no champion yet, promoting first challenger", flush=True)
     if ppo_promoted:
         challenger_path.replace(MODELS / "ppo_champion.zip")
-    log_run("ppo", {"challenger_reward": chall_r, "champion_reward": champ_r}, ppo_promoted)
+    log_run("ppo", {"challenger": chall, "champion": champ}, ppo_promoted)
     print("=== done ===", flush=True)
 
 

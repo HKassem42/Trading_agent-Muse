@@ -8,6 +8,17 @@ From the Notion blueprint:
 
 The env wraps PaperBroker so fills, fees, stop-loss and the ledger are real.
 One step = one 15m candle. Episode = 96 steps (one day).
+
+Scoring (reward) design, per Kass 2026-10-19 ("however you think the scoring
+should go so we get results"):
+- Dense per-step signal: mark-to-market percent return of the paper account
+  each 15m step, in percentage points, clipped to [-1, 1]. Tells the agent
+  immediately whether its position is paying -- price moves, fees and the
+  stop-loss all flow through equity, so overtrading is punished by fees and
+  bag-holding losers is punished by the market.
+- Sparse terminal signal (the original spec, kept): +1 if the day's net
+  paper P&L > 0, else -1. The official daily verdict.
+Total episode return ~= sum of step returns + the daily verdict.
 """
 
 from __future__ import annotations
@@ -71,7 +82,10 @@ class TradingEnv(gym.Env):
         self._episode_start = int(self.np_random.integers(0, max_start))
         self._cursor = self._episode_start
         price = float(self.df.iloc[self._cursor]["close"])
-        self._day_start_equity = self.broker.equity(price)
+        # Equity at the previous step's price: the dense reward measures the
+        # market move over each interval on the position we actually held.
+        self._prev_eq = self.broker.equity(price)
+        self._day_start_equity = self._prev_eq
         return self._state(self._cursor), {}
 
     def step(self, action: int):
@@ -80,20 +94,28 @@ class TradingEnv(gym.Env):
         price = float(row["close"])
         ts = str(row.name)
 
+        # Dense signal: mark-to-market return since the last step, in
+        # percentage points, clipped. Rewards good positioning immediately —
+        # price moves, fees and the stop-loss all flow through equity.
+        eq_now = self.broker.equity(price)
+        step_r = 100.0 * (eq_now - self._prev_eq) / max(self._prev_eq, 1e-9)
+        reward = float(np.clip(step_r, -1.0, 1.0))
+
         # stop-loss enforced by the broker on every price, like live
         self.broker.check_stop(price, ts=ts)
         if action == 1:
             self.broker.buy(price, reason="ppo", ts=ts)
         elif action == 2:
             self.broker.sell(price, reason="ppo", ts=ts)
+        self._prev_eq = self.broker.equity(price)
 
         self._cursor += 1
         done = (self._cursor - self._episode_start) >= self.episode_len
         done = bool(done) or self._cursor >= len(self.df) - 1
 
-        reward = 0.0
         if done:
-            day_pnl = self.broker.equity(price) - self._day_start_equity
-            reward = 1.0 if day_pnl > 0 else -1.0
+            # The daily verdict (original spec): +1 profitable day, else -1.
+            day_pnl = self._prev_eq - self._day_start_equity
+            reward += 1.0 if day_pnl > 0 else -1.0
         obs = self._state(min(self._cursor, len(self.df) - 1))
         return obs, reward, done, False, {}
