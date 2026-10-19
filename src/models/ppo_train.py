@@ -28,7 +28,7 @@ from trading.broker import PaperBroker
 
 
 def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: Path,
-          db_path: Path) -> Path:
+          db_path: Path, ent_coef: float = 0.01) -> Path:
     from stable_baselines3 import PPO
 
     df = fetch_klines("BTC-USD", interval="15m", period="60d")
@@ -45,7 +45,8 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
         print(f"warm-starting from {champion_path}")
     else:
         model = PPO("MlpPolicy", env, verbose=0, seed=42,
-                    learning_rate=3e-4, n_steps=512, batch_size=64)
+                    learning_rate=3e-4, n_steps=512, batch_size=64,
+                    ent_coef=ent_coef)
     model.learn(total_timesteps=timesteps)
 
     out = champion_path.parent / "ppo_challenger.zip"

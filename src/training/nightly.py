@@ -109,10 +109,11 @@ def main() -> None:
     stacker_model = joblib.load(MODELS / "stacker_champion.pkl")
     p_up_hold = stacker_model.predict_proba(hold_sup[FEATURE_COLUMNS])[:, 1]
     challenger_path = train_ppo(
-        timesteps=15000, warm_start=True,
+        timesteps=60000, warm_start=True,
         champion_path=MODELS / "ppo_champion.zip",
         stacker_path=MODELS / "stacker_champion.pkl",
         db_path=DATA / "train_tmp.db",  # throwaway ledger; live paper.db untouched
+        ent_coef=0.05,  # keep exploring; sparse +/-1 rewards need it
     )
     if (MODELS / "ppo_champion.zip").exists():
         champ_r = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
