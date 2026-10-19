@@ -86,11 +86,17 @@ def run_once() -> dict:
         ts_s = ts.isoformat()
         broker.check_stop(price, ts=ts_s)
         if int(action) == 1:
-            broker.buy(price, reason="ppo_live", ts=ts_s)
+            fill = broker.buy(price, reason="ppo_live", ts=ts_s)
+            if fill and broker.entry_price:
+                state["last_entry_price"] = broker.entry_price
         elif int(action) == 2:
             broker.sell(price, reason="ppo_live", ts=ts_s)
+            if broker.btc == 0:
+                state["last_entry_price"] = None
         broker.snapshot(ts_s, price)
         state["last_ts"] = ts_s
+        state["last_stance"] = ["hold", "buy", "sell"][int(action)]
+        state["last_p_up"] = round(p_up, 4)
         processed += 1
 
     save_state(state)
