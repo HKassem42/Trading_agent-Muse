@@ -5,7 +5,8 @@ Rules (per config):
 - Each buy risks at most `max_position_pct` of current equity.
 - 5% stop-loss from entry: the broker auto-sells the full position.
 - No take-profit.
-- 0.1% fee per side (typical crypto spot fee; keeps backtests honest).
+- 0.15% fee per side (0.3% round-trip: commission + spread + slippage,
+  per published RL-trading cost guidance; keeps backtests honest).
 
 Every fill is recorded in the SQLite ledger.
 """
@@ -17,7 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-FEE_RATE = 0.001  # 0.1% per side
+FEE_RATE = 0.0015  # 0.15% per side
 
 
 @dataclass

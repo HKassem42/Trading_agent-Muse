@@ -94,11 +94,14 @@ class TradingEnv(gym.Env):
         price = float(row["close"])
         ts = str(row.name)
 
-        # Dense signal: mark-to-market return since the last step, in
-        # percentage points, clipped. Rewards good positioning immediately —
-        # price moves, fees and the stop-loss all flow through equity.
+        # Dense signal: per-step log return on equity, in percentage points,
+        # clipped to [-1, 1]. Log form keeps the signal stationary across
+        # compounding (a +1% then -1% move nets to ~zero, unlike raw percent
+        # changes). Rewards good positioning immediately — price moves, fees
+        # and the stop-loss all flow through equity.
         eq_now = self.broker.equity(price)
-        step_r = 100.0 * (eq_now - self._prev_eq) / max(self._prev_eq, 1e-9)
+        prev = max(self._prev_eq, 1e-9)
+        step_r = 100.0 * float(np.log(eq_now / prev))
         reward = float(np.clip(step_r, -1.0, 1.0))
 
         # stop-loss enforced by the broker on every price, like live
