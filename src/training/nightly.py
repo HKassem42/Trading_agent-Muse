@@ -1,0 +1,133 @@
+"""Nightly retrain: the learning loop. Runs at 00:00 ET via cron.
+
+1. Pull fresh BTC-USD data, rebuild features.
+2. Train stacker challenger; walk-forward score.
+3. Warm-start PPO from champion weights; train challenger.
+4. Evaluate champion vs challenger PPO on a time holdout (deterministic
+   episodes, mean +/-1 reward). Promote only the winner.
+5. Log the named run to the training registry.
+
+Usage: python -m src.training.nightly
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import joblib
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from data.yfinance_adapter import fetch_klines
+from environment.trading_env import TradingEnv
+from features.technical_indicators import FEATURE_COLUMNS, feature_matrix, make_supervised
+from models import stacker
+from trading.broker import PaperBroker
+
+ROOT = Path(__file__).resolve().parents[2]
+MODELS = ROOT / "models"
+DATA = ROOT / "data"
+
+
+def registry_db() -> Path:
+    p = DATA / "training.db"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(p) as con:
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS runs(
+                id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL,
+                kind TEXT NOT NULL, metrics TEXT NOT NULL, promoted INTEGER NOT NULL)"""
+        )
+    return p
+
+
+def log_run(kind: str, metrics: dict, promoted: bool) -> None:
+    with sqlite3.connect(registry_db()) as con:
+        con.execute(
+            "INSERT INTO runs(ts,kind,metrics,promoted) VALUES (?,?,?,?)",
+            (datetime.now(timezone.utc).isoformat(timespec="seconds"),
+             kind, json.dumps(metrics), int(promoted)),
+        )
+
+
+def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> float:
+    """Mean episode reward over deterministic rollouts on the holdout."""
+    from stable_baselines3 import PPO
+
+    model = PPO.load(model_path)
+    rewards = []
+    tmp = Path("/tmp") / "tam_eval.db"
+    if tmp.exists():
+        tmp.unlink()
+    for ep in range(episodes):
+        broker = PaperBroker(tmp, starting_balance=10_000,
+                             max_position_pct=0.25, stop_loss_pct=0.05)
+        env = TradingEnv(sup, p_up, broker)
+        obs, _ = env.reset(seed=ep)
+        done, ep_r = False, 0.0
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, r, done, _, _ = env.step(int(action))
+            ep_r += r
+        rewards.append(ep_r)
+    return float(np.mean(rewards))
+
+
+def main() -> None:
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d")
+    print(f"=== nightly retrain {run_id} ===", flush=True)
+
+    df = fetch_klines("BTC-USD", interval="15m", period="60d")
+    sup = make_supervised(df)
+    X, y = feature_matrix(sup)
+
+    # time holdout: last 10 days for PPO evaluation
+    split = int(len(sup) * 0.85)
+    train_sup, hold_sup = sup.iloc[:split], sup.iloc[split:]
+
+    # -- stacker challenger --
+    Xtr, ytr = feature_matrix(train_sup)
+    score = stacker.train_and_save(Xtr, ytr, MODELS / "stacker_challenger.pkl")
+    champ_score_path = MODELS / "stacker_champion.json"
+    champ_acc = json.loads(champ_score_path.read_text())["accuracy"] if champ_score_path.exists() else -1
+    stacker_promoted = score["accuracy"] >= champ_acc
+    if stacker_promoted:
+        (MODELS / "stacker_challenger.pkl").replace(MODELS / "stacker_champion.pkl")
+        champ_score_path.write_text(json.dumps(score))
+    log_run("stacker", {**score, "challenger_acc": score["accuracy"],
+                        "champion_acc": champ_acc}, stacker_promoted)
+    print(f"stacker: challenger acc={score['accuracy']:.4f} "
+          f"champion acc={champ_acc:.4f} promoted={stacker_promoted}", flush=True)
+
+    # -- PPO challenger (warm-started) --
+    from models.ppo_train import train as train_ppo
+    stacker_model = joblib.load(MODELS / "stacker_champion.pkl")
+    p_up_hold = stacker_model.predict_proba(hold_sup[FEATURE_COLUMNS])[:, 1]
+    challenger_path = train_ppo(
+        timesteps=15000, warm_start=True,
+        champion_path=MODELS / "ppo_champion.zip",
+        stacker_path=MODELS / "stacker_champion.pkl",
+        db_path=DATA / "train_tmp.db",  # throwaway ledger; live paper.db untouched
+    )
+    if (MODELS / "ppo_champion.zip").exists():
+        champ_r = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
+        chall_r = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
+        ppo_promoted = chall_r >= champ_r
+        print(f"ppo: challenger mean reward={chall_r:.3f} "
+              f"champion={champ_r:.3f} promoted={ppo_promoted}", flush=True)
+    else:
+        champ_r, chall_r, ppo_promoted = -1.0, 0.0, True
+        print("ppo: no champion yet, promoting first challenger", flush=True)
+    if ppo_promoted:
+        challenger_path.replace(MODELS / "ppo_champion.zip")
+    log_run("ppo", {"challenger_reward": chall_r, "champion_reward": champ_r}, ppo_promoted)
+    print("=== done ===", flush=True)
+
+
+if __name__ == "__main__":
+    main()
