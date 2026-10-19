@@ -28,6 +28,75 @@ def _paper_db():
     return sqlite3.connect(p) if p.exists() else None
 
 
+def closed_trades(con: sqlite3.Connection) -> list[dict]:
+    """FIFO-match sells against buys -> closed round-trip trades with realized P&L.
+
+    Each record: {close_ts, qty, pnl}. Fees are folded into cost/proceeds.
+    """
+    fills = con.execute(
+        "SELECT ts, side, price, qty, fee FROM trades ORDER BY id ASC").fetchall()
+    lots: list[list[float]] = []  # [qty, cost_incl_fee]
+    closed = []
+    for ts, side, price, qty, fee in fills:
+        if side == "BUY":
+            lots.append([qty, price * qty + fee])
+        elif side == "SELL" and qty > 0:
+            proceeds = price * qty - fee
+            remaining = qty
+            cost = 0.0
+            while remaining > 1e-12 and lots:
+                lqty, lcost = lots[0]
+                take = min(lqty, remaining)
+                cost += lcost * (take / lqty)
+                lots[0][0] -= take
+                lots[0][1] -= lcost * (take / lqty)
+                if lots[0][0] < 1e-12:
+                    lots.pop(0)
+                remaining -= take
+            if remaining > 1e-9:
+                continue  # sell with no matching buy; skip
+            closed.append({"close_ts": ts, "qty": qty, "pnl": proceeds - cost})
+    return closed
+
+
+def trade_stats(con: sqlite3.Connection) -> dict:
+    """Journal stats like the reference: win %, profit factor, avg win/loss, expectancy."""
+    closed = closed_trades(con)
+    pnls = [t["pnl"] for t in closed]
+    wins = [p for p in pnls if p > 0]
+    losses = [p for p in pnls if p <= 0]
+    gross_profit = sum(wins)
+    gross_loss = abs(sum(losses))
+    n = len(pnls)
+    return {
+        "total_trades": n,
+        "net_pnl": round(sum(pnls), 2),
+        "win_pct": round(100 * len(wins) / n, 2) if n else 0.0,
+        "profit_factor": round(gross_profit / gross_loss, 2) if gross_loss else 0.0,
+        "avg_win": round(sum(wins) / len(wins), 2) if wins else 0.0,
+        "avg_loss": round(sum(losses) / len(losses), 2) if losses else 0.0,
+        "expectancy": round(sum(pnls) / n, 2) if n else 0.0,
+        "gross_profit": round(gross_profit, 2),
+        "gross_loss": round(gross_loss, 2),
+    }
+
+
+def daily_calendar(con: sqlite3.Connection) -> list[dict]:
+    """Per-day closed-trade P&L for the calendar heatmap: [{date, pnl, trades, win_pct}]."""
+    closed = closed_trades(con)
+    by_day: dict[str, list[float]] = {}
+    for t in closed:
+        day = datetime.fromisoformat(t["close_ts"]).astimezone(ET).strftime("%Y-%m-%d")
+        by_day.setdefault(day, []).append(t["pnl"])
+    return [
+        {"date": day,
+         "pnl": round(sum(pnls), 2),
+         "trades": len(pnls),
+         "win_pct": round(100 * sum(1 for p in pnls if p > 0) / len(pnls), 1)}
+        for day, pnls in sorted(by_day.items())
+    ]
+
+
 def build_trading_snapshot() -> dict:
     snap: dict = {"as_of": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     con = _paper_db()
@@ -60,6 +129,8 @@ def build_trading_snapshot() -> dict:
 
     position = "LONG" if btc > 0 else "FLAT"
     entry = live.get("last_entry_price")
+    stats = trade_stats(con)
+    calendar = daily_calendar(con)
     snap.update({
         "status": "live",
         "btc_price": price,
@@ -76,6 +147,8 @@ def build_trading_snapshot() -> dict:
         "agent_stance": live.get("last_stance"),
         "stacker_p_up": live.get("last_p_up"),
         "last_candle": live.get("last_ts"),
+        "trade_stats": stats,
+        "daily_calendar": calendar,
         "equity_curve": [
             {"t": r["ts"], "equity": round(r["equity"], 2)} for r in reversed(eq)
         ],
