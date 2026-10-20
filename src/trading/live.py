@@ -1,8 +1,9 @@
 """Live paper-trading loop (cron-driven, 24/7).
 
-Designed to run every 15 minutes via cron. Each invocation:
+Designed to run every hour via cron (the parent owns the schedule). Each
+invocation:
 1. Loads the champion stacker + champion PPO.
-2. Fetches the latest closed 15m candles; processes any not yet seen
+2. Fetches the latest closed 1h candles; processes any not yet seen
    (tracked in data/live_state.json, so restarts are safe).
 3. For each new candle: compute features -> stacker P(up) -> PPO action
    (0 hold / 1 buy / 2 sell) -> broker executes with 25% cap + 5% stop-loss.
@@ -62,19 +63,19 @@ def run_once() -> dict:
                            f"recipe now builds {expected_dim}-dim; "
                            f"awaiting new champion promotion"}
 
-    broker = PaperBroker(DATA / "paper.db", starting_balance=10_000,
+    broker = PaperBroker(DATA / "paper.db", starting_balance=100_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     state = load_state()
-    # Restore the persisted paper account: without this, every 15-min run
-    # would start back at $10k/0 BTC and positions would never carry.
-    # (Audit 2026-10-20: this restore was missing -- live positions were
-    # silently dropped between runs until this fix.)
+    # Restore the persisted paper account: without this, every hourly run
+    # would start back at $100k/0 BTC and positions would never carry.
+    # (Audit 2026-10-20: this restore was missing in the 15m era -- live
+    # positions were silently dropped between runs until it was fixed.)
     if state.get("cash") is not None:
         broker.cash = float(state["cash"])
         broker.btc = float(state.get("btc", 0.0))
         broker.entry_price = state.get("entry_price")
 
-    df = fetch_klines("BTC-USD", interval="15m", period="5d")
+    df = fetch_klines("BTC-USD", interval="1h", period="5d")
     # drop the still-forming current candle
     df = df.iloc[:-1]
     if state["last_ts"]:
@@ -83,7 +84,7 @@ def run_once() -> dict:
         return {"processed": 0}
 
     # need enough history for indicators: refetch a wider window for features
-    full = fetch_klines("BTC-USD", interval="15m", period="60d").iloc[:-1]
+    full = fetch_klines("BTC-USD", interval="1h", period="60d").iloc[:-1]
     feat = add_features(full)
     processed = 0
     last_price = 0.0
@@ -94,13 +95,17 @@ def run_once() -> dict:
         p_up = float(stacker.predict_proba(frow[FEATURE_COLUMNS].to_frame().T)[0, 1])
         price = float(row["close"])
         last_price = price
-        market = [float(frow[c]) for c in FEATURE_COLUMNS] + [p_up]
+        # Build the observation exactly as TradingEnv._state does
+        # (features v3 contract): features already in [-1, 1], stacker
+        # probability centered to [-1, 1], portfolio values clipped.
+        market = [float(frow[c]) for c in FEATURE_COLUMNS] + [2.0 * p_up - 1.0]
         eq = broker.equity(price)
         obs = np.array(market + [
             broker.cash / max(eq, 1e-9),
             broker.btc * price / max(eq, 1e-9),
             broker.unrealized_pct(price),
         ], dtype=np.float32)
+        obs = np.clip(obs, -1.0, 1.0).astype(np.float32)
         action, _ = ppo.predict(obs, deterministic=True)
         ts_s = ts.isoformat()
         broker.check_stop(price, ts=ts_s)

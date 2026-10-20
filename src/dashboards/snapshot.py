@@ -132,6 +132,52 @@ def activity_stats(con: sqlite3.Connection) -> dict:
     }
 
 
+def _fresh_account_snapshot(snap: dict) -> dict:
+    """Minimal valid trading snapshot for a fresh paper account: the DB
+    exists (tables created) but no equity rows yet because the bot has not
+    traded. Returns the full live-shaped payload (FLAT, equity = $100k,
+    zeroed stats) so the dashboard can show the new account immediately
+    instead of crashing on missing fields. Added 2026-10-20 after the
+    $10k -> $100k migration exposed a KeyError in the compact builder."""
+    try:
+        from data.yfinance_adapter import latest_price
+        btc_price = latest_price()
+    except Exception:
+        btc_price = None
+    zero_stats = {
+        "total_trades": 0, "net_pnl": 0.0, "win_pct": 0.0,
+        "profit_factor": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
+        "expectancy": 0.0, "gross_profit": 0.0, "gross_loss": 0.0,
+    }
+    snap.update({
+        "status": "live",
+        "btc_price": btc_price,
+        "equity": 100000.0,
+        "cash": 100000.0,
+        "btc": 0.0,
+        "btc_value": 0.0,
+        "position": "FLAT",
+        "entry_price": None,
+        "stop_price": None,
+        "unrealized_pct": 0.0,
+        "day_pnl": 0.0,
+        "day_reward": 0,  # no day yet -- neither +1 nor -1
+        "agent_stance": None,
+        "stacker_p_up": None,
+        "last_candle": None,
+        "trade_stats": zero_stats,
+        "daily_calendar": [],
+        "activity": {
+            "trades_today": 0, "trades_7d": 0, "trades_total": 0,
+            "last_trade_ts": None, "days_since_last_trade": None,
+        },
+        "equity_curve": [],
+        "drawdown_curve": [],
+        "recent_trades": [],
+    })
+    return snap
+
+
 def build_trading_snapshot() -> dict:
     snap: dict = {"as_of": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     con = _paper_db()
@@ -142,7 +188,11 @@ def build_trading_snapshot() -> dict:
     eq = con.execute(
         "SELECT * FROM equity ORDER BY ts DESC LIMIT 500").fetchall()
     if not eq:
-        return {**snap, "status": "no_data"}
+        # Fresh account: DB exists but the bot hasn't traded yet. Return a
+        # minimal valid live-shaped snapshot ($100k, FLAT, zeroed stats)
+        # instead of a field-less "no_data" payload that crashed the
+        # compact builder (2026-10-20).
+        return _fresh_account_snapshot(snap)
     latest = eq[0]
     price = latest["price"]
     equity = latest["equity"]
@@ -153,7 +203,7 @@ def build_trading_snapshot() -> dict:
     day_rows = con.execute(
         "SELECT equity FROM equity WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
         (day_start.isoformat(),)).fetchone()
-    day_pnl = equity - (day_rows["equity"] if day_rows else 10000.0)
+    day_pnl = equity - (day_rows["equity"] if day_rows else 100000.0)
 
     trades = con.execute(
         "SELECT ts, side, price, qty, fee, reason FROM trades ORDER BY id DESC LIMIT 20"

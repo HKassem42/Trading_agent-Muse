@@ -1,7 +1,7 @@
 """Paper broker: simulated BTC/USD spot trading.
 
 Rules (per config):
-- Long-only, starting cash $10,000.
+- Long-only, starting cash $100,000 (raised from $10,000 by Kass 2026-10-20).
 - Each buy risks at most `max_position_pct` of current equity.
 - 5% stop-loss from entry: the broker auto-sells the full position.
 - No take-profit.
@@ -35,7 +35,7 @@ class PaperBroker:
     def __init__(
         self,
         db_path: str | Path,
-        starting_balance: float = 10_000.0,
+        starting_balance: float = 100_000.0,
         max_position_pct: float = 0.25,
         stop_loss_pct: float = 0.05,
     ) -> None:

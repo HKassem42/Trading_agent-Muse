@@ -4,30 +4,42 @@ project: TradingAgent-Muse
 data:
   symbol: BTC-USD
   source: yfinance        # adapter; binance/alpaca pluggable later
-  interval: 15m           # cleanest yfinance volume at 60d (5m/1h ~50% zero-volume)
-  period: 60d
+  interval: 1h            # moved from 15m 2026-10-20 (Kass approved): less
+                          # noise, fewer fee-churn trades; yfinance 1h -> 730d
+  period: 730d
 
 features:
-  - vwap
-  - macd
-  - signal_line
-  - rsi_14
-  - atr
-  - sma_50
-  - price_change
-  - volatility_21
-  - volume_change
+  version: v3             # strict [-1, +1] contract on every value the brain
+                          # sees (Kass 2026-10-20); see
+                          # src/features/technical_indicators.py FEATURE_SCALES
+  columns:
+    - body_pct
+    - upper_wick
+    - lower_wick
+    - range_pct
+    - rsi_c               # (RSI-50)/50; was rsi_14n = RSI/100 in v2
+    - macd_hist_rel
+    - dist_vwap
+    - dist_sma50
+    - atr_rel
+    - price_change
+    - volatility_21
+    - volume_change       # clipped symmetric to [-1, 1]
 
 paper_broker:
-  starting_balance: 10000
+  starting_balance: 100000  # raised from 10000 by Kass 2026-10-20; the old
+                            # $10k book is archived as data/paper_10k_archive.db
   long_only: true
   max_position_pct: 0.25   # 25% of equity per trade (Kass approved 2026-10-19)
   stop_loss_pct: 0.05      # 5% stop-loss, no take-profit (Kass, 2026-10-19)
   take_profit_pct: null
 
 reward:
-  type: binary_pnl
-  episode: 1d             # +1 if day net PnL > 0 else -1
+  type: dense_log_return_plus_terminal
+  episode: 1d             # 24 hourly steps; dense 100*ln(eq/prev) clipped
+                          # +/-1 per step + terminal +1/-1 on day PnL sign;
+                          # activity rule: min 2 round trips/day (scaled from
+                          # 5 per 96 15m candles at the 1h migration)
   paper_only: true
 
 retrain:

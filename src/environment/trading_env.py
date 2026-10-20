@@ -7,12 +7,12 @@ From the Notion blueprint:
   +1 if the day's net paper P&L > 0, else -1. Sparse, honest, paper-only.
 
 The env wraps PaperBroker so fills, fees, stop-loss and the ledger are real.
-One step = one 15m candle. Episode = 96 steps (one day).
+One step = one 1h candle. Episode = 24 steps (one day).
 
 Scoring (reward) design, per Kass 2026-10-19 ("however you think the scoring
 should go so we get results"):
 - Dense per-step signal: mark-to-market percent return of the paper account
-  each 15m step, in percentage points, clipped to [-1, 1]. Tells the agent
+  each 1h step, in percentage points, clipped to [-1, 1]. Tells the agent
   immediately whether its position is paying -- price moves, fees and the
   stop-loss all flow through equity, so overtrading is punished by fees and
   bag-holding losers is punished by the market.
@@ -44,8 +44,8 @@ class TradingEnv(gym.Env):
         stacker_p_up: np.ndarray | pd.Series,
         broker: PaperBroker,
         episode_days: int = 1,
-        steps_per_day: int = 96,
-        min_round_trips: int = 5,
+        steps_per_day: int = 24,
+        min_round_trips: int = 2,
     ) -> None:
         super().__init__()
         self.df = df.reset_index(drop=True)
@@ -56,12 +56,18 @@ class TradingEnv(gym.Env):
         # Kass 2026-10-19: the agent must actually trade to learn -- at least
         # `min_round_trips` completed buy->sell round trips per episode,
         # else a shortfall penalty at episode end (-0.2 per missing trip).
+        # Scaled 2026-10-20 for the 1h migration: 5 trips per 96 15m candles
+        # -> 2 trips per 24 1h candles keeps roughly the same trading
+        # density (one trip per ~12-19 candles) without forcing churn on
+        # a timeframe where each candle carries 4x the information.
         self.min_round_trips = min_round_trips
         self._round_trips = 0
 
-        # state: 10 market features + cash_frac + btc_frac + unrealized_pct
+        # Features v3 contract (2026-10-20): every observation component
+        # lives in [-1, 1] -- features by construction, the rest by the
+        # transforms in _state plus a final clip guard.
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(len(STATE_FEATURES) + 3,), dtype=np.float32
+            low=-1.0, high=1.0, shape=(len(STATE_FEATURES) + 3,), dtype=np.float32
         )
         self.action_space = spaces.Discrete(3)  # hold / buy / sell
         self._cursor = 0
@@ -72,14 +78,20 @@ class TradingEnv(gym.Env):
     def _state(self, i: int) -> np.ndarray:
         row = self.df.iloc[i]
         price = float(row["close"])
-        market = [float(row[c]) for c in FEATURE_COLUMNS] + [float(self.stacker_p_up[i])]
+        # stacker p_up is a probability in [0, 1]; center it to [-1, 1].
+        p_up_c = 2.0 * float(self.stacker_p_up[i]) - 1.0
+        market = [float(row[c]) for c in FEATURE_COLUMNS] + [p_up_c]
         eq = self.broker.equity(price)
+        # cash/btc fractions already live in [0, 1]; unrealized_pct is an
+        # unbounded return, so clip it. Final clip is a belt-and-braces
+        # guard for the whole vector (features v3 contract).
         port = [
             self.broker.cash / max(eq, 1e-9),
             self.broker.btc * price / max(eq, 1e-9),
             self.broker.unrealized_pct(price),
         ]
-        return np.array(market + port, dtype=np.float32)
+        state = np.array(market + port, dtype=np.float32)
+        return np.clip(state, -1.0, 1.0).astype(np.float32)
 
     # -- gym API ------------------------------------------------------
     def reset(self, *, seed=None, options=None):

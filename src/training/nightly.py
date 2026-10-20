@@ -66,13 +66,13 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
     from stable_baselines3 import PPO
 
     model = PPO.load(model_path)
-    rewards, pnls = [], []
+    rewards, pnls, trips = [], [], []
     action_counts = {"hold": 0, "buy": 0, "sell": 0}
     tmp = Path("/tmp") / "tam_eval.db"
     if tmp.exists():
         tmp.unlink()
     for ep in range(episodes):
-        broker = PaperBroker(tmp, starting_balance=10_000,
+        broker = PaperBroker(tmp, starting_balance=100_000,
                              max_position_pct=0.25, stop_loss_pct=0.05)
         env = TradingEnv(sup, p_up, broker)
         obs, _ = env.reset(seed=ep)
@@ -85,6 +85,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
             ep_r += r
         rewards.append(ep_r)
         pnls.append(env._prev_eq - start_eq)
+        trips.append(env._round_trips)
     pnls = np.array(pnls)
     curve = np.cumsum(pnls)
     peak = np.maximum.accumulate(curve)
@@ -97,6 +98,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
         "max_drawdown": max_dd,
         "score": total - 0.5 * max_dd,
         "episodes": episodes,
+        "round_trips_per_day": float(np.mean(trips)) if trips else 0.0,
         "action_mix": {k: round(v / total_actions, 3)
                        for k, v in action_counts.items()},
     }
@@ -110,7 +112,7 @@ def main() -> None:
     df = None
     for attempt in range(3):
         try:
-            df = fetch_klines("BTC-USD", interval="15m", period="60d")
+            df = fetch_klines("BTC-USD", interval="1h", period="730d")
             break
         except Exception as e:
             print(f"fetch attempt {attempt + 1} failed: {e}", flush=True)
@@ -121,8 +123,8 @@ def main() -> None:
     sup = make_supervised(df)
     X, y = feature_matrix(sup)
 
-    # time holdout: last 10 days for PPO evaluation
-    split = int(len(sup) * 0.85)
+    # time holdout: last 10 days (240 hourly candles) for PPO evaluation
+    split = len(sup) - 240
     train_sup, hold_sup = sup.iloc[:split], sup.iloc[split:]
 
     # -- stacker challenger --

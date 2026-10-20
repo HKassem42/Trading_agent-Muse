@@ -31,7 +31,7 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
           db_path: Path, ent_coef: float = 0.01) -> Path:
     from stable_baselines3 import PPO
 
-    df = fetch_klines("BTC-USD", interval="15m", period="60d")
+    df = fetch_klines("BTC-USD", interval="1h", period="730d")
     sup = make_supervised(df)
     stacker = load_stacker(stacker_path)
     p_up = stacker.predict_proba(sup[FEATURE_COLUMNS])[:, 1]
@@ -41,7 +41,7 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     # run and the nightly run overlapped). PID-suffix + cleanup prevents it.
     import os
     work_db = db_path.with_name(f"{db_path.stem}_{os.getpid()}{db_path.suffix}")
-    broker = PaperBroker(work_db, starting_balance=10_000,
+    broker = PaperBroker(work_db, starting_balance=100_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     env = TradingEnv(sup, p_up, broker)
 

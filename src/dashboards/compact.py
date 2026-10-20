@@ -15,12 +15,20 @@ Feeds (python -m src.dashboards.compact <feed>):
                     first (last 24 fills), "closed": [[close_ts, qty, pnl],
                     ...] last 12 FIFO round trips}
   market0        -> push_market on tradingagent-trading-dashboard.
-                    First (older) 48 of the last 96 closed 15m candles:
-                    {"start": epoch_s, "step": 900, "candles": [[o,h,l,c],
+                    First (older) 48 of the last 96 closed 1h candles:
+                    {"start": epoch_s, "step": 3600, "candles": [[o,h,l,c],
                     ...]} with integer prices.
   market1        -> push_market, newest 48 candles, plus
                     {"markers": [[epoch_s, "B"|"S", price, qty], ...],
                      "entry_price": ..., "stop_price": ...}
+  vision         -> push_vision on tradingagent-trading-dashboard
+                    (added 2026-10-20, features v3 / 1h era).
+                    {"ts": iso, "p_up": stacker P(up) 0..1,
+                     "f": [[key, label, value], ...]} -- the latest closed
+                    candle's 12 feature values (v3 contract: all in
+                    [-1, 1]) with a plain-English label per feature, so the
+                    dashboard can show what the bot "sees". Keys are the
+                    FEATURE_COLUMNS names (rsi_14n renamed to rsi_c in v3).
   training       -> push_snapshot on tradingagent-training-dashboard.
                     Short-key run objects (legend below), stacker champion,
                     reward_series (real PPO mean-reward per run, ascending).
@@ -53,8 +61,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _downsample_curve(curve: list[dict]) -> list[dict]:
     """Keep full resolution where anything changed. Only the *leading* flat
-    pre-live run at exactly $10,000.0 is collapsed to its first and last
-    point (lossless); later rows can pass back through $10,000.0 and must
+    pre-live run at exactly $100,000.0 is collapsed to its first and last
+    point (lossless); later rows can pass back through $100,000.0 and must
     not be reclassified as flat. The tail uses an adaptive stride so the
     point count stays bounded as the curve grows."""
     if not curve:
@@ -62,7 +70,7 @@ def _downsample_curve(curve: list[dict]) -> list[dict]:
     out: list[dict] = []
     i = 0
     n = len(curve)
-    while i < n and curve[i].get("equity") == 10000.0:
+    while i < n and curve[i].get("equity") == 100000.0:
         i += 1
     if i > 0:
         out.append(curve[0])
@@ -83,8 +91,14 @@ def _downsample_curve(curve: list[dict]) -> list[dict]:
 
 def build_compact_trading() -> dict:
     s = snapshot.build_trading_snapshot()
-    if s.get("status") not in ("live", "no_data"):
-        return s
+    # Belt-and-braces (2026-10-20): a fresh account must never crash the
+    # dashboard push with a KeyError on missing fields. Any non-live
+    # snapshot (e.g. "not_started" when the DB file is missing entirely)
+    # degrades to the minimal valid payload the dashboard expects.
+    if s.get("status") != "live":
+        fresh = snapshot._fresh_account_snapshot(
+            {"as_of": s.get("as_of")})
+        s = fresh
     return {
         "as_of": s["as_of"],
         "status": s["status"],
@@ -128,9 +142,9 @@ def build_ledger() -> dict:
 
 
 def _market_candles():
-    """Last 96 closed 15m candles as (start_epoch, [[o,h,l,c]...], df)."""
+    """Last 96 closed 1h candles as (start_epoch, [[o,h,l,c]...], df)."""
     from data.yfinance_adapter import fetch_klines
-    df = fetch_klines("BTC-USD", interval="15m", period="5d").iloc[:-1]
+    df = fetch_klines("BTC-USD", interval="1h", period="5d").iloc[:-1]
     df = df.tail(96)
     start = int(df.index[0].timestamp())
     candles = [[int(round(r["open"])), int(round(r["high"])),
@@ -143,8 +157,8 @@ def build_market(part: int) -> dict:
     start, candles, df = _market_candles()
     half = 48
     if part == 0:
-        return {"start": start, "step": 900, "candles": candles[:half]}
-    out = {"start": start + half * 900, "step": 900, "candles": candles[half:]}
+        return {"start": start, "step": 3600, "candles": candles[:half]}
+    out = {"start": start + half * 3600, "step": 3600, "candles": candles[half:]}
     # Markers: fills inside the candle window + current entry/stop lines.
     # Fill timestamps in paper.db are UTC wall-clock strings (written from
     # the yfinance index); parse them as UTC explicitly -- a naive
@@ -174,6 +188,50 @@ def build_market(part: int) -> dict:
         stop = round(entry * 0.95, 2) if entry else None
     out.update({"markers": markers, "entry_price": entry, "stop_price": stop})
     return out
+
+
+# Plain-English label per feature for the vision feed ("what the bot sees").
+FEATURE_LABELS = {
+    "body_pct": "Candle body: close vs open this hour",
+    "upper_wick": "Upper wick: sellers pushed price down from the high",
+    "lower_wick": "Lower wick: buyers pushed price up from the low",
+    "range_pct": "Candle range: high-to-low size this hour",
+    "rsi_c": "RSI momentum: -1 oversold, +1 overbought",
+    "macd_hist_rel": "MACD histogram: trend momentum",
+    "dist_vwap": "Distance from VWAP (average traded price)",
+    "dist_sma50": "Distance from the 50-hour average price",
+    "atr_rel": "ATR: typical hourly move size (volatility)",
+    "price_change": "Last hour's price change",
+    "volatility_21": "Volatility over the last 21 hours",
+    "volume_change": "Trading volume change vs previous hour",
+}
+
+
+def build_vision() -> dict:
+    """What the bot sees on the latest closed 1h candle: the 12 features
+    (v3 contract, all in [-1, 1]) + the stacker champion's P(up)."""
+    import pandas as pd
+
+    from data.yfinance_adapter import fetch_klines
+    from features.technical_indicators import FEATURE_COLUMNS, add_features
+    from models.stacker import load as load_stacker
+
+    full = fetch_klines("BTC-USD", interval="1h", period="60d").iloc[:-1]
+    feat = add_features(full)
+    feat = feat.dropna(subset=FEATURE_COLUMNS)
+    ts, row = feat.index[-1], feat.iloc[-1]
+    p_up = None
+    champ = ROOT / "models" / "stacker_champion.pkl"
+    if champ.exists():
+        stacker = load_stacker(champ)
+        p_up = round(float(stacker.predict_proba(
+            row[FEATURE_COLUMNS].to_frame().T)[0, 1]), 4)
+    return {
+        "ts": pd.Timestamp(ts).isoformat(),
+        "p_up": p_up,
+        "f": [[c, FEATURE_LABELS[c], round(float(row[c]), 3)]
+              for c in FEATURE_COLUMNS],
+    }
 
 
 def _duel_run(r: dict) -> dict:
@@ -235,6 +293,7 @@ if __name__ == "__main__":
         "ledger": build_ledger,
         "market0": lambda: build_market(0),
         "market1": lambda: build_market(1),
+        "vision": build_vision,
         "training": build_compact_training,
     }
     out = builders[which]()
