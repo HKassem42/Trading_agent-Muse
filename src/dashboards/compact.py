@@ -8,8 +8,12 @@ these payloads -- always generate them here and pass the JSON verbatim.
 Feeds (python -m src.dashboards.compact <feed>):
   trading        -> push_snapshot on tradingagent-trading-dashboard.
                     Core stats, position, trade stats, calendar, activity,
-                    equity curve. (Drawdown is derived in the frontend from
-                    the equity curve: dd = equity / running peak - 1.)
+                    equity curve, plus dd_now/dd_max/dd_max_t: current and
+                    worst drawdown in % (worst with its timestamp) as data,
+                    not only as a frontend-derived strip. Activity also
+                    carries candles_total/candles_today (hours the bot
+                    evaluated) and streak (signed run of same-sign closed
+                    trades, newest first).
   ledger         -> push_ledger on tradingagent-trading-dashboard.
                     {"ledger": [[ts, side, price, qty, fee], ...] newest
                     first (last 24 fills), "closed": [[close_ts, qty, pnl],
@@ -40,10 +44,13 @@ Training run short keys:
   s=score (challenger duel score; stacker: challenger accuracy),
   cs=champion score (stacker: champion accuracy),
   pl=challenger holdout P&L, cpl=champion holdout P&L,
-  dd=challenger max drawdown, r=challenger mean reward,
-  ep=evaluation episodes (sample size), mix=challenger action mix
-  {"hold": x, "buy": y, "sell": z} when recorded (PPO runs from
-  2026-10-20 onward).
+  dd=challenger max drawdown, cdd=champion max drawdown,
+  r=challenger mean reward,
+  ep=evaluation episodes (sample size), mix=challenger action mix,
+  cmix=champion action mix ({"hold": x, "buy": y, "sell": z} when
+  recorded), why=one-line verdict reason (stored on the run since
+  2026-10-20; reconstructed from the run's own notes for older runs).
+  The feed carries the last 8 runs.
 """
 
 from __future__ import annotations
@@ -89,6 +96,19 @@ def _downsample_curve(curve: list[dict]) -> list[dict]:
     return [{"t": p["t"], "equity": round(p["equity"], 2)} for p in out]
 
 
+def _drawdown_stats(s: dict) -> dict:
+    """Current + worst drawdown as NUMBERS (viz research L1): the strip is
+    derived in the frontend, but the two values a reader actually quotes --
+    how far underwater are we now, and what's the worst it's been -- must
+    exist as data, with the date of the worst point."""
+    curve = s.get("drawdown_curve") or []
+    if not curve:
+        return {"dd_now": None, "dd_max": None, "dd_max_t": None}
+    worst = min(curve, key=lambda p: p["dd_pct"])
+    return {"dd_now": curve[-1]["dd_pct"], "dd_max": worst["dd_pct"],
+            "dd_max_t": worst["t"]}
+
+
 def build_compact_trading() -> dict:
     s = snapshot.build_trading_snapshot()
     # Belt-and-braces (2026-10-20): a fresh account must never crash the
@@ -120,6 +140,7 @@ def build_compact_trading() -> dict:
         "daily_calendar": s["daily_calendar"],
         "activity": s["activity"],
         "equity_curve": _downsample_curve(s["equity_curve"]),
+        **_drawdown_stats(s),
     }
 
 
@@ -234,6 +255,29 @@ def build_vision() -> dict:
     }
 
 
+def _verdict_reason(r: dict, m: dict) -> str | None:
+    """One-line verdict for a run card (viz research T1/T2: the reason a
+    brain was promoted or kept out must live on the dashboard, not only in
+    training.db). New runs store an explicit `reason`; historical runs are
+    reconstructed from what they actually recorded -- champion notes,
+    promotion_reason fields, or the duel outcome itself."""
+    reason = m.get("reason") or m.get("promotion_reason")
+    if not reason and r["kind"] == "ppo":
+        h = m.get("champion") or {}
+        reason = h.get("note")
+        if not reason and h.get("policy"):
+            reason = str(h["policy"])
+    if not reason:
+        if r["kind"] == "ppo" and not m.get("champion"):
+            reason = ("challenger scored below the do-nothing baseline (0)"
+                      if not r["promoted"] else "first recorded duel")
+        elif r["promoted"]:
+            reason = "challenger won the duel"
+        else:
+            reason = "champion kept the crown"
+    return str(reason)[:110]
+
+
 def _duel_run(r: dict) -> dict:
     m = r.get("metrics") or {}
     out = {"i": r["id"], "t": r["ts"], "k": r["kind"], "p": int(r["promoted"])}
@@ -249,23 +293,32 @@ def _duel_run(r: dict) -> dict:
             out["cpl"] = round(h["total_pnl"], 2)
         if isinstance(c.get("max_drawdown"), (int, float)):
             out["dd"] = round(c["max_drawdown"], 2)
+        if isinstance(h.get("max_drawdown"), (int, float)):
+            out["cdd"] = round(h["max_drawdown"], 2)
         if isinstance(c.get("mean_reward"), (int, float)):
             out["r"] = round(c["mean_reward"], 3)
         if c.get("episodes"):
             out["ep"] = c["episodes"]
+        elif h.get("episodes"):
+            out["ep"] = h["episodes"]
         if c.get("action_mix"):
             out["mix"] = c["action_mix"]
+        if h.get("action_mix"):
+            out["cmix"] = h["action_mix"]
     else:  # stacker
         if isinstance(m.get("challenger_acc"), (int, float)):
             out["s"] = round(m["challenger_acc"], 4)
         if isinstance(m.get("champion_acc"), (int, float)):
             out["cs"] = round(m["champion_acc"], 4)
+    why = _verdict_reason(r, m)
+    if why:
+        out["why"] = why
     return out
 
 
 def build_compact_training() -> dict:
     s = snapshot.build_training_snapshot()
-    runs = [_duel_run(r) for r in s["runs"][:6]]
+    runs = [_duel_run(r) for r in s["runs"][:8]]
     ch = s.get("champion") or {}
     reward_series = [
         {"t": r["ts"], "r": round((r["metrics"]["challenger"]["mean_reward"]), 3)}

@@ -42,10 +42,22 @@ class PaperBroker:
         self.db_path = Path(db_path)
         self.max_position_pct = max_position_pct
         self.stop_loss_pct = stop_loss_pct
+        self.starting_balance = float(starting_balance)
         self.cash = float(starting_balance)
         self.btc = 0.0
         self.entry_price: float | None = None
         self._init_db()
+
+    def reset_state(self) -> None:
+        """Back to a flat, full-cash account (ledger rows are kept).
+
+        Used by the training env so every episode starts from the same
+        clean state instead of inheriting the previous episode's position
+        and equity (audit 2026-10-20: episodes shared one broker and
+        'teleported' positions across random dates)."""
+        self.cash = self.starting_balance
+        self.btc = 0.0
+        self.entry_price = None
 
     # -- ledger ---------------------------------------------------------
     def _init_db(self) -> None:
@@ -126,10 +138,23 @@ class PaperBroker:
         self._record(fill)
         return fill
 
-    def check_stop(self, price: float, ts: str | None = None) -> Fill | None:
-        """Enforce the stop-loss. Call on every new price."""
-        if self.btc > 0 and self.entry_price and price <= self.entry_price * (1 - self.stop_loss_pct):
-            return self.sell(price, pct=1.0, reason="stop_loss", ts=ts)
+    def check_stop(self, price: float, ts: str | None = None,
+                   low: float | None = None) -> Fill | None:
+        """Enforce the stop-loss. Call on every new candle.
+
+        Trigger (audit 2026-10-20): evaluated against the candle LOW when
+        one is supplied -- a wick through the stop is a stop-out, even if
+        the candle later recovers to close above it. Fill price: the stop
+        level itself when the close held at/above it (the intra-candle
+        touch), otherwise the close (the market gapped through and never
+        came back). Without a low, legacy close-only behavior."""
+        if self.btc <= 0 or not self.entry_price:
+            return None
+        level = self.entry_price * (1 - self.stop_loss_pct)
+        trigger = low if low is not None else price
+        if trigger <= level:
+            fill_price = level if price >= level else price
+            return self.sell(fill_price, pct=1.0, reason="stop_loss", ts=ts)
         return None
 
     def unrealized_pct(self, price: float) -> float:

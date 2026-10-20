@@ -96,8 +96,18 @@ class TradingEnv(gym.Env):
     # -- gym API ------------------------------------------------------
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        max_start = len(self.df) - self.episode_len - 1
-        self._episode_start = int(self.np_random.integers(0, max_start))
+        # Every episode starts from the same clean account (audit
+        # 2026-10-20: episodes used to share one broker, so positions and
+        # equity carried across "days" and a carried position was revalued
+        # at a random other date's price on each reset).
+        self.broker.reset_state()
+        max_start = len(self.df) - self.episode_len
+        if options and "start" in options:
+            # Pinned start (evaluation): chronological, non-overlapping
+            # episodes instead of random overlapping windows.
+            self._episode_start = min(int(options["start"]), max_start)
+        else:
+            self._episode_start = int(self.np_random.integers(0, max_start))
         self._cursor = self._episode_start
         price = float(self.df.iloc[self._cursor]["close"])
         # Equity at the previous step's price: the dense reward measures the
@@ -111,28 +121,37 @@ class TradingEnv(gym.Env):
         i = self._cursor
         row = self.df.iloc[i]
         price = float(row["close"])
+        low = float(row["low"]) if "low" in row else price
         ts = str(row.name)
 
-        # Dense signal: per-step log return on equity, in percentage points,
-        # clipped to [-1, 1]. Log form keeps the signal stationary across
-        # compounding (a +1% then -1% move nets to ~zero, unlike raw percent
-        # changes). Rewards good positioning immediately — price moves, fees
-        # and the stop-loss all flow through equity.
-        eq_now = self.broker.equity(price)
-        prev = max(self._prev_eq, 1e-9)
-        step_r = 100.0 * float(np.log(eq_now / prev))
-        reward = float(np.clip(step_r, -1.0, 1.0))
-
         held_before = self.broker.btc > 1e-10
-        # stop-loss enforced by the broker on every price, like live
-        self.broker.check_stop(price, ts=ts)
+        # stop-loss enforced by the broker on every candle (wick-throughs
+        # count), like live
+        stop_fill = self.broker.check_stop(price, ts=ts, low=low)
         if action == 1:
             self.broker.buy(price, reason="ppo", ts=ts)
         elif action == 2:
             self.broker.sell(price, reason="ppo", ts=ts)
-        if held_before and self.broker.btc <= 1e-10:
+        # A stop-out is the broker's exit, not the agent completing a
+        # trade: it does not satisfy the activity quota (audit 2026-10-20).
+        if held_before and self.broker.btc <= 1e-10 and stop_fill is None:
             self._round_trips += 1  # completed a buy -> sell round trip
-        self._prev_eq = self.broker.equity(price)
+
+        # Dense signal: per-step log return on equity, in percentage points,
+        # clipped to [-1, 1] -- computed AFTER the action executes (audit
+        # 2026-10-20: the old code measured equity pre-trade and then reset
+        # the baseline to the post-trade equity at the same price, so the
+        # 0.15% fee landed between baselines and cancelled out of the
+        # learning signal entirely; churn looked free). Post-trade equity
+        # at this candle's price captures both the market move on the held
+        # position and the fee the trade just paid. Log form keeps the
+        # signal stationary across compounding (a +1% then -1% move nets
+        # to ~zero, unlike raw percent changes).
+        eq_after = self.broker.equity(price)
+        prev = max(self._prev_eq, 1e-9)
+        step_r = 100.0 * float(np.log(eq_after / prev))
+        reward = float(np.clip(step_r, -1.0, 1.0))
+        self._prev_eq = eq_after
 
         self._cursor += 1
         done = (self._cursor - self._episode_start) >= self.episode_len

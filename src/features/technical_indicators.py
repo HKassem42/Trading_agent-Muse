@@ -15,8 +15,9 @@ enforces the contract mechanically:
   yfinance 1h), derived by scripts/derive_feature_scales.py -- so ~99.5%
   of history lands strictly inside the rails and only genuine extremes
   saturate. Re-derive if the timeframe or universe changes.
-  Note: dist_vwap's scale is large because VWAP here is cumulative over
-  the fetched window; on multi-year windows it drifts far from price.
+  Note: dist_vwap uses a rolling 24h VWAP (changed 2026-10-20; it was a
+  cumulative VWAP anchored to the fetch start, which made the feature
+  differ between the 60d live fetch and the 730d training fetch).
 
 History: v1 fed the PPO raw price-scale values (vwap ~80,000, macd in the
 hundreds) next to tiny returns (~0.001) -- a scale ratio near 10^8 that an
@@ -55,7 +56,7 @@ FEATURE_SCALES = {
     "lower_wick": 0.010104,
     "range_pct": 0.027746,
     "macd_hist_rel": 0.006395,
-    "dist_vwap": 0.591223,
+    "dist_vwap": 0.041869,  # re-derived 2026-10-20 for rolling-24h VWAP (was 0.591223, cumulative)
     "dist_sma50": 0.069489,
     "atr_rel": 0.015577,
     "price_change": 0.021449,
@@ -106,7 +107,15 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["range_pct"] = _scale((high - low) / open_, "range_pct")
 
     # -- normalized indicators --
-    vwap = (close * volume).cumsum() / volume.cumsum().replace(0, np.nan)
+    # Rolling 24h VWAP (audit 2026-10-20): the old cumulative VWAP was
+    # anchored to wherever the fetch happened to start, so the SAME candle
+    # produced a different dist_vwap in live (60d fetch) than in training
+    # (730d fetch) -- measured skew ~0.25 in raw units on identical
+    # candles, i.e. the live bot read one input permanently shifted from
+    # its training distribution. A rolling window is fetch-invariant:
+    # any fetch with >=24h of warmup yields identical values.
+    pv = close * volume
+    vwap = pv.rolling(24).sum() / volume.rolling(24).sum().replace(0, np.nan)
     macd = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
     signal = macd.ewm(span=9, adjust=False).mean()
     sma_50 = close.rolling(50).mean()

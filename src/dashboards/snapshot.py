@@ -72,7 +72,9 @@ def trade_stats(con: sqlite3.Connection) -> dict:
         "total_trades": n,
         "net_pnl": round(sum(pnls), 2),
         "win_pct": round(100 * len(wins) / n, 2) if n else 0.0,
-        "profit_factor": round(gross_profit / gross_loss, 2) if gross_loss else 0.0,
+        # No losses yet: profit factor is undefined (infinite), not 0.0 --
+        # 0.0 reads as "worst possible" on the dashboard (audit 2026-10-20).
+        "profit_factor": round(gross_profit / gross_loss, 2) if gross_loss else None,
         "avg_win": round(sum(wins) / len(wins), 2) if wins else 0.0,
         "avg_loss": round(sum(losses) / len(losses), 2) if losses else 0.0,
         "expectancy": round(sum(pnls) / n, 2) if n else 0.0,
@@ -82,19 +84,32 @@ def trade_stats(con: sqlite3.Connection) -> dict:
 
 
 def daily_calendar(con: sqlite3.Connection) -> list[dict]:
-    """Per-day closed-trade P&L for the calendar heatmap: [{date, pnl, trades, win_pct}]."""
+    """Per-day closed-trade P&L for the calendar heatmap: [{date, pnl, trades, win_pct}].
+
+    Every date between the first and last closed-trade day is present:
+    days with no closed trade get a flat zero cell (audit 2026-10-20: Oct 18
+    was silently absent because it had buys but no close, and a missing
+    day on the calendar reads as broken data)."""
     closed = closed_trades(con)
     by_day: dict[str, list[float]] = {}
     for t in closed:
         day = datetime.fromisoformat(t["close_ts"]).astimezone(ET).strftime("%Y-%m-%d")
         by_day.setdefault(day, []).append(t["pnl"])
-    return [
-        {"date": day,
-         "pnl": round(sum(pnls), 2),
-         "trades": len(pnls),
-         "win_pct": round(100 * sum(1 for p in pnls if p > 0) / len(pnls), 1)}
-        for day, pnls in sorted(by_day.items())
-    ]
+    if not by_day:
+        return []
+    out = []
+    day = datetime.strptime(min(by_day), "%Y-%m-%d").date()
+    last = datetime.strptime(max(by_day), "%Y-%m-%d").date()
+    while day <= last:
+        key = day.strftime("%Y-%m-%d")
+        pnls = by_day.get(key, [])
+        out.append(
+            {"date": key,
+             "pnl": round(sum(pnls), 2),
+             "trades": len(pnls),
+             "win_pct": round(100 * sum(1 for p in pnls if p > 0) / len(pnls), 1) if pnls else 0.0})
+        day += timedelta(days=1)
+    return out
 
 
 def drawdown_curve(equity_rows: list[dict]) -> list[dict]:
@@ -123,12 +138,32 @@ def activity_stats(con: sqlite3.Connection) -> dict:
     if last_trade:
         last_day = datetime.fromisoformat(last_trade).astimezone(ET).date()
         days_since = (now_et.date() - last_day).days
+    # Candles evaluated: every processed candle leaves one equity row, so
+    # the bot's "I looked and chose to hold" hours are countable -- a flat
+    # stretch should read as decisions made, not silence (viz research).
+    eq_rows = con.execute("SELECT ts FROM equity").fetchall()
+    eq_days = [datetime.fromisoformat(r["ts"]).astimezone(ET).strftime("%Y-%m-%d")
+               for r in eq_rows]
+    # Current streak: signed run of same-sign closed trades, newest first
+    # (+2 = last two closed trades won, -3 = last three lost, 0 = none yet).
+    streak = 0
+    pnls = [t["pnl"] for t in closed_trades(con)]
+    if pnls:
+        sign = 1 if pnls[-1] > 0 else -1
+        for p in reversed(pnls):
+            if (p > 0) == (sign > 0):
+                streak += sign
+            else:
+                break
     return {
         "trades_today": sum(1 for d in days if d == today),
         "trades_7d": sum(1 for d in days if d >= week_ago),
         "trades_total": len(rows),
         "last_trade_ts": last_trade,
         "days_since_last_trade": days_since,
+        "candles_total": len(eq_rows),
+        "candles_today": sum(1 for d in eq_days if d == today),
+        "streak": streak,
     }
 
 
@@ -170,6 +205,7 @@ def _fresh_account_snapshot(snap: dict) -> dict:
         "activity": {
             "trades_today": 0, "trades_7d": 0, "trades_total": 0,
             "last_trade_ts": None, "days_since_last_trade": None,
+            "candles_total": 0, "candles_today": 0, "streak": 0,
         },
         "equity_curve": [],
         "drawdown_curve": [],
@@ -198,12 +234,23 @@ def build_trading_snapshot() -> dict:
     equity = latest["equity"]
     cash, btc = latest["cash"], latest["btc"]
 
-    # today's PnL: vs first equity snapshot of the current ET day
-    day_start = datetime.now(ET).replace(hour=0, minute=0, second=0, microsecond=0)
-    day_rows = con.execute(
-        "SELECT equity FROM equity WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
-        (day_start.isoformat(),)).fetchone()
-    day_pnl = equity - (day_rows["equity"] if day_rows else 100000.0)
+    # today's PnL: vs the account's equity at the start of the current ET
+    # day (the last snapshot at or before ET midnight). Audit 2026-10-20:
+    # the old code string-compared naive-UTC equity timestamps against an
+    # ET-offset ISO string ("2026-10-20T00:00:00-04:00"), which matched the
+    # 01:00 UTC row -- 21:00 ET *yesterday* -- and overstated the day
+    # (+$554.59 shown vs +$198.73 true). The ET day start is converted to
+    # a UTC string in the same format the ledger stores before comparing.
+    day_start_et = datetime.now(ET).replace(hour=0, minute=0, second=0, microsecond=0)
+    day_start_utc = day_start_et.astimezone(timezone.utc).isoformat()
+    base = con.execute(
+        "SELECT equity FROM equity WHERE ts <= ? ORDER BY ts DESC LIMIT 1",
+        (day_start_utc,)).fetchone()
+    if base is None:
+        base = con.execute(
+            "SELECT equity FROM equity WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
+            (day_start_utc,)).fetchone()
+    day_pnl = equity - (base["equity"] if base else 100000.0)
 
     trades = con.execute(
         "SELECT ts, side, price, qty, fee, reason FROM trades ORDER BY id DESC LIMIT 20"

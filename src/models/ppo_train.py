@@ -28,13 +28,25 @@ from trading.broker import PaperBroker
 
 
 def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: Path,
-          db_path: Path, ent_coef: float = 0.01) -> Path:
+          db_path: Path, ent_coef: float = 0.01, sup=None, p_up=None) -> Path:
+    """Train (or warm-start) the PPO challenger.
+
+    `sup` / `p_up`: optional pre-built training frame + stacker votes. The
+    nightly job passes them so it controls exactly which candles the
+    challenger may learn from (audit 2026-10-20: the old path fetched the
+    full series here, which silently included the duel's holdout candles
+    -- the challenger was graded on data it had just trained on) and so
+    the votes can be cross-fitted instead of in-sample. When omitted
+    (manual CLI runs), the full series is fetched as before.
+    """
     from stable_baselines3 import PPO
 
-    df = fetch_klines("BTC-USD", interval="1h", period="730d")
-    sup = make_supervised(df)
-    stacker = load_stacker(stacker_path)
-    p_up = stacker.predict_proba(sup[FEATURE_COLUMNS])[:, 1]
+    if sup is None:
+        df = fetch_klines("BTC-USD", interval="1h", period="730d")
+        sup = make_supervised(df)
+    if p_up is None:
+        stacker = load_stacker(stacker_path)
+        p_up = stacker.predict_proba(sup[FEATURE_COLUMNS])[:, 1]
 
     # Unique scratch ledger per invocation: two trainings sharing one SQLite
     # file collide with "database is locked" (bit us 2026-10-20 when a manual
@@ -48,7 +60,13 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     if warm_start and champion_path.exists():
         try:
             model = PPO.load(champion_path, env=env)
-            print(f"warm-starting from {champion_path}")
+            # PPO.load restores the champion's saved hyperparameters, so
+            # the caller's exploration setting used to be silently inert
+            # on warm starts (audit 2026-10-20). Apply it explicitly and
+            # log the effective values into the run record.
+            model.ent_coef = ent_coef
+            print(f"warm-starting from {champion_path} "
+                  f"(ent_coef set to {ent_coef}, lr={model.learning_rate})")
         except Exception as e:
             # e.g. observation-dim mismatch after a feature-recipe change:
             # fall back to a fresh brain rather than crashing the nightly run
