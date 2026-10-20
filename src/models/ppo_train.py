@@ -36,7 +36,12 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     stacker = load_stacker(stacker_path)
     p_up = stacker.predict_proba(sup[FEATURE_COLUMNS])[:, 1]
 
-    broker = PaperBroker(db_path, starting_balance=10_000,
+    # Unique scratch ledger per invocation: two trainings sharing one SQLite
+    # file collide with "database is locked" (bit us 2026-10-20 when a manual
+    # run and the nightly run overlapped). PID-suffix + cleanup prevents it.
+    import os
+    work_db = db_path.with_name(f"{db_path.stem}_{os.getpid()}{db_path.suffix}")
+    broker = PaperBroker(work_db, starting_balance=10_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     env = TradingEnv(sup, p_up, broker)
 
@@ -60,6 +65,10 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     out = champion_path.parent / "ppo_challenger.zip"
     model.save(out)
     print(f"saved challenger -> {out}")
+    try:
+        work_db.unlink(missing_ok=True)
+    except OSError:
+        pass
     return out
 
 
@@ -69,7 +78,8 @@ if __name__ == "__main__":
     ap.add_argument("--warm-start", action="store_true")
     args = ap.parse_args()
     root = Path(__file__).resolve().parents[2]
+    # NEVER train against the live paper.db ledger -- scratch file only.
     train(args.timesteps, args.warm_start,
           root / "models" / "ppo_champion.zip",
           root / "models" / "stacker_champion.pkl",
-          root / "data" / "paper.db")
+          root / "data" / "train_tmp.db")

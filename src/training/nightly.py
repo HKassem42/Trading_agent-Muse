@@ -100,7 +100,18 @@ def main() -> None:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d")
     print(f"=== nightly retrain {run_id} ===", flush=True)
 
-    df = fetch_klines("BTC-USD", interval="15m", period="60d")
+    # yfinance hiccups at midnight shouldn't kill the whole run: retry.
+    df = None
+    for attempt in range(3):
+        try:
+            df = fetch_klines("BTC-USD", interval="15m", period="60d")
+            break
+        except Exception as e:
+            print(f"fetch attempt {attempt + 1} failed: {e}", flush=True)
+            if attempt == 2:
+                raise
+            import time
+            time.sleep(30 * (attempt + 1))
     sup = make_supervised(df)
     X, y = feature_matrix(sup)
 
@@ -134,9 +145,19 @@ def main() -> None:
         ent_coef=0.05,  # keep exploring; sparse +/-1 rewards need it
     )
     if (MODELS / "ppo_champion.zip").exists():
-        champ = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
+        try:
+            champ = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
+        except Exception as e:
+            # e.g. champion trained on an old feature recipe can't even run
+            # in the current env. An unrunnable champion scores worst, so a
+            # runnable challenger takes the crown (manual recovery on
+            # 2026-10-20 did exactly this; now it's the standard path).
+            print(f"champion not runnable ({type(e).__name__}): {e}", flush=True)
+            champ = {"mean_reward": -999.0, "total_pnl": 0.0,
+                     "max_drawdown": 0.0, "score": -1e9, "runnable": False}
         chall = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
-        ppo_promoted = chall["score"] >= champ["score"]
+        # Kass's rule: promote ONLY if strictly better.
+        ppo_promoted = chall["score"] > champ["score"]
         print(f"ppo: challenger score={chall['score']:.2f} "
               f"(pnl={chall['total_pnl']:.2f} dd={chall['max_drawdown']:.2f}) "
               f"champion score={champ['score']:.2f} "

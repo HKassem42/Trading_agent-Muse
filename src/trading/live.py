@@ -105,13 +105,9 @@ def run_once() -> dict:
         ts_s = ts.isoformat()
         broker.check_stop(price, ts=ts_s)
         if int(action) == 1:
-            fill = broker.buy(price, reason="ppo_live", ts=ts_s)
-            if fill and broker.entry_price:
-                state["last_entry_price"] = broker.entry_price
+            broker.buy(price, reason="ppo_live", ts=ts_s)
         elif int(action) == 2:
             broker.sell(price, reason="ppo_live", ts=ts_s)
-            if broker.btc == 0:
-                state["last_entry_price"] = None
         broker.snapshot(ts_s, price)
         state["last_ts"] = ts_s
         state["last_stance"] = ["hold", "buy", "sell"][int(action)]
@@ -119,9 +115,13 @@ def run_once() -> dict:
         processed += 1
 
     # Persist the paper account so the next run continues the same positions.
+    # The dashboard reads last_entry_price; keep it in sync with the broker's
+    # true entry (single source of truth -- also correct after a stop-loss,
+    # which the old in-loop writes missed).
     state["cash"] = broker.cash
     state["btc"] = broker.btc
     state["entry_price"] = broker.entry_price
+    state["last_entry_price"] = broker.entry_price
     save_state(state)
     return {"processed": processed, "equity": broker.equity(last_price),
             "cash": broker.cash, "btc": broker.btc}
