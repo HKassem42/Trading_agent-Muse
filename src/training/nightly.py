@@ -67,6 +67,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
 
     model = PPO.load(model_path)
     rewards, pnls = [], []
+    action_counts = {"hold": 0, "buy": 0, "sell": 0}
     tmp = Path("/tmp") / "tam_eval.db"
     if tmp.exists():
         tmp.unlink()
@@ -79,6 +80,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
         done, ep_r = False, 0.0
         while not done:
             action, _ = model.predict(obs, deterministic=True)
+            action_counts[["hold", "buy", "sell"][int(action)]] += 1
             obs, r, done, _, _ = env.step(int(action))
             ep_r += r
         rewards.append(ep_r)
@@ -88,11 +90,15 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
     peak = np.maximum.accumulate(curve)
     max_dd = float(np.max(peak - curve)) if len(curve) else 0.0
     total = float(np.sum(pnls))
+    total_actions = sum(action_counts.values()) or 1
     return {
         "mean_reward": float(np.mean(rewards)),
         "total_pnl": total,
         "max_drawdown": max_dd,
         "score": total - 0.5 * max_dd,
+        "episodes": episodes,
+        "action_mix": {k: round(v / total_actions, 3)
+                       for k, v in action_counts.items()},
     }
 
 
