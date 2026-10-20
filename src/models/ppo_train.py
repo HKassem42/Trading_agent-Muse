@@ -41,9 +41,17 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     env = TradingEnv(sup, p_up, broker)
 
     if warm_start and champion_path.exists():
-        model = PPO.load(champion_path, env=env)
-        print(f"warm-starting from {champion_path}")
+        try:
+            model = PPO.load(champion_path, env=env)
+            print(f"warm-starting from {champion_path}")
+        except Exception as e:
+            # e.g. observation-dim mismatch after a feature-recipe change:
+            # fall back to a fresh brain rather than crashing the nightly run
+            print(f"warm-start failed ({type(e).__name__}), training fresh: {e}")
+            model = None
     else:
+        model = None
+    if model is None:
         model = PPO("MlpPolicy", env, verbose=0, seed=42,
                     learning_rate=3e-4, n_steps=512, batch_size=64,
                     ent_coef=ent_coef)

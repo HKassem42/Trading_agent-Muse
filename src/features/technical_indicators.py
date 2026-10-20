@@ -1,11 +1,16 @@
-"""Feature store: technical indicators + price features.
+"""Feature store: candle shape + normalized technical indicators.
 
-This is the Project-Bot feature recipe (Bot1.ipynb), cleaned up and made
-reusable: vwap, macd/signal_line, rsi, atr, sma_50, price_change, volatility,
-volume_change. The stacker and the PPO state both build on these.
+v2 (2026-10-19, full-code audit at Kass's request):
+- The v1 recipe fed the PPO raw price-scale values (vwap ~80,000, sma_50
+  ~81,000, macd in the hundreds) next to tiny returns (~0.001) -- a scale
+  ratio near 10^8 that an MLP cannot learn from. Every feature here is now
+  small and roughly stationary: ratios, percents and 0-1 ranges.
+- Candle/wick shape added at Kass's request: body, upper wick, lower wick,
+  and full range, all as fractions of the open.
+- volume_change is clipped: yfinance zero-volume candles used to produce
+  absurd spikes (observed max +2,198,700%).
 
-`add_features` is pure: input OHLCV in, features out, no lookahead beyond the
-row itself (all indicators are causal).
+All features are causal (no lookahead beyond the row itself).
 """
 
 from __future__ import annotations
@@ -14,15 +19,18 @@ import numpy as np
 import pandas as pd
 
 FEATURE_COLUMNS = [
-    "vwap",
-    "macd",
-    "signal_line",
-    "rsi_14",
-    "atr_14",
-    "sma_50",
-    "price_change",
-    "volatility_21",
-    "volume_change",
+    "body_pct",       # (close-open)/open -- candle body, signed
+    "upper_wick",     # (high-max(open,close))/open
+    "lower_wick",     # (min(open,close)-low)/open
+    "range_pct",      # (high-low)/open
+    "rsi_14n",        # RSI / 100 -> 0..1
+    "macd_hist_rel",  # (macd - signal) / close
+    "dist_vwap",      # (close - vwap) / close
+    "dist_sma50",     # (close - sma_50) / close
+    "atr_rel",        # atr / close
+    "price_change",   # 1-candle close return
+    "volatility_21",  # rolling std/mean of close
+    "volume_change",  # volume pct change, clipped to [-1, 3]
 ]
 
 
@@ -46,23 +54,34 @@ def _atr(df: pd.DataFrame, window: int = 14) -> pd.Series:
 
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add indicator columns to an OHLCV frame. Returns a new frame."""
+    """Add feature columns to an OHLCV frame. Returns a new frame."""
     df = df.copy()
-    close, volume = df["close"], df["volume"]
+    open_, high, low, close, volume = (
+        df["open"], df["high"], df["low"], df["close"], df["volume"])
 
-    df["vwap"] = (close * volume).cumsum() / volume.cumsum().replace(0, np.nan)
-    df["macd"] = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
-    df["signal_line"] = df["macd"].ewm(span=9, adjust=False).mean()
-    df["rsi_14"] = _rsi(close, 14)
-    df["atr_14"] = _atr(df, 14)
-    df["sma_50"] = close.rolling(50).mean()
+    # -- candle shape (fractions of the open) --
+    top = pd.concat([open_, close], axis=1).max(axis=1)
+    bot = pd.concat([open_, close], axis=1).min(axis=1)
+    df["body_pct"] = (close - open_) / open_
+    df["upper_wick"] = (high - top) / open_
+    df["lower_wick"] = (bot - low) / open_
+    df["range_pct"] = (high - low) / open_
+
+    # -- normalized indicators --
+    vwap = (close * volume).cumsum() / volume.cumsum().replace(0, np.nan)
+    macd = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
+    signal = macd.ewm(span=9, adjust=False).mean()
+    sma_50 = close.rolling(50).mean()
+    df["rsi_14n"] = _rsi(close, 14) / 100.0
+    df["macd_hist_rel"] = (macd - signal) / close
+    df["dist_vwap"] = (close - vwap) / close
+    df["dist_sma50"] = (close - sma_50) / close
+    df["atr_rel"] = _atr(df, 14) / close
     df["price_change"] = close.pct_change()
     roll = close.rolling(21)
     df["volatility_21"] = roll.std() / roll.mean()
-    # yfinance leaves volume at 0 for many crypto intervals; treat "no
-    # measurable volume" as 0 change instead of dropping the row.
     vol = volume.replace(0, np.nan)
-    df["volume_change"] = vol.pct_change().fillna(0.0)
+    df["volume_change"] = vol.pct_change().fillna(0.0).clip(-1.0, 3.0)
 
     df = df.replace([np.inf, -np.inf], np.nan)
     return df
@@ -71,7 +90,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 def make_supervised(df: pd.DataFrame) -> pd.DataFrame:
     """Add the stacker's target: 1 if the next candle closes higher.
 
-    Same labeling as Project-Bot. Drops rows with any NaN (warmup + last row).
+    Drops rows with any NaN (warmup + last row).
     """
     df = add_features(df)
     df["target"] = (df["close"].shift(-1) > df["close"]).astype(int)

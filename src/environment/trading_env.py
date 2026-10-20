@@ -45,6 +45,7 @@ class TradingEnv(gym.Env):
         broker: PaperBroker,
         episode_days: int = 1,
         steps_per_day: int = 96,
+        min_round_trips: int = 5,
     ) -> None:
         super().__init__()
         self.df = df.reset_index(drop=True)
@@ -52,6 +53,11 @@ class TradingEnv(gym.Env):
         assert len(self.stacker_p_up) == len(self.df), "stacker votes must align with df"
         self.broker = broker
         self.episode_len = episode_days * steps_per_day
+        # Kass 2026-10-19: the agent must actually trade to learn -- at least
+        # `min_round_trips` completed buy->sell round trips per episode,
+        # else a shortfall penalty at episode end (-0.2 per missing trip).
+        self.min_round_trips = min_round_trips
+        self._round_trips = 0
 
         # state: 10 market features + cash_frac + btc_frac + unrealized_pct
         self.observation_space = spaces.Box(
@@ -86,6 +92,7 @@ class TradingEnv(gym.Env):
         # market move over each interval on the position we actually held.
         self._prev_eq = self.broker.equity(price)
         self._day_start_equity = self._prev_eq
+        self._round_trips = 0
         return self._state(self._cursor), {}
 
     def step(self, action: int):
@@ -104,12 +111,15 @@ class TradingEnv(gym.Env):
         step_r = 100.0 * float(np.log(eq_now / prev))
         reward = float(np.clip(step_r, -1.0, 1.0))
 
+        held_before = self.broker.btc > 1e-10
         # stop-loss enforced by the broker on every price, like live
         self.broker.check_stop(price, ts=ts)
         if action == 1:
             self.broker.buy(price, reason="ppo", ts=ts)
         elif action == 2:
             self.broker.sell(price, reason="ppo", ts=ts)
+        if held_before and self.broker.btc <= 1e-10:
+            self._round_trips += 1  # completed a buy -> sell round trip
         self._prev_eq = self.broker.equity(price)
 
         self._cursor += 1
@@ -120,5 +130,8 @@ class TradingEnv(gym.Env):
             # The daily verdict (original spec): +1 profitable day, else -1.
             day_pnl = self._prev_eq - self._day_start_equity
             reward += 1.0 if day_pnl > 0 else -1.0
+            # Activity rule: trading is mandatory while learning. A flat day
+            # (no round trips) can no longer tie a well-traded day.
+            reward -= 0.2 * max(0, self.min_round_trips - self._round_trips)
         obs = self._state(min(self._cursor, len(self.df) - 1))
         return obs, reward, done, False, {}
