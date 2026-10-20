@@ -51,6 +51,17 @@ def run_once() -> dict:
     from stable_baselines3 import PPO
     ppo = PPO.load(MODELS / "ppo_champion.zip")
 
+    # Feature-recipe upgrades change the observation dimension. If the
+    # champion was trained on the old recipe, skip trading (rather than
+    # crash) until a new champion is promoted by the training loop.
+    expected_dim = len(FEATURE_COLUMNS) + 1 + 3  # features + p_up + portfolio
+    model_dim = int(ppo.observation_space.shape[0])
+    if model_dim != expected_dim:
+        return {"processed": 0,
+                "skipped": f"champion expects {model_dim}-dim obs, "
+                           f"recipe now builds {expected_dim}-dim; "
+                           f"awaiting new champion promotion"}
+
     broker = PaperBroker(DATA / "paper.db", starting_balance=10_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     state = load_state()
