@@ -65,6 +65,14 @@ def run_once() -> dict:
     broker = PaperBroker(DATA / "paper.db", starting_balance=10_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     state = load_state()
+    # Restore the persisted paper account: without this, every 15-min run
+    # would start back at $10k/0 BTC and positions would never carry.
+    # (Audit 2026-10-20: this restore was missing -- live positions were
+    # silently dropped between runs until this fix.)
+    if state.get("cash") is not None:
+        broker.cash = float(state["cash"])
+        broker.btc = float(state.get("btc", 0.0))
+        broker.entry_price = state.get("entry_price")
 
     df = fetch_klines("BTC-USD", interval="15m", period="5d")
     # drop the still-forming current candle
@@ -110,6 +118,10 @@ def run_once() -> dict:
         state["last_p_up"] = round(p_up, 4)
         processed += 1
 
+    # Persist the paper account so the next run continues the same positions.
+    state["cash"] = broker.cash
+    state["btc"] = broker.btc
+    state["entry_price"] = broker.entry_price
     save_state(state)
     return {"processed": processed, "equity": broker.equity(last_price),
             "cash": broker.cash, "btc": broker.btc}
