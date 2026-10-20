@@ -97,6 +97,41 @@ def daily_calendar(con: sqlite3.Connection) -> list[dict]:
     ]
 
 
+def drawdown_curve(equity_rows: list[dict]) -> list[dict]:
+    """Underwater series: drawdown % below the running equity peak at each
+    point. Pairs with the equity curve so risk is visible next to return."""
+    out, peak = [], 0.0
+    for r in equity_rows:
+        peak = max(peak, r["equity"])
+        dd = 100.0 * (r["equity"] / peak - 1.0) if peak > 0 else 0.0
+        out.append({"t": r["t"], "dd_pct": round(dd, 3)})
+    return out
+
+
+def activity_stats(con: sqlite3.Connection) -> dict:
+    """Process metrics: how active the bot has been (a flat stretch should
+    read as information, not as a broken dashboard)."""
+    now_et = datetime.now(ET)
+    today = now_et.strftime("%Y-%m-%d")
+    week_ago = (now_et - timedelta(days=7)).strftime("%Y-%m-%d")
+    rows = con.execute(
+        "SELECT ts, side FROM trades ORDER BY ts ASC").fetchall()
+    days = [datetime.fromisoformat(r["ts"]).astimezone(ET).strftime("%Y-%m-%d")
+            for r in rows]
+    last_trade = rows[-1]["ts"] if rows else None
+    days_since = None
+    if last_trade:
+        last_day = datetime.fromisoformat(last_trade).astimezone(ET).date()
+        days_since = (now_et.date() - last_day).days
+    return {
+        "trades_today": sum(1 for d in days if d == today),
+        "trades_7d": sum(1 for d in days if d >= week_ago),
+        "trades_total": len(rows),
+        "last_trade_ts": last_trade,
+        "days_since_last_trade": days_since,
+    }
+
+
 def build_trading_snapshot() -> dict:
     snap: dict = {"as_of": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     con = _paper_db()
@@ -131,6 +166,9 @@ def build_trading_snapshot() -> dict:
     entry = live.get("last_entry_price")
     stats = trade_stats(con)
     calendar = daily_calendar(con)
+    curve = [
+        {"t": r["ts"], "equity": round(r["equity"], 2)} for r in reversed(eq)
+    ]
     snap.update({
         "status": "live",
         "btc_price": price,
@@ -149,9 +187,9 @@ def build_trading_snapshot() -> dict:
         "last_candle": live.get("last_ts"),
         "trade_stats": stats,
         "daily_calendar": calendar,
-        "equity_curve": [
-            {"t": r["ts"], "equity": round(r["equity"], 2)} for r in reversed(eq)
-        ],
+        "activity": activity_stats(con),
+        "equity_curve": curve,
+        "drawdown_curve": drawdown_curve(curve),
         "recent_trades": [
             {"ts": r["ts"], "side": r["side"], "price": r["price"],
              "qty": round(r["qty"], 6), "reason": r["reason"]} for r in trades
