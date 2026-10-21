@@ -221,17 +221,24 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         {"open": "first", "high": "max", "low": "min",
          "close": "last", "volume": "sum"}).dropna()
     h4_sma20 = h4["close"].rolling(20).mean()
+    # VALUES, not Series: passing Series together with a shifted index
+    # makes pandas re-align by label, silently nullifying the +4h shift
+    # (the values stay on bucket-START stamps and every row ends up
+    # seeing the bucket that starts at its decision time -- up to 4h of
+    # future data; look-ahead bug found 2026-10-21, present since v4).
+    # .to_numpy() pins each value to its bucket-end stamp positionally.
     h4_feats = pd.DataFrame({
-        "h4_rsi_c": ((_rsi(h4["close"], 14) - 50.0) / 50.0).clip(-1.0, 1.0),
-        "h4_dist_sma_raw": (h4["close"] - h4_sma20) / h4["close"],
-        "h4_atr_rel_raw": _atr(h4, 14) / h4["close"],
+        "h4_rsi_c": (((_rsi(h4["close"], 14) - 50.0) / 50.0)
+                     .clip(-1.0, 1.0)).to_numpy(),
+        "h4_dist_sma_raw": ((h4["close"] - h4_sma20) / h4["close"]).to_numpy(),
+        "h4_atr_rel_raw": (_atr(h4, 14) / h4["close"]).to_numpy(),
     }, index=h4.index + pd.Timedelta(hours=4))
     d1 = df.resample("1d", closed="left", label="left").agg(
         {"open": "first", "high": "max", "low": "min",
          "close": "last", "volume": "sum"}).dropna()
     d1_sma20 = d1["close"].rolling(20).mean()
     d1_feats = pd.DataFrame({
-        "d1_dist_sma_raw": (d1["close"] - d1_sma20) / d1["close"],
+        "d1_dist_sma_raw": ((d1["close"] - d1_sma20) / d1["close"]).to_numpy(),
     }, index=d1.index + pd.Timedelta(days=1))
 
     base = pd.DataFrame({"decision_ts": df.index + pd.Timedelta(hours=1)},

@@ -155,7 +155,17 @@ def run_once() -> dict:
     # an outage longer than 5 days silently skipped candles forever, with
     # the position unmanaged across the hole. Now the 60d frame serves
     # both, so catch-up covers any outage up to 60 days.
-    full = fetch_klines("BTC-USD", interval="1h", period="60d").iloc[:-1]
+    raw = fetch_klines("BTC-USD", interval="1h", period="60d")
+    # Features are built on the FULL frame, including the still-forming
+    # last candle: the 4h resample only emits the final completed bucket
+    # once a candle from the next bucket exists, so dropping the forming
+    # candle first leaves the bucket-closing candle (03/07/11/15/19/23 UTC)
+    # with NaN h4 features and the run halts on it every first attempt
+    # (diagnosed 2026-10-21). The forming candle's own row is never
+    # processed -- only `closed` rows below are iterated -- and features
+    # are causal, so its presence cannot change earlier rows' values;
+    # this also matches how training builds features (full frame).
+    full = raw.iloc[:-1]
     if full.empty:
         raise RuntimeError("market fetch returned no closed candles")
     # Staleness alarm: if the newest closed candle is old, the feed is
@@ -171,7 +181,7 @@ def run_once() -> dict:
         print(f"WARNING: last processed candle {state['last_ts']} predates "
               f"the 60d fetch window (starts {full.index[0]}); any candles "
               f"in between are unrecoverable from this feed", flush=True)
-    feat = add_features(full)
+    feat = add_features(raw)
     df = full
     if state["last_ts"]:
         df = df[df.index > pd.Timestamp(state["last_ts"])]
