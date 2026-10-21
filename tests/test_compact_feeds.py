@@ -40,3 +40,46 @@ def test_gate_feed_builds_from_registry_and_stays_compact():
     payload = json.dumps(g, separators=(",", ":"))
     print(f"gate feed bytes={len(payload)}")
     assert len(payload) < 1024, f"gate feed too big: {len(payload)} bytes"
+
+
+def _fake_training_snapshot():
+    """A fabricated registry: run 18 dueled run 17's brain and won all
+    three windows (numbers mirror the dashboard builder's audit fixture,
+    whose hand-written duel.won=1 contradicted its own window scores --
+    the feed must derive won FROM the windows so it can never do that)."""
+    champ_side = {"score": -1789.9, "total_pnl": -3408.62,
+                  "max_drawdown": 2404.34,
+                  "windows": [{"score": -1995.5}, {"score": -3827.3},
+                              {"score": 453.2}]}
+    return {
+        "runs": [
+            {"id": 18, "ts": "2026-10-22T04:05:00+00:00", "kind": "ppo",
+             "promoted": False,
+             "metrics": {
+                 "challenger": {"score": -950.4, "total_pnl": -1200.0,
+                                "max_drawdown": 900.0,
+                                "windows": [{"score": -1200.0},
+                                            {"score": -2600.5},
+                                            {"score": 610.8}]},
+                 "champion": champ_side}},
+            {"id": 17, "ts": "2026-10-21T13:40:45+00:00", "kind": "ppo",
+             "promoted": True,
+             "metrics": {"challenger": champ_side,
+                         "champion": {"score": -1e9}}},
+        ],
+        "champion": {"accuracy": 0.4596, "precision": 0.4656, "folds": 5},
+    }
+
+
+def test_gate_duel_won_is_derived_from_its_own_windows(monkeypatch):
+    monkeypatch.setattr(compact.snapshot, "build_training_snapshot",
+                        _fake_training_snapshot)
+    g = compact.build_gate()
+    assert g["champ"]["i"] == 17 and g["chall"]["i"] == 18
+    expect_won = sum(1 for a, b in zip(g["chall"]["win"], g["duel"]["cwin"])
+                     if a > b)
+    assert expect_won == 3  # fixture sanity: the challenger swept
+    assert g["duel"]["won"] == expect_won
+    assert g["duel"]["delta"] == round(g["chall"]["s"] - g["duel"]["cs"], 1)
+    assert g["duel"]["delta"] == 839.5
+    assert g["duel"]["pass"] == 1  # delta > 0 AND won >= 2
