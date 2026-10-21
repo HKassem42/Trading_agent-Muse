@@ -6,7 +6,8 @@ invocation:
 2. Fetches the latest closed 1h candles; processes any not yet seen
    (tracked in data/live_state.json, so restarts are safe).
 3. For each new candle: compute features -> stacker P(up) -> PPO action
-   (0 hold / 1 buy / 2 sell) -> broker executes with 25% cap + 5% stop-loss.
+   (0 hold / 1 buy / 2 sell / 3 short) -> broker executes with the 25%
+   tranche cap, 75% exposure cap and the ATR-sized exit rules.
 4. Snapshots equity to the ledger after every candle.
 
 Usage: python -m src.trading.live
@@ -75,18 +76,26 @@ def rebuild_state_from_ledger() -> dict:
         state.update({"cash": cash, "btc": btc,
                       "last_ts": eq[0] if eq else None})
         entry = None
-        if btc > 0:
+        if btc != 0:
+            # Sign-aware (v5): opening/adding fills accumulate the cost
+            # basis in the position's direction (buys for a long, sells
+            # for a short); reducing fills shrink it proportionally; the
+            # basis resets whenever the position returns to flat.
             fills = con.execute(
                 "SELECT side, price, qty FROM trades ORDER BY id ASC").fetchall()
-            held, cost = 0.0, 0.0
+            pos, held, cost = 0.0, 0.0, 0.0
             for side, price, qty in fills:
-                if side == "BUY":
+                d = qty if side == "BUY" else -qty
+                if pos == 0.0 or (d > 0) == (pos > 0):
                     cost += price * qty
                     held += qty
                 else:
+                    if held > 0:
+                        cost *= max(0.0, (held - qty) / held)
                     held -= qty
-                    if held <= 1e-10:
-                        held, cost = 0.0, 0.0
+                pos += d
+                if abs(pos) <= 1e-10:
+                    pos, held, cost = 0.0, 0.0, 0.0
             entry = cost / held if held > 1e-10 else None
         state["entry_price"] = entry
         state["last_entry_price"] = entry
@@ -135,8 +144,10 @@ def run_once() -> dict:
         broker.entry_price = state.get("entry_price")
         # v4 exit-rule state (may be absent for pre-v4 positions / ledger
         # rebuilds; the loop re-derives it from the first candle it sees).
+        # v5: low_water is the short side's trailing arm, same treatment.
         broker.entry_atr_pct = state.get("entry_atr_pct")
         broker.high_water = state.get("high_water")
+        broker.low_water = state.get("low_water")
 
     # ONE fetch (audit 2026-10-20): the old code fetched 5d to decide what
     # to process and 60d for features -- two snapshots of the market that
@@ -204,15 +215,19 @@ def run_once() -> dict:
                    and np.isfinite(float(atr_raw)) else None)
         # Pre-v4 positions (or ledger rebuilds) lack exit-rule state:
         # adopt the current candle's ATR so the position gets a
-        # volatility-sized stop from here on.
-        if broker.btc > 0 and broker.entry_atr_pct is None:
+        # volatility-sized stop from here on (either direction, v5).
+        if broker.btc != 0 and broker.entry_atr_pct is None:
             broker.entry_atr_pct = atr_pct
-        broker.check_stop(price, ts=ts_s, low=float(row["low"]), context=ctx)
+        broker.check_stop(price, ts=ts_s, low=float(row["low"]),
+                          high=float(row["high"]), context=ctx)
         if int(action) == 1:
             broker.buy(price, reason="ppo_live", ts=ts_s,
                        atr_pct=atr_pct, context=ctx)
         elif int(action) == 2:
             broker.sell(price, reason="ppo_live", ts=ts_s, context=ctx)
+        elif int(action) == 3:
+            broker.short_open(price, reason="ppo_live", ts=ts_s,
+                              atr_pct=atr_pct, context=ctx)
         broker.snapshot(ts_s, price)
         # Persist the account after EVERY candle (audit 2026-10-20): the
         # old end-of-run-only save meant a mid-loop crash left durable
@@ -222,7 +237,7 @@ def run_once() -> dict:
         # broker's true entry (single source of truth -- also correct
         # after a stop-loss, which the old in-loop writes missed).
         state["last_ts"] = ts_s
-        state["last_stance"] = ["hold", "buy", "sell"][int(action)]
+        state["last_stance"] = ["hold", "buy", "sell", "short"][int(action)]
         state["last_p_up"] = round(p_up, 4)
         state["cash"] = broker.cash
         state["btc"] = broker.btc
@@ -230,6 +245,7 @@ def run_once() -> dict:
         state["last_entry_price"] = broker.entry_price
         state["entry_atr_pct"] = broker.entry_atr_pct
         state["high_water"] = broker.high_water
+        state["low_water"] = broker.low_water
         save_state(state)
         processed += 1
 

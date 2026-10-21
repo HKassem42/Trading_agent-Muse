@@ -29,10 +29,10 @@ Feeds (python -m src.dashboards.compact <feed>):
                     (added 2026-10-20, features v3 / 1h era).
                     {"ts": iso, "p_up": stacker P(up) 0..1,
                      "f": [[key, label, value], ...]} -- the latest closed
-                    candle's 12 feature values (v3 contract: all in
-                    [-1, 1]) with a plain-English label per feature, so the
-                    dashboard can show what the bot "sees". Keys are the
-                    FEATURE_COLUMNS names (rsi_14n renamed to rsi_c in v3).
+                    candle's feature values (21 since features v5; v3
+                    contract: all in [-1, 1]) with a plain-English label
+                    per feature, so the dashboard can show what the bot
+                    "sees". Keys are the FEATURE_COLUMNS names.
   training       -> push_snapshot on tradingagent-training-dashboard.
                     Short-key run objects (legend below), stacker champion,
                     reward_series (real PPO mean-reward per run, ascending).
@@ -47,8 +47,8 @@ Training run short keys:
   dd=challenger max drawdown, cdd=champion max drawdown,
   r=challenger mean reward,
   ep=evaluation episodes (sample size), mix=challenger action mix,
-  cmix=champion action mix ({"hold": x, "buy": y, "sell": z} when
-  recorded), why=one-line verdict reason (stored on the run since
+  cmix=champion action mix ({"hold": x, "buy": y, "sell": z, plus
+  "short" since v5) when recorded), why=one-line verdict reason (stored on the run since
   2026-10-20; reconstructed from the run's own notes for older runs).
   The feed carries the last 8 runs.
 """
@@ -179,8 +179,8 @@ def build_compact_trading() -> dict:
 
 def build_fillctx() -> dict:
     """Per-fill decision context (v4): for the newest fills that carry a
-    stored feature snapshot, what the bot saw when it acted -- the 16
-    feature values (FEATURE_COLUMNS order) + stacker P(up)."""
+    stored feature snapshot, what the bot saw when it acted -- the
+    feature values (FEATURE_COLUMNS order; 21 since v5) + stacker P(up)."""
     con = snapshot._paper_db()
     if con is None:
         return {"fills": []}
@@ -279,19 +279,28 @@ def _live_stop_level(live: dict) -> float | None:
     """The broker's current effective stop for the live position (v4 exit
     rules: ATR-sized initial stop, trailed once the position is up +3%).
     Mirrors trading.broker.PaperBroker.stop_level on the persisted state
-    fields -- keep the two in sync."""
+    fields -- keep the two in sync. v5: a short's stop sits ABOVE entry
+    (sign read from the persisted signed btc; legacy states without a
+    btc field are longs by construction)."""
     entry = live.get("last_entry_price")
     if not entry:
         return None
     atr = live.get("entry_atr_pct")
     if atr:
         base_pct = min(max(2.0 * atr, 0.025), 0.08)
+        trail_pct = min(max(1.5 * atr, 0.02), 0.06)
     else:
         base_pct = 0.05
+        trail_pct = 0.04
+    if (live.get("btc") or 0) < 0:
+        level = entry * (1 + base_pct)
+        lw = live.get("low_water")
+        if lw and lw <= entry * 0.97:
+            level = min(level, lw * (1 + trail_pct))
+        return round(level, 2)
     level = entry * (1 - base_pct)
     hw = live.get("high_water")
     if hw and hw >= entry * 1.03:
-        trail_pct = min(max(1.5 * atr, 0.02), 0.06) if atr else 0.04
         level = max(level, hw * (1 - trail_pct))
     return round(level, 2)
 
@@ -314,12 +323,17 @@ FEATURE_LABELS = {
     "h4_dist_sma": "Distance from the 4-hour 20-period average price",
     "d1_dist_sma": "Distance from the daily 20-day average price (big trend)",
     "h4_atr_rel": "4-hour ATR: typical 4-hour move size (volatility)",
+    "ha_dir": "Heikin-Ashi direction: smoothed trend, + up / - down (ATR units)",
+    "obv_slope": "On-Balance Volume slope: volume flowing in (+) or out (-) over 24h",
+    "adl_slope": "Accumulation/Distribution slope: buying (+) vs selling (-) pressure over 24h",
+    "netvol_rel": "Net volume: signed share of the last 24h of volume",
+    "ewo": "Elliott Wave Oscillator: fast vs slow momentum, + bullish / - bearish",
 }
 
 
 def build_vision() -> dict:
-    """What the bot sees on the latest closed 1h candle: the 16 features
-    (v3 contract, all in [-1, 1]) + the stacker champion's P(up)."""
+    """What the bot sees on the latest closed 1h candle: all 21 features
+    (v5; v3 contract, all in [-1, 1]) + the stacker champion's P(up)."""
     import pandas as pd
 
     from data.market_data import fetch_klines

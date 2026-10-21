@@ -2,7 +2,9 @@
 
 From the Notion blueprint:
 - State: market data + technical indicators + portfolio status (+ stacker vote).
-- Actions: 0 = hold, 1 = buy, 2 = sell.
+- Actions: 0 = hold, 1 = buy, 2 = sell, 3 = short (v5: the broker's
+  position-aware semantics -- buy covers a short, short closes a long
+  through flat, sell reduces a long; one action never flips directly).
 - Reward: exactly as specified — per episode (one trading day),
   +1 if the day's net paper P&L > 0, else -1. Sparse, honest, paper-only.
 
@@ -80,7 +82,7 @@ class TradingEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(len(STATE_FEATURES) + 3,), dtype=np.float32
         )
-        self.action_space = spaces.Discrete(3)  # hold / buy / sell
+        self.action_space = spaces.Discrete(4)  # hold / buy / sell / short
         self._cursor = 0
         self._episode_start = 0
         self._day_start_equity = 0.0
@@ -146,7 +148,7 @@ class TradingEnv(gym.Env):
         row = self.df.iloc[i]
         ctx = self._decision_context(i)
         atr = self._atr_pct(i)
-        held_before = self.broker.btc > 1e-10
+        held_before = abs(self.broker.btc) > 1e-10
 
         if self.fill_mode == "next_open" and i + 1 < len(self.df):
             # Duel/evaluation timing: the decision made on candle i fills at
@@ -156,34 +158,44 @@ class TradingEnv(gym.Env):
             open_px = float(erow["open"])
             close_px = float(erow["close"])
             low_px = float(erow["low"]) if "low" in erow else close_px
+            high_px = float(erow["high"]) if "high" in erow else close_px
             ets = str(erow.name)
             if action == 1:
                 self.broker.buy(open_px, reason="ppo", ts=ets,
                                 atr_pct=atr, context=ctx)
             elif action == 2:
                 self.broker.sell(open_px, reason="ppo", ts=ets, context=ctx)
-            stop_fill = self.broker.check_stop(close_px, ts=ets, low=low_px,
-                                               context=ctx)
+            elif action == 3:
+                self.broker.short_open(open_px, reason="ppo", ts=ets,
+                                       atr_pct=atr, context=ctx)
+            stop_fill = self.broker.check_stop(
+                close_px, ts=ets, low=low_px, high=high_px, context=ctx)
             mark_price = close_px
         else:
             price = float(row["close"])
             low = float(row["low"]) if "low" in row else price
+            high = float(row["high"]) if "high" in row else price
             ts = str(row.name)
             # Exit rules enforced by the broker on every candle
             # (wick-throughs count), like live.
             stop_fill = self.broker.check_stop(price, ts=ts, low=low,
-                                               context=ctx)
+                                               high=high, context=ctx)
             if action == 1:
                 self.broker.buy(price, reason="ppo", ts=ts,
                                 atr_pct=atr, context=ctx)
             elif action == 2:
                 self.broker.sell(price, reason="ppo", ts=ts, context=ctx)
+            elif action == 3:
+                self.broker.short_open(price, reason="ppo", ts=ts,
+                                       atr_pct=atr, context=ctx)
             mark_price = price
 
         # A stop-out is the broker's exit, not the agent completing a
         # trade: it does not satisfy the activity quota (audit 2026-10-20).
-        if held_before and self.broker.btc <= 1e-10 and stop_fill is None:
-            self._round_trips += 1  # completed a buy -> sell round trip
+        # v5: a completed round trip in EITHER direction counts (long
+        # buy->sell, short open->cover, or a through-flat action close).
+        if held_before and abs(self.broker.btc) <= 1e-10 and stop_fill is None:
+            self._round_trips += 1
 
         # Dense signal: per-step log return on equity, in percentage points,
         # clipped to [-1, 1] -- computed AFTER the action executes (audit

@@ -66,7 +66,7 @@ def _synthetic_df(n=80):
 def test_mtf_features_causal_and_in_contract():
     df = _synthetic_df(3000)
     sup = df.dropna(subset=FEATURE_COLUMNS)
-    assert len(FEATURE_COLUMNS) == 16
+    assert len(FEATURE_COLUMNS) == 21  # 16 since v4, +5 in v5 (Kass's indicators)
     assert sup[FEATURE_COLUMNS].min().min() >= -1.0001
     assert sup[FEATURE_COLUMNS].max().max() <= 1.0001
     cut = df.index[2000]

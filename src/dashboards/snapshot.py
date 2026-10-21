@@ -29,33 +29,44 @@ def _paper_db():
 
 
 def closed_trades(con: sqlite3.Connection) -> list[dict]:
-    """FIFO-match sells against buys -> closed round-trip trades with realized P&L.
+    """Closed round-trip trades with realized P&L, both directions (v5).
 
-    Each record: {close_ts, qty, pnl}. Fees are folded into cost/proceeds.
+    A trip is a maximal run of nonzero signed position: it starts at the
+    fill that takes the account from flat to long or short (adds and
+    partial exits inside the run belong to the same trip) and closes at
+    the fill that returns it to flat. Realized P&L is the run's net cash
+    flow -- exact under the broker's fill semantics in both directions
+    (a BUY costs qty*price + fee, a SELL yields qty*price - fee, fees
+    therefore included) with no lot-matching assumptions.
+
+    Each record: {close_ts, qty, pnl}; qty is the total quantity closed
+    across the run. (Pre-v5 this FIFO-matched long lots only, which
+    could not represent a short trip at all; for pure long flow the two
+    definitions agree on total P&L per completed run.)
     """
     fills = con.execute(
         "SELECT ts, side, price, qty, fee FROM trades ORDER BY id ASC").fetchall()
-    lots: list[list[float]] = []  # [qty, cost_incl_fee]
     closed = []
+    pos = 0.0            # signed BTC position after each fill
+    in_run = False
+    run_pnl = 0.0
+    run_closed_qty = 0.0
     for ts, side, price, qty, fee in fills:
-        if side == "BUY":
-            lots.append([qty, price * qty + fee])
-        elif side == "SELL" and qty > 0:
-            proceeds = price * qty - fee
-            remaining = qty
-            cost = 0.0
-            while remaining > 1e-12 and lots:
-                lqty, lcost = lots[0]
-                take = min(lqty, remaining)
-                cost += lcost * (take / lqty)
-                lots[0][0] -= take
-                lots[0][1] -= lcost * (take / lqty)
-                if lots[0][0] < 1e-12:
-                    lots.pop(0)
-                remaining -= take
-            if remaining > 1e-9:
-                continue  # sell with no matching buy; skip
-            closed.append({"close_ts": ts, "qty": qty, "pnl": proceeds - cost})
+        if qty <= 0:
+            continue
+        delta = qty if side == "BUY" else -qty
+        cash_delta = -(qty * price + fee) if side == "BUY" else (qty * price - fee)
+        if not in_run:
+            in_run, run_pnl, run_closed_qty = True, 0.0, 0.0
+        if pos != 0 and (delta > 0) != (pos > 0):
+            run_closed_qty += min(abs(delta), abs(pos))
+        run_pnl += cash_delta
+        pos += delta
+        if abs(pos) <= 1e-10:
+            pos = 0.0
+            closed.append({"close_ts": ts, "qty": run_closed_qty,
+                           "pnl": run_pnl})
+            in_run = False
     return closed
 
 
@@ -259,7 +270,7 @@ def build_trading_snapshot() -> dict:
     state_file = DATA / "live_state.json"
     live = json.loads(state_file.read_text()) if state_file.exists() else {}
 
-    position = "LONG" if btc > 0 else "FLAT"
+    position = "LONG" if btc > 0 else ("SHORT" if btc < 0 else "FLAT")
     entry = live.get("last_entry_price")
     stats = trade_stats(con)
     calendar = daily_calendar(con)
@@ -275,8 +286,13 @@ def build_trading_snapshot() -> dict:
         "btc_value": round(btc * price, 2),
         "position": position,
         "entry_price": entry,
-        "stop_price": round(entry * 0.95, 2) if entry else None,
-        "unrealized_pct": round(price / entry - 1, 4) if entry else 0.0,
+        # Flat-fallback stop display (the trading feed's market lines use
+        # the broker's real ATR level via compact._live_stop_level): a
+        # short's stop sits ABOVE entry, a long's below.
+        "stop_price": round(entry * (0.95 if btc >= 0 else 1.05), 2) if entry else None,
+        "unrealized_pct": (round(price / entry - 1, 4) if btc > 0
+                           else round(1 - price / entry, 4) if btc < 0
+                           else 0.0) if entry else 0.0,
         "day_pnl": round(day_pnl, 2),
         "day_reward": 1 if day_pnl > 0 else -1,
         "agent_stance": live.get("last_stance"),

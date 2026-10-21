@@ -25,6 +25,13 @@ MLP cannot learn from. v2 (2026-10-19 audit) made every feature small and
 roughly stationary and added candle/wick shape. v3 keeps the v2 recipes
 and adds the strict contract on top.
 
+v5 (2026-10-20) appends Kass's own indicator set -- Heikin-Ashi
+direction, OBV slope, ADL slope, net volume share, Elliott Wave
+Oscillator -- computed from the Coinbase feed (its real BTC volume is
+what makes the volume-flow features meaningful at all). Scales for
+ha_dir / ewo derived by scripts/derive_v5_scales.py over the same 730d
+Coinbase window; the volume ratios are bounded by construction.
+
 All features are causal (no lookahead beyond the row itself).
 """
 
@@ -54,6 +61,17 @@ FEATURE_COLUMNS = [
     "h4_dist_sma",    # (4h close - 4h SMA20) / 4h close, scaled -> [-1, 1]
     "d1_dist_sma",    # (daily close - daily SMA20) / daily close, scaled
     "h4_atr_rel",     # ATR(14) on 4h / 4h close, scaled -> [0, 1]
+    # v5 (2026-10-20, Kass's own indicator set from his Drive library --
+    # Heikin-Ashi, OBV, ADL, Net Volume, EWO): the volume-flow trio only
+    # became computable when the feed switched to Coinbase (yfinance
+    # volume was zero/garbage on ~half the hours). All are trailing-only.
+    # The three volume ratios divide signed volume by total volume over
+    # the same trailing 24h, so they sit in [-1, 1] by construction.
+    "ha_dir",         # Heikin-Ashi body in ATR units, scaled -> [-1, 1]
+    "obv_slope",      # 24h OBV change / 24h volume -> [-1, 1]
+    "adl_slope",      # 24h ADL change / 24h volume -> [-1, 1]
+    "netvol_rel",     # 24h signed-volume share (bar direction) -> [-1, 1]
+    "ewo",            # (EMA5 - EMA35) / close, scaled -> [-1, 1]
 ]
 
 # Per-feature scale constants: 99.5th percentile of |raw value| on ~2y of
@@ -72,6 +90,8 @@ FEATURE_SCALES = {
     "h4_dist_sma": 0.088204,  # v4: p99.5 over 4,355 4h candles (730d)
     "d1_dist_sma": 0.187852,  # v4: p99.5 over 711 daily candles (730d)
     "h4_atr_rel": 0.028172,   # v4: p99.5 over 4,361 4h candles (730d)
+    "ha_dir": 2.355109,       # v5: p99.5 over 17,497 1h candles (730d, Coinbase)
+    "ewo": 0.041924,          # v5: p99.5 over 17,510 1h candles (730d, Coinbase)
 }
 
 
@@ -97,6 +117,23 @@ def _atr(df: pd.DataFrame, window: int = 14) -> pd.Series:
 def _scale(series: pd.Series, name: str) -> pd.Series:
     """raw / scale, hard-clipped to [-1, 1] -- the v3 contract."""
     return (series / FEATURE_SCALES[name]).clip(-1.0, 1.0)
+
+
+def _heikin_ashi(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Heikin-Ashi (open, close), recursive and causal: ha_close is the
+    candle's average price; ha_open trails as the midpoint of the prior
+    HA candle, seeded from the first row's (open + close) / 2."""
+    o = df["open"].to_numpy(dtype=float)
+    h = df["high"].to_numpy(dtype=float)
+    lo = df["low"].to_numpy(dtype=float)
+    c = df["close"].to_numpy(dtype=float)
+    ha_close = (o + h + lo + c) / 4.0
+    ha_open = np.empty_like(ha_close)
+    ha_open[0] = (o[0] + c[0]) / 2.0
+    for t in range(1, len(ha_close)):
+        ha_open[t] = 0.5 * (ha_open[t - 1] + ha_close[t - 1])
+    return (pd.Series(ha_open, index=df.index),
+            pd.Series(ha_close, index=df.index))
 
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -145,6 +182,34 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # carried in the frame so the broker's volatility-based exit rules
     # (v4) can size the stop to the market's actual swing size.
     df["atr_pct_raw"] = (_atr(df, 14) / close).replace([np.inf, -np.inf], np.nan)
+
+    # -- Kass's indicator set (v5) --
+    # Heikin-Ashi direction: the HA body (ha_close - ha_open) in ATR
+    # units -- sign is the smoothed trend direction, size is how strong
+    # the body is relative to the market's typical swing.
+    ha_open, ha_close = _heikin_ashi(df)
+    atr_price = (df["atr_pct_raw"] * close).replace(0, np.nan)
+    df["ha_dir"] = _scale((ha_close - ha_open) / atr_price, "ha_dir")
+    # Volume flow over the trailing 24h. Signed volume follows the OBV
+    # convention (sign of the close-to-close move); the ADL weights each
+    # candle's volume by where the close sat inside its range; net volume
+    # signs each bar by its own direction (close vs open -- the
+    # TradingView Net Volume convention). Each divides by the same
+    # window's total volume, so all three are shares in [-1, 1].
+    vol24 = volume.rolling(24).sum().replace(0, np.nan)
+    obv = (volume * np.sign(close.diff().fillna(0.0))).cumsum()
+    df["obv_slope"] = (obv.diff(24) / vol24).clip(-1.0, 1.0)
+    rng = (high - low).replace(0, np.nan)
+    mfm = ((close - low) - (high - close)) / rng
+    adl = (mfm.fillna(0.0) * volume).cumsum()
+    df["adl_slope"] = (adl.diff(24) / vol24).clip(-1.0, 1.0)
+    signed_bar = volume * np.sign(close - open_)
+    df["netvol_rel"] = (signed_bar.rolling(24).sum() / vol24).clip(-1.0, 1.0)
+    # Elliott Wave Oscillator: the fast/slow EMA gap as a fraction of
+    # price (the classic 5/35 construction), scaled to the contract.
+    ema5 = close.ewm(span=5, adjust=False).mean()
+    ema35 = close.ewm(span=35, adjust=False).mean()
+    df["ewo"] = _scale((ema5 - ema35) / close, "ewo")
 
     # -- multi-timeframe context (v4) --
     # Higher-timeframe features are stamped at each bucket's END time and

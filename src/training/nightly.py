@@ -106,7 +106,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
 
     model = PPO.load(model_path)
     rewards, pnls, trips, ep_dds = [], [], [], []
-    action_counts = {"hold": 0, "buy": 0, "sell": 0}
+    action_counts = {"hold": 0, "buy": 0, "sell": 0, "short": 0}
     # Unique scratch DB per process (audit 2026-10-20): the fixed /tmp
     # path collided when a manual evaluation overlapped the nightly run.
     tmp = Path("/tmp") / f"tam_eval_{os.getpid()}.db"
@@ -123,7 +123,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
             done, ep_r = False, 0.0
             while not done:
                 action, _ = model.predict(obs, deterministic=True)
-                action_counts[["hold", "buy", "sell"][int(action)]] += 1
+                action_counts[["hold", "buy", "sell", "short"][int(action)]] += 1
                 obs, r, done, _, _ = env.step(int(action))
                 ep_r += r
                 curve.append(env._prev_eq)
