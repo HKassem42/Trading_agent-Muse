@@ -20,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from data.yfinance_adapter import fetch_klines
+from data.market_data import fetch_klines
 from environment.trading_env import TradingEnv
 from features.technical_indicators import FEATURE_COLUMNS, make_supervised
 from models.stacker import load as load_stacker
@@ -40,6 +40,30 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     (manual CLI runs), the full series is fetched as before.
     """
     from stable_baselines3 import PPO
+    from stable_baselines3.common.callbacks import BaseCallback
+    from stable_baselines3.common.monitor import Monitor
+
+    class _CurveCallback(BaseCallback):
+        """Collects the learning curve (mean episode return vs timesteps)
+        for the Training Lab chart (v4). Buffered in blocks of 10 episodes
+        to keep the series compact."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.points: list[tuple[int, float]] = []
+            self._buf: list[float] = []
+
+        def _on_step(self) -> bool:
+            for info in self.locals.get("infos", []):
+                ep = info.get("episode")
+                if ep is not None:
+                    self._buf.append(float(ep["r"]))
+                    if len(self._buf) >= 10:
+                        self.points.append(
+                            (int(self.num_timesteps),
+                             round(float(np.mean(self._buf)), 3)))
+                        self._buf = []
+            return True
 
     if sup is None:
         df = fetch_klines("BTC-USD", interval="1h", period="730d")
@@ -55,7 +79,7 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     work_db = db_path.with_name(f"{db_path.stem}_{os.getpid()}{db_path.suffix}")
     broker = PaperBroker(work_db, starting_balance=100_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
-    env = TradingEnv(sup, p_up, broker)
+    env = Monitor(TradingEnv(sup, p_up, broker))
 
     if warm_start and champion_path.exists():
         try:
@@ -78,11 +102,22 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
         model = PPO("MlpPolicy", env, verbose=0, seed=42,
                     learning_rate=3e-4, n_steps=512, batch_size=64,
                     ent_coef=ent_coef)
-    model.learn(total_timesteps=timesteps)
+    curve_cb = _CurveCallback()
+    model.learn(total_timesteps=timesteps, callback=curve_cb)
 
     out = champion_path.parent / "ppo_challenger.zip"
     model.save(out)
     print(f"saved challenger -> {out}")
+    # Learning curve sidecar (v4): downsampled to <=24 points, read by the
+    # nightly job into the run record for the Training Lab chart.
+    pts = curve_cb.points
+    if len(pts) > 24:
+        idx = np.linspace(0, len(pts) - 1, 24).astype(int)
+        pts = [pts[k] for k in idx]
+    import json as _json
+    (champion_path.parent / "ppo_challenger_curve.json").write_text(
+        _json.dumps({"timesteps": timesteps,
+                     "curve": [[t, r] for t, r in pts]}))
     try:
         work_db.unlink(missing_ok=True)
     except OSError:

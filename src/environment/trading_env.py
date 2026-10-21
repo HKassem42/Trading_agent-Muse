@@ -23,6 +23,8 @@ Total episode return ~= sum of step returns + the daily verdict.
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 
@@ -46,6 +48,7 @@ class TradingEnv(gym.Env):
         episode_days: int = 1,
         steps_per_day: int = 24,
         min_round_trips: int = 2,
+        fill_mode: str = "close",
     ) -> None:
         super().__init__()
         self.df = df.reset_index(drop=True)
@@ -62,6 +65,14 @@ class TradingEnv(gym.Env):
         # a timeframe where each candle carries 4x the information.
         self.min_round_trips = min_round_trips
         self._round_trips = 0
+        # Fill timing (v4): "close" = orders fill at the decision candle's
+        # close (training default; matches live, where the decision happens
+        # the moment the candle closes). "next_open" = orders fill at the
+        # NEXT candle's open -- used by duel evaluation so grades carry the
+        # execution lag every real fill has, instead of the optimistic
+        # same-close fill.
+        assert fill_mode in ("close", "next_open")
+        self.fill_mode = fill_mode
 
         # Features v3 contract (2026-10-20): every observation component
         # lives in [-1, 1] -- features by construction, the rest by the
@@ -117,21 +128,58 @@ class TradingEnv(gym.Env):
         self._round_trips = 0
         return self._state(self._cursor), {}
 
+    def _decision_context(self, i: int) -> str:
+        """JSON snapshot stored on fills made from this decision row."""
+        row = self.df.iloc[i]
+        feats = [round(float(row[c]), 4) for c in FEATURE_COLUMNS]
+        return json.dumps({"f": feats, "p": round(float(self.stacker_p_up[i]), 4)})
+
+    def _atr_pct(self, i: int) -> float | None:
+        row = self.df.iloc[i]
+        if "atr_pct_raw" not in row:
+            return None
+        val = float(row["atr_pct_raw"])
+        return val if np.isfinite(val) and val > 0 else None
+
     def step(self, action: int):
         i = self._cursor
         row = self.df.iloc[i]
-        price = float(row["close"])
-        low = float(row["low"]) if "low" in row else price
-        ts = str(row.name)
-
+        ctx = self._decision_context(i)
+        atr = self._atr_pct(i)
         held_before = self.broker.btc > 1e-10
-        # stop-loss enforced by the broker on every candle (wick-throughs
-        # count), like live
-        stop_fill = self.broker.check_stop(price, ts=ts, low=low)
-        if action == 1:
-            self.broker.buy(price, reason="ppo", ts=ts)
-        elif action == 2:
-            self.broker.sell(price, reason="ppo", ts=ts)
+
+        if self.fill_mode == "next_open" and i + 1 < len(self.df):
+            # Duel/evaluation timing: the decision made on candle i fills at
+            # candle i+1's OPEN, then the broker's exit rules watch candle
+            # i+1. Equity is marked at candle i+1's close.
+            erow = self.df.iloc[i + 1]
+            open_px = float(erow["open"])
+            close_px = float(erow["close"])
+            low_px = float(erow["low"]) if "low" in erow else close_px
+            ets = str(erow.name)
+            if action == 1:
+                self.broker.buy(open_px, reason="ppo", ts=ets,
+                                atr_pct=atr, context=ctx)
+            elif action == 2:
+                self.broker.sell(open_px, reason="ppo", ts=ets, context=ctx)
+            stop_fill = self.broker.check_stop(close_px, ts=ets, low=low_px,
+                                               context=ctx)
+            mark_price = close_px
+        else:
+            price = float(row["close"])
+            low = float(row["low"]) if "low" in row else price
+            ts = str(row.name)
+            # Exit rules enforced by the broker on every candle
+            # (wick-throughs count), like live.
+            stop_fill = self.broker.check_stop(price, ts=ts, low=low,
+                                               context=ctx)
+            if action == 1:
+                self.broker.buy(price, reason="ppo", ts=ts,
+                                atr_pct=atr, context=ctx)
+            elif action == 2:
+                self.broker.sell(price, reason="ppo", ts=ts, context=ctx)
+            mark_price = price
+
         # A stop-out is the broker's exit, not the agent completing a
         # trade: it does not satisfy the activity quota (audit 2026-10-20).
         if held_before and self.broker.btc <= 1e-10 and stop_fill is None:
@@ -143,11 +191,11 @@ class TradingEnv(gym.Env):
         # the baseline to the post-trade equity at the same price, so the
         # 0.15% fee landed between baselines and cancelled out of the
         # learning signal entirely; churn looked free). Post-trade equity
-        # at this candle's price captures both the market move on the held
+        # at the mark price captures both the market move on the held
         # position and the fee the trade just paid. Log form keeps the
         # signal stationary across compounding (a +1% then -1% move nets
         # to ~zero, unlike raw percent changes).
-        eq_after = self.broker.equity(price)
+        eq_after = self.broker.equity(mark_price)
         prev = max(self._prev_eq, 1e-9)
         step_r = 100.0 * float(np.log(eq_after / prev))
         reward = float(np.clip(step_r, -1.0, 1.0))

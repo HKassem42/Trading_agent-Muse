@@ -46,6 +46,14 @@ FEATURE_COLUMNS = [
     "price_change",   # 1-candle close return, scaled -> [-1, 1]
     "volatility_21",  # rolling std/mean of close, scaled -> [0, 1]
     "volume_change",  # volume pct change, clipped to [-1, 1]
+    # v4 (2026-10-20, premium upgrade): multi-timeframe context, computed
+    # ONLY from completed 4h / daily candles (see add_features). The 1h
+    # brain was trend-blind above its own timeframe; these give it the
+    # higher-timeframe regime without any lookahead.
+    "h4_rsi_c",       # RSI(14) on 4h closes, centered -> [-1, 1]
+    "h4_dist_sma",    # (4h close - 4h SMA20) / 4h close, scaled -> [-1, 1]
+    "d1_dist_sma",    # (daily close - daily SMA20) / daily close, scaled
+    "h4_atr_rel",     # ATR(14) on 4h / 4h close, scaled -> [0, 1]
 ]
 
 # Per-feature scale constants: 99.5th percentile of |raw value| on ~2y of
@@ -61,6 +69,9 @@ FEATURE_SCALES = {
     "atr_rel": 0.015577,
     "price_change": 0.021449,
     "volatility_21": 0.030799,
+    "h4_dist_sma": 0.088204,  # v4: p99.5 over 4,355 4h candles (730d)
+    "d1_dist_sma": 0.187852,  # v4: p99.5 over 711 daily candles (730d)
+    "h4_atr_rel": 0.028172,   # v4: p99.5 over 4,361 4h candles (730d)
 }
 
 
@@ -129,6 +140,51 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["volatility_21"] = _scale(roll.std() / roll.mean(), "volatility_21")
     vol = volume.replace(0, np.nan)
     df["volume_change"] = vol.pct_change().fillna(0.0).clip(-1.0, 1.0)
+
+    # Raw (unscaled) ATR as a fraction of price. NOT a brain feature --
+    # carried in the frame so the broker's volatility-based exit rules
+    # (v4) can size the stop to the market's actual swing size.
+    df["atr_pct_raw"] = (_atr(df, 14) / close).replace([np.inf, -np.inf], np.nan)
+
+    # -- multi-timeframe context (v4) --
+    # Higher-timeframe features are stamped at each bucket's END time and
+    # merged onto the 1h rows by decision time (row start + 1h, when the
+    # 1h candle has closed and a decision is made). merge_asof backward
+    # means a row only ever sees buckets that had fully completed by its
+    # decision time -- causal by construction.
+    h4 = df.resample("4h", closed="left", label="left").agg(
+        {"open": "first", "high": "max", "low": "min",
+         "close": "last", "volume": "sum"}).dropna()
+    h4_sma20 = h4["close"].rolling(20).mean()
+    h4_feats = pd.DataFrame({
+        "h4_rsi_c": ((_rsi(h4["close"], 14) - 50.0) / 50.0).clip(-1.0, 1.0),
+        "h4_dist_sma_raw": (h4["close"] - h4_sma20) / h4["close"],
+        "h4_atr_rel_raw": _atr(h4, 14) / h4["close"],
+    }, index=h4.index + pd.Timedelta(hours=4))
+    d1 = df.resample("1d", closed="left", label="left").agg(
+        {"open": "first", "high": "max", "low": "min",
+         "close": "last", "volume": "sum"}).dropna()
+    d1_sma20 = d1["close"].rolling(20).mean()
+    d1_feats = pd.DataFrame({
+        "d1_dist_sma_raw": (d1["close"] - d1_sma20) / d1["close"],
+    }, index=d1.index + pd.Timedelta(days=1))
+
+    base = pd.DataFrame({"decision_ts": df.index + pd.Timedelta(hours=1)},
+                        index=df.index)
+    for feats in (h4_feats, d1_feats):
+        merged = pd.merge_asof(
+            base.sort_values("decision_ts"),
+            feats.sort_index(), left_on="decision_ts",
+            right_index=True, direction="backward")
+        merged.index = base.index
+        for col in feats.columns:
+            base[col] = merged[col].values
+    df["h4_rsi_c"] = base["h4_rsi_c"]
+    df["h4_dist_sma"] = _scale(base["h4_dist_sma_raw"], "h4_dist_sma")
+    df["d1_dist_sma"] = _scale(base["d1_dist_sma_raw"], "d1_dist_sma")
+    df["h4_atr_rel"] = _scale(base["h4_atr_rel_raw"], "h4_atr_rel")
+    df = df.drop(columns=["h4_dist_sma_raw", "d1_dist_sma_raw",
+                          "h4_atr_rel_raw"], errors="ignore")
 
     df = df.replace([np.inf, -np.inf], np.nan)
     return df

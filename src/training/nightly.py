@@ -24,7 +24,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from data.yfinance_adapter import fetch_klines
+from data.market_data import fetch_klines
 from environment.trading_env import TradingEnv
 from features.technical_indicators import FEATURE_COLUMNS, feature_matrix, make_supervised
 from models import stacker
@@ -80,8 +80,10 @@ def crossfit_p_up(X: pd.DataFrame, y: pd.Series, folds: int = 4) -> np.ndarray:
 
 
 def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
-    """Deterministic rollouts on the holdout: chronological, non-overlapping
-    episodes (240 candles / 24h = 10 days), paired across brains.
+    """Deterministic rollouts on ONE evaluation window: chronological,
+    non-overlapping episodes (240 decision candles / 24h = 10 days) with
+    NEXT-CANDLE-OPEN fills (v4) -- the duel grades carry the execution lag
+    every real fill has instead of the optimistic same-close fill.
 
     Returns mean episode reward plus a risk-adjusted backtest score:
     score = total day-P&L - 0.5 * worst within-episode drawdown, where the
@@ -91,7 +93,8 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
     curve -- so intra-episode drawdowns were invisible and the same market
     moves were double-counted across overlapping episodes).
     Promotion uses the score, not raw reward -- a challenger must make money
-    without wild swings to take the crown.
+    without wild swings to take the crown. `bench_pnl` is the buy-and-hold
+    result over the same window: the yardstick that can't be flattered.
     """
     import os
 
@@ -113,7 +116,7 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
         for ep, start in enumerate(starts):
             broker = PaperBroker(tmp, starting_balance=100_000,
                                  max_position_pct=0.25, stop_loss_pct=0.05)
-            env = TradingEnv(sup, p_up, broker)
+            env = TradingEnv(sup, p_up, broker, fill_mode="next_open")
             obs, _ = env.reset(seed=ep, options={"start": start})
             start_eq = env._day_start_equity
             curve = [start_eq]  # within-episode equity curve
@@ -134,17 +137,75 @@ def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10) -> dict:
     total = float(np.sum(pnls))
     max_dd = float(np.max(ep_dds)) if ep_dds else 0.0
     total_actions = sum(action_counts.values()) or 1
+    closes = sup["close"].to_numpy(dtype=float)
+    bench = float(100_000.0 * (closes[-1] / closes[0] - 1.0)) if len(closes) > 1 else 0.0
     return {
         "mean_reward": float(np.mean(rewards)),
         "total_pnl": total,
         "max_drawdown": max_dd,
         "mean_drawdown": float(np.mean(ep_dds)) if ep_dds else 0.0,
         "score": total - 0.5 * max_dd,
+        "bench_pnl": bench,
         "episodes": episodes,
         "round_trips_per_day": float(np.mean(trips)) if trips else 0.0,
         "action_mix": {k: round(v / total_actions, 3)
                        for k, v in action_counts.items()},
     }
+
+
+# -- v4 helpers: champion rollback shelf + lab notebook ----------------
+
+def archive_champions(tag: str) -> None:
+    """Copy the current champions onto the rollback shelf before any are
+    replaced (v4): if a midnight promotion ever turns out bad, the
+    previous brain can be restored in one step instead of retraining our
+    way out. Keeps the newest 5 snapshots."""
+    import shutil
+
+    shelf = MODELS / "archive"
+    shelf.mkdir(parents=True, exist_ok=True)
+    dest = shelf / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}_{tag}"
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in ("ppo_champion.zip", "stacker_champion.pkl",
+                 "stacker_champion.json"):
+        src = MODELS / name
+        if src.exists():
+            shutil.copy2(src, dest / name)
+    snaps = sorted(p for p in shelf.iterdir() if p.is_dir())
+    for old in snaps[:-5]:
+        shutil.rmtree(old, ignore_errors=True)
+
+
+def add_lab_note(title: str, detail: str) -> None:
+    """Append an entry to the lab notebook (data/lab_notes.json): the
+    human-readable paper trail of what was tried and what happened,
+    surfaced in the Training Lab."""
+    path = DATA / "lab_notes.json"
+    notes = []
+    if path.exists():
+        try:
+            notes = json.loads(path.read_text())
+        except Exception:
+            notes = []
+    notes.append({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                  "title": title, "detail": detail})
+    path.write_text(json.dumps(notes[-30:]))
+
+
+def evaluate_windows(model_path: Path, windows, p_ups) -> dict | None:
+    """Grade one brain across all gate windows; None if it cannot run."""
+    per = []
+    try:
+        for w_sup, w_pup in zip(windows, p_ups):
+            per.append(evaluate_ppo(model_path, w_sup, w_pup))
+    except Exception as e:
+        print(f"evaluation failed for {model_path} ({type(e).__name__}): {e}",
+              flush=True)
+        return None
+    agg = float(np.mean([w["score"] for w in per]))
+    return {"windows": per, "agg_score": agg,
+            "total_pnl": float(np.sum([w["total_pnl"] for w in per])),
+            "mean_reward": float(np.mean([w["mean_reward"] for w in per]))}
 
 
 def main() -> None:
@@ -166,13 +227,17 @@ def main() -> None:
     sup = make_supervised(df)
     X, y = feature_matrix(sup)
 
-    # time holdout: last 10 days (240 hourly candles) for evaluation ONLY.
-    # Nothing trains on it tonight (audit 2026-10-20: the PPO challenger
-    # used to train on the full fetched series -- including these exact
-    # candles -- minutes before being graded on them).
-    split = len(sup) - 240
+    # Time holdout: the last 33 days (792 hourly candles) are evaluation
+    # ONLY, split into three chronological 11-day windows (264 candles:
+    # 10 duel days + 1 buffer day for next-open fills). Nothing trains on
+    # them tonight (audit 2026-10-20: the PPO challenger used to train on
+    # the full fetched series -- including these exact candles -- minutes
+    # before being graded on them). The 3-window gate (v4) means a
+    # challenger can no longer take the crown off one lucky window.
+    split = len(sup) - 792
     train_sup, hold_sup = sup.iloc[:split], sup.iloc[split:]
     assert train_sup.index.max() < hold_sup.index.min(), "train/holdout overlap"
+    windows_sup = [hold_sup.iloc[k * 264:(k + 1) * 264] for k in range(3)]
 
     # -- stacker challenger --
     # Promotion is judged on the SHARED holdout with a strict >, not by
@@ -201,6 +266,9 @@ def main() -> None:
         f"stacker challenger holdout acc {chall_acc:.4f} > champion {champ_acc:.4f}"
         if stacker_promoted else
         f"stacker challenger holdout acc {chall_acc:.4f} did not beat champion {champ_acc:.4f}")
+    # Rollback shelf (v4): snapshot the current champions BEFORE any
+    # replacement tonight, so a bad promotion can be undone in one step.
+    archive_champions(run_id)
     if stacker_promoted:
         (MODELS / "stacker_challenger.pkl").replace(champ_pkl)
         champ_score_path.write_text(json.dumps({
@@ -216,63 +284,104 @@ def main() -> None:
                         "challenger_wf_acc": score["accuracy"],
                         "precision": chall_prec,
                         "reason": stacker_reason}, stacker_promoted)
+    add_lab_note("Stacker duel", stacker_reason)
     print(f"stacker: challenger holdout acc={chall_acc:.4f} (wf {score['accuracy']:.4f}) "
           f"champion holdout acc={champ_acc:.4f} promoted={stacker_promoted}", flush=True)
 
     # -- PPO challenger (warm-started) --
     # Trains ONLY on train_sup, with cross-fitted (out-of-fold) stacker
-    # votes -- never on the holdout it is about to be graded on.
+    # votes -- never on the windows it is about to be graded on.
+    import os
+
     from models.ppo_train import train as train_ppo
     stacker_model = joblib.load(MODELS / "stacker_champion.pkl")
-    p_up_hold = stacker_model.predict_proba(hold_sup[FEATURE_COLUMNS])[:, 1]
+    p_up_hold_all = stacker_model.predict_proba(hold_sup[FEATURE_COLUMNS])[:, 1]
+    p_up_windows = [p_up_hold_all[k * 264:(k + 1) * 264] for k in range(3)]
     p_up_train = crossfit_p_up(Xtr, ytr)
+    # Weekly deep train (v4): TAM_DEEP=1 -> 300k steps instead of 60k.
+    deep = bool(os.environ.get("TAM_DEEP"))
+    timesteps = 300_000 if deep else 60_000
     challenger_path = train_ppo(
-        timesteps=60000, warm_start=True,
+        timesteps=timesteps, warm_start=True,
         champion_path=MODELS / "ppo_champion.zip",
         stacker_path=MODELS / "stacker_champion.pkl",
         db_path=DATA / "train_tmp.db",  # throwaway ledger; live paper.db untouched
         ent_coef=0.05,  # keep exploring; sparse +/-1 rewards need it
         sup=train_sup, p_up=p_up_train,
     )
+
+    def _agg(res) -> dict:
+        """Flatten a 3-window evaluation into the run-record shape."""
+        if res is None:
+            return {"mean_reward": -999.0, "total_pnl": 0.0,
+                    "max_drawdown": 0.0, "score": -1e9, "runnable": False}
+        ws = res["windows"]
+        return {"score": res["agg_score"], "total_pnl": res["total_pnl"],
+                "mean_reward": res["mean_reward"],
+                "max_drawdown": float(max(w["max_drawdown"] for w in ws)),
+                "bench_pnl": float(sum(w["bench_pnl"] for w in ws)),
+                "action_mix": ws[-1]["action_mix"],
+                "windows": [{"score": round(w["score"], 2),
+                             "pnl": round(w["total_pnl"], 2),
+                             "bench": round(w["bench_pnl"], 2)} for w in ws],
+                "runnable": True}
+
     if (MODELS / "ppo_champion.zip").exists():
-        try:
-            champ = evaluate_ppo(MODELS / "ppo_champion.zip", hold_sup, p_up_hold)
-        except Exception as e:
+        champ_res = evaluate_windows(MODELS / "ppo_champion.zip",
+                                     windows_sup, p_up_windows)
+        chall_res = evaluate_windows(challenger_path, windows_sup, p_up_windows)
+        champ, chall = _agg(champ_res), _agg(chall_res)
+        wins = 0
+        if champ_res and chall_res:
+            wins = sum(1 for cw, hw in zip(champ_res["windows"],
+                                           chall_res["windows"])
+                       if hw["score"] > cw["score"])
+        # The gate (v4): aggregate score strictly better AND a majority of
+        # windows won. One hot window can no longer crown a brain.
+        ppo_promoted = chall_res is not None and (
+            champ_res is None or (chall["score"] > champ["score"] and wins >= 2))
+        print(f"ppo gate: challenger agg={chall['score']:.2f} "
+              f"(pnl={chall['total_pnl']:.2f}) champion agg={champ['score']:.2f} "
+              f"(pnl={champ['total_pnl']:.2f}) windows won={wins}/3 "
+              f"deep={deep} promoted={ppo_promoted}", flush=True)
+        if champ_res is None:
             # e.g. champion trained on an old feature recipe can't even run
-            # in the current env. An unrunnable champion scores worst, so a
-            # runnable challenger takes the crown (manual recovery on
-            # 2026-10-20 did exactly this; now it's the standard path).
-            print(f"champion not runnable ({type(e).__name__}): {e}", flush=True)
-            champ = {"mean_reward": -999.0, "total_pnl": 0.0,
-                     "max_drawdown": 0.0, "score": -1e9, "runnable": False}
-        chall = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
-        # Kass's rule: promote ONLY if strictly better.
-        ppo_promoted = chall["score"] > champ["score"]
-        print(f"ppo: challenger score={chall['score']:.2f} "
-              f"(pnl={chall['total_pnl']:.2f} dd={chall['max_drawdown']:.2f}) "
-              f"champion score={champ['score']:.2f} "
-              f"(pnl={champ['total_pnl']:.2f} dd={champ['max_drawdown']:.2f}) "
-              f"promoted={ppo_promoted}", flush=True)
-        if champ.get("runnable") is False:
+            # in the current env; a runnable challenger takes the crown
+            # (manual recovery on 2026-10-20; now the standard path).
             ppo_reason = ("champion could not run in the current setup, "
                           "so the challenger takes the crown by default")
+        elif chall_res is None:
+            ppo_reason = "challenger failed evaluation; champion kept"
         elif ppo_promoted:
-            ppo_reason = (f"challenger score {chall['score']:.0f} beat champion "
-                          f"{champ['score']:.0f} on 10 chronological holdout days")
+            ppo_reason = (f"challenger won {wins}/3 windows, aggregate score "
+                          f"{chall['score']:.0f} vs champion {champ['score']:.0f} "
+                          f"(next-candle fills; buy-and-hold over the same "
+                          f"windows: ${chall['bench_pnl']:+,.0f})")
         else:
-            ppo_reason = (f"champion kept: challenger score {chall['score']:.0f} "
-                          f"did not beat champion {champ['score']:.0f}")
+            ppo_reason = (f"champion kept: challenger won {wins}/3 windows, "
+                          f"aggregate {chall['score']:.0f} vs champion "
+                          f"{champ['score']:.0f}")
     else:
+        chall = _agg(evaluate_windows(challenger_path, windows_sup, p_up_windows))
         champ = {"mean_reward": -1.0, "total_pnl": 0.0,
                  "max_drawdown": 0.0, "score": -1.0}
-        chall = evaluate_ppo(challenger_path, hold_sup, p_up_hold)
         ppo_promoted = True
         ppo_reason = "no champion existed; first challenger promoted"
         print("ppo: no champion yet, promoting first challenger", flush=True)
     if ppo_promoted:
         challenger_path.replace(MODELS / "ppo_champion.zip")
+    reward_curve = None
+    curve_path = MODELS / "ppo_challenger_curve.json"
+    if curve_path.exists():
+        try:
+            reward_curve = json.loads(curve_path.read_text()).get("curve")
+        except Exception:
+            reward_curve = None
     log_run("ppo", {"challenger": chall, "champion": champ,
-                    "reason": ppo_reason}, ppo_promoted)
+                    "reason": ppo_reason, "deep": deep,
+                    "timesteps": timesteps,
+                    "reward_curve": reward_curve}, ppo_promoted)
+    add_lab_note("PPO promotion gate", ppo_reason)
     print("=== done ===", flush=True)
 
 

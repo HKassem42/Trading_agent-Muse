@@ -24,7 +24,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from data.yfinance_adapter import fetch_klines
+from data.market_data import fetch_klines
 from environment.trading_env import TradingEnv
 from features.technical_indicators import FEATURE_COLUMNS, add_features
 from models.stacker import load as load_stacker
@@ -133,6 +133,10 @@ def run_once() -> dict:
         broker.cash = float(state["cash"])
         broker.btc = float(state.get("btc", 0.0))
         broker.entry_price = state.get("entry_price")
+        # v4 exit-rule state (may be absent for pre-v4 positions / ledger
+        # rebuilds; the loop re-derives it from the first candle it sees).
+        broker.entry_atr_pct = state.get("entry_atr_pct")
+        broker.high_water = state.get("high_water")
 
     # ONE fetch (audit 2026-10-20): the old code fetched 5d to decide what
     # to process and 60d for features -- two snapshots of the market that
@@ -189,11 +193,26 @@ def run_once() -> dict:
         obs = np.clip(obs, -1.0, 1.0).astype(np.float32)
         action, _ = ppo.predict(obs, deterministic=True)
         ts_s = ts.isoformat()
-        broker.check_stop(price, ts=ts_s, low=float(row["low"]))
+        # Decision context (v4): the exact feature snapshot behind this
+        # candle's decision, stored on any fill so every trade can explain
+        # itself later ("what the bot saw when it acted").
+        ctx = json.dumps({
+            "f": [round(float(frow[c]), 4) for c in FEATURE_COLUMNS],
+            "p": round(p_up, 4)})
+        atr_raw = frow.get("atr_pct_raw")
+        atr_pct = (float(atr_raw) if atr_raw is not None
+                   and np.isfinite(float(atr_raw)) else None)
+        # Pre-v4 positions (or ledger rebuilds) lack exit-rule state:
+        # adopt the current candle's ATR so the position gets a
+        # volatility-sized stop from here on.
+        if broker.btc > 0 and broker.entry_atr_pct is None:
+            broker.entry_atr_pct = atr_pct
+        broker.check_stop(price, ts=ts_s, low=float(row["low"]), context=ctx)
         if int(action) == 1:
-            broker.buy(price, reason="ppo_live", ts=ts_s)
+            broker.buy(price, reason="ppo_live", ts=ts_s,
+                       atr_pct=atr_pct, context=ctx)
         elif int(action) == 2:
-            broker.sell(price, reason="ppo_live", ts=ts_s)
+            broker.sell(price, reason="ppo_live", ts=ts_s, context=ctx)
         broker.snapshot(ts_s, price)
         # Persist the account after EVERY candle (audit 2026-10-20): the
         # old end-of-run-only save meant a mid-loop crash left durable
@@ -209,6 +228,8 @@ def run_once() -> dict:
         state["btc"] = broker.btc
         state["entry_price"] = broker.entry_price
         state["last_entry_price"] = broker.entry_price
+        state["entry_atr_pct"] = broker.entry_atr_pct
+        state["high_water"] = broker.high_water
         save_state(state)
         processed += 1
 

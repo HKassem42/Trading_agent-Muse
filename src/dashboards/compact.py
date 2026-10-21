@@ -109,16 +109,47 @@ def _drawdown_stats(s: dict) -> dict:
             "dd_max_t": worst["t"]}
 
 
+def _benchmark(curve_pts: list[dict]) -> dict:
+    """Buy-and-hold benchmark aligned to the equity curve (v4): what the
+    $100K would be worth if it had simply bought BTC at the first equity
+    row and held. `bench` is a bare number array zipped by index with
+    equity_curve (kept tiny for the payload ceiling); bench_pct is the
+    benchmark's total return % over the same window."""
+    if not curve_pts:
+        return {"bench": [], "bench_pct": None}
+    con = snapshot._paper_db()
+    if con is None:
+        return {"bench": [], "bench_pct": None}
+    rows = con.execute(
+        "SELECT ts, price FROM equity ORDER BY ts ASC").fetchall()
+    con.close()
+    if len(rows) < 2:
+        return {"bench": [], "bench_pct": None}
+    p0 = rows[0][1]
+    price_by_ts = {ts: px for ts, px in rows}
+    vals = []
+    last_px = p0
+    for pt in curve_pts:
+        px = price_by_ts.get(pt["t"], last_px)
+        last_px = px
+        vals.append(round(100_000.0 * px / p0, 2))
+    bench_pct = round(100.0 * (rows[-1][1] / p0 - 1.0), 2)
+    return {"bench": vals, "bench_pct": bench_pct}
+
+
 def build_compact_trading() -> dict:
     s = snapshot.build_trading_snapshot()
     # Belt-and-braces (2026-10-20): a fresh account must never crash the
     # dashboard push with a KeyError on missing fields. Any non-live
     # snapshot (e.g. "not_started" when the DB file is missing entirely)
     # degrades to the minimal valid payload the dashboard expects.
-    if s.get("status") != "live":
+    live_ok = s.get("status") == "live"
+    if not live_ok:
         fresh = snapshot._fresh_account_snapshot(
             {"as_of": s.get("as_of")})
         s = fresh
+    curve = _downsample_curve(s["equity_curve"])
+    bench = _benchmark(curve) if live_ok else {"bench": [], "bench_pct": None}
     return {
         "as_of": s["as_of"],
         "status": s["status"],
@@ -139,9 +170,39 @@ def build_compact_trading() -> dict:
         "trade_stats": s["trade_stats"],
         "daily_calendar": s["daily_calendar"],
         "activity": s["activity"],
-        "equity_curve": _downsample_curve(s["equity_curve"]),
+        "equity_curve": curve,
+        "bench": bench["bench"],
+        "bench_pct": bench["bench_pct"],
         **_drawdown_stats(s),
     }
+
+
+def build_fillctx() -> dict:
+    """Per-fill decision context (v4): for the newest fills that carry a
+    stored feature snapshot, what the bot saw when it acted -- the 16
+    feature values (FEATURE_COLUMNS order) + stacker P(up)."""
+    con = snapshot._paper_db()
+    if con is None:
+        return {"fills": []}
+    cols = [r[1] for r in con.execute("PRAGMA table_info(trades)")]
+    if "context" not in cols:
+        # Pre-v4 ledger: the broker adds the column on its next init;
+        # until then there is simply no context to show.
+        con.close()
+        return {"fills": []}
+    rows = con.execute(
+        "SELECT ts, side, context FROM trades WHERE context IS NOT NULL "
+        "ORDER BY id DESC LIMIT 8").fetchall()
+    con.close()
+    fills = []
+    for ts, side, ctx in rows:
+        try:
+            parsed = json.loads(ctx)
+        except Exception:
+            continue
+        fills.append({"ts": ts, "side": side,
+                      "f": parsed.get("f"), "p": parsed.get("p")})
+    return {"fills": fills}
 
 
 def build_ledger() -> dict:
@@ -163,13 +224,16 @@ def build_ledger() -> dict:
 
 
 def _market_candles():
-    """Last 96 closed 1h candles as (start_epoch, [[o,h,l,c]...], df)."""
-    from data.yfinance_adapter import fetch_klines
+    """Last 96 closed 1h candles as (start_epoch, [[o,h,l,c,v]...], df).
+    Volume rides as a 5th element (v4 premium dashboard renders a volume
+    strip when present; Coinbase volume is real BTC units)."""
+    from data.market_data import fetch_klines
     df = fetch_klines("BTC-USD", interval="1h", period="5d").iloc[:-1]
     df = df.tail(96)
     start = int(df.index[0].timestamp())
     candles = [[int(round(r["open"])), int(round(r["high"])),
-                int(round(r["low"])), int(round(r["close"]))]
+                int(round(r["low"])), int(round(r["close"])),
+                int(round(r["volume"]))]
                for _, r in df.iterrows()]
     return start, candles, df
 
@@ -206,9 +270,30 @@ def build_market(part: int) -> dict:
     if state_file.exists():
         live = json.loads(state_file.read_text())
         entry = live.get("last_entry_price")
-        stop = round(entry * 0.95, 2) if entry else None
+        stop = _live_stop_level(live) if entry else None
     out.update({"markers": markers, "entry_price": entry, "stop_price": stop})
     return out
+
+
+def _live_stop_level(live: dict) -> float | None:
+    """The broker's current effective stop for the live position (v4 exit
+    rules: ATR-sized initial stop, trailed once the position is up +3%).
+    Mirrors trading.broker.PaperBroker.stop_level on the persisted state
+    fields -- keep the two in sync."""
+    entry = live.get("last_entry_price")
+    if not entry:
+        return None
+    atr = live.get("entry_atr_pct")
+    if atr:
+        base_pct = min(max(2.0 * atr, 0.025), 0.08)
+    else:
+        base_pct = 0.05
+    level = entry * (1 - base_pct)
+    hw = live.get("high_water")
+    if hw and hw >= entry * 1.03:
+        trail_pct = min(max(1.5 * atr, 0.02), 0.06) if atr else 0.04
+        level = max(level, hw * (1 - trail_pct))
+    return round(level, 2)
 
 
 # Plain-English label per feature for the vision feed ("what the bot sees").
@@ -225,15 +310,19 @@ FEATURE_LABELS = {
     "price_change": "Last hour's price change",
     "volatility_21": "Volatility over the last 21 hours",
     "volume_change": "Trading volume change vs previous hour",
+    "h4_rsi_c": "4-hour RSI momentum: -1 oversold, +1 overbought",
+    "h4_dist_sma": "Distance from the 4-hour 20-period average price",
+    "d1_dist_sma": "Distance from the daily 20-day average price (big trend)",
+    "h4_atr_rel": "4-hour ATR: typical 4-hour move size (volatility)",
 }
 
 
 def build_vision() -> dict:
-    """What the bot sees on the latest closed 1h candle: the 12 features
+    """What the bot sees on the latest closed 1h candle: the 16 features
     (v3 contract, all in [-1, 1]) + the stacker champion's P(up)."""
     import pandas as pd
 
-    from data.yfinance_adapter import fetch_klines
+    from data.market_data import fetch_klines
     from features.technical_indicators import FEATURE_COLUMNS, add_features
     from models.stacker import load as load_stacker
 
@@ -305,6 +394,14 @@ def _duel_run(r: dict) -> dict:
             out["mix"] = c["action_mix"]
         if h.get("action_mix"):
             out["cmix"] = h["action_mix"]
+        if isinstance(c.get("bench_pnl"), (int, float)):
+            # Buy-and-hold P&L over the same gate windows both brains were
+            # graded on -- identical for challenger and champion.
+            out["bpl"] = round(c["bench_pnl"], 2)
+        if c.get("windows"):
+            out["win"] = [round(w["score"], 1) for w in c["windows"]]
+        if h.get("windows"):
+            out["cwin"] = [round(w["score"], 1) for w in h["windows"]]
     else:  # stacker
         if isinstance(m.get("challenger_acc"), (int, float)):
             out["s"] = round(m["challenger_acc"], 4)
@@ -314,6 +411,19 @@ def _duel_run(r: dict) -> dict:
     if why:
         out["why"] = why
     return out
+
+
+def _lab_notes() -> list[dict]:
+    """Newest lab-notebook entries (v4), compact form for the feed."""
+    path = ROOT / "data" / "lab_notes.json"
+    if not path.exists():
+        return []
+    try:
+        notes = json.loads(path.read_text())
+    except Exception:
+        return []
+    return [{"t": n["ts"], "h": n["title"], "d": str(n["detail"])[:110]}
+            for n in notes[-4:]][::-1]
 
 
 def build_compact_training() -> dict:
@@ -326,6 +436,14 @@ def build_compact_training() -> dict:
         if r["kind"] == "ppo"
         and isinstance((r.get("metrics") or {}).get("challenger", {}).get("mean_reward"), (int, float))
     ]
+    # Learning curve of the newest PPO run that recorded one (v4).
+    rcurve = None
+    for r in s["runs"]:
+        if r["kind"] == "ppo":
+            rc = (r.get("metrics") or {}).get("reward_curve")
+            if rc:
+                rcurve = rc
+                break
     return {
         "as_of": s["as_of"],
         "runs": runs,
@@ -335,6 +453,8 @@ def build_compact_training() -> dict:
             "folds": ch.get("folds"),
         } if ch else None,
         "reward_series": reward_series,
+        "rcurve": rcurve,
+        "notes": _lab_notes(),
         "next_retrain": s["next_retrain"],
     }
 
@@ -347,6 +467,7 @@ if __name__ == "__main__":
         "market0": lambda: build_market(0),
         "market1": lambda: build_market(1),
         "vision": build_vision,
+        "fillctx": build_fillctx,
         "training": build_compact_training,
     }
     out = builders[which]()
