@@ -38,6 +38,28 @@ Feeds (python -m src.dashboards.compact <feed>):
                     reward_series (real PPO mean-reward per run, ascending).
                     NOTE: no live-trading data here -- the old live-derived
                     reward_history was removed as duplication (2026-10-20).
+  gate           -> push_gate on BOTH dashboards (added 2026-10-21).
+                    Feed JSON at TOP level (same pattern as push_ledger);
+                    stored as the dashboard's "gate" section. The
+                    promotion-gate state the parked era revolves around:
+                    parked flag + frozen park snapshot, the reigning PPO
+                    champion, the latest challenger duel, and the stacker
+                    champion's accuracy. Keys: parked (0/1), park
+                    {eq, cash, btc, trades, since} from data/park_status.json
+                    (null when not parked), champ {i=run id, t=ts,
+                    s=aggregate score, win=[3 window scores], pl=holdout
+                    P&L, dd=max drawdown} or null, chall (same shape, the
+                    challenger side of the latest duel) or null, duel
+                    {won=windows the challenger won, delta=challenger minus
+                    champion aggregate on the SAME windows, cs/cwin/cpl=the
+                    champion side of that duel, pass (0/1), newchamp (1
+                    when the challenger won and took the crown -- note
+                    champ then IS that challenger, and the duel fields
+                    describe the champion it dethroned)} or null,
+                    sacc/sprec = stacker champion accuracy/precision.
+                    chall/duel are null until a challenger duels a REAL
+                    champion (migration-seated champions carry a -1e9
+                    sentinel score and count as no duel).
 
 Training run short keys:
   i=id, t=ts, k=kind ("ppo"|"stacker"), p=promoted (0/1),
@@ -473,6 +495,90 @@ def build_compact_training() -> dict:
     }
 
 
+def _gate_side(d: dict | None) -> dict | None:
+    """One side of a PPO duel in gate-feed shape, or None when that side
+    recorded no real score. Migration-seated champions carry a -1e9
+    sentinel (the old champion could not run the new recipe), which is
+    NOT a grade and must never reach the dashboard as one."""
+    if not isinstance(d, dict):
+        return None
+    s = d.get("score")
+    if not isinstance(s, (int, float)) or s <= -1e8:
+        return None
+    out: dict = {"s": round(s, 1)}
+    wins = [w.get("score") for w in d.get("windows") or []]
+    if len(wins) == 3 and all(isinstance(w, (int, float)) for w in wins):
+        out["win"] = [round(w, 1) for w in wins]
+    if isinstance(d.get("total_pnl"), (int, float)):
+        out["pl"] = round(d["total_pnl"], 2)
+    if isinstance(d.get("max_drawdown"), (int, float)):
+        out["dd"] = round(d["max_drawdown"], 2)
+    return out
+
+
+def build_gate() -> dict:
+    """Promotion-gate state for both dashboards (see module docstring).
+
+    champ = the newest PROMOTED PPO run, shown with the grade it was
+    seated on. chall/duel = the newest PPO run's head-to-head, when that
+    run dueled a real champion: the duel's own champion side rides along
+    (cs/cwin) because the gate windows slide nightly -- the only honest
+    comparison is challenger vs champion graded on the SAME windows.
+    When the newest run is the champion itself and won a real duel,
+    newchamp=1 marks that the challenger took the crown."""
+    s = snapshot.build_training_snapshot()
+    runs = [r for r in s["runs"] if r["kind"] == "ppo"]
+    champ = None
+    champ_run = next((r for r in runs if r["promoted"]), None)
+    if champ_run is not None:
+        side = _gate_side((champ_run.get("metrics") or {}).get("challenger"))
+        if side is not None:
+            champ = {"i": champ_run["id"], "t": champ_run["ts"], **side}
+    chall = duel = None
+    if runs and champ is not None:
+        latest = runs[0]
+        m = latest.get("metrics") or {}
+        c_side = _gate_side(m.get("challenger"))
+        h_side = _gate_side(m.get("champion"))
+        if c_side is not None and h_side is not None:
+            won = None
+            if "win" in c_side and "win" in h_side:
+                won = sum(1 for a, b in zip(c_side["win"], h_side["win"])
+                          if a > b)
+            delta = round(c_side["s"] - h_side["s"], 1)
+            passed = 1 if delta > 0 and (won is None or won >= 2) else 0
+            chall = {"i": latest["id"], "t": latest["ts"], **c_side}
+            duel = {"won": won, "delta": delta, "pass": passed,
+                    "newchamp": 1 if latest["promoted"] else 0,
+                    "cs": h_side["s"]}
+            if "win" in h_side:
+                duel["cwin"] = h_side["win"]
+            if "pl" in h_side:
+                duel["cpl"] = h_side["pl"]
+    parked, park = 0, None
+    park_file = ROOT / "data" / "park_status.json"
+    if park_file.exists():
+        try:
+            pj = json.loads(park_file.read_text())
+        except Exception:
+            pj = {}
+        if pj.get("parked"):
+            parked = 1
+            park = {"eq": pj.get("equity"), "cash": pj.get("cash"),
+                    "btc": pj.get("btc"), "trades": pj.get("trades"),
+                    "since": pj.get("since")}
+    ch = s.get("champion") or {}
+    return {
+        "parked": parked,
+        "park": park,
+        "champ": champ,
+        "chall": chall,
+        "duel": duel,
+        "sacc": round(ch["accuracy"], 4) if isinstance(ch.get("accuracy"), (int, float)) else None,
+        "sprec": round(ch["precision"], 4) if isinstance(ch.get("precision"), (int, float)) else None,
+    }
+
+
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "trading"
     builders = {
@@ -483,6 +589,7 @@ if __name__ == "__main__":
         "vision": build_vision,
         "fillctx": build_fillctx,
         "training": build_compact_training,
+        "gate": build_gate,
     }
     out = builders[which]()
     text = json.dumps(out, separators=(",", ":"))
