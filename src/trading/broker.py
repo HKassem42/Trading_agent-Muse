@@ -26,6 +26,16 @@ Rules (per config):
     breaks, then gains are locked instead of round-tripped. The
     effective stop is whichever of the two levels is higher; trailing
     exits are recorded with reason "trailing_stop".
+  * Stop anchor on adds (audit 2026-10-22, Kass's averaging question):
+    the initial stop is an explicit ANCHOR level set at first entry.
+    On an add it is recomputed from the size-weighted blended entry
+    and the CURRENT ATR -- but it only ever ratchets TIGHTER (long:
+    never down; short: never up). The pre-fix math re-derived the stop
+    from the blended entry with the first tranche's ATR, so averaging
+    down silently moved the stop away from price: shares already held
+    lost the protection they were promised at entry while the position
+    doubled in size. Adds also refresh entry_atr_pct to the current
+    ATR context (the first tranche's ATR used to stick forever).
 - 0.15% fee per side (0.3% round-trip: commission + spread + slippage,
   per published RL-trading cost guidance; keeps backtests honest).
 
@@ -77,6 +87,9 @@ class PaperBroker:
         self.entry_atr_pct: float | None = None
         self.high_water: float | None = None
         self.low_water: float | None = None
+        # Locked initial-stop price level (see module docstring): set
+        # at first entry, ratchets tighter-only on adds.
+        self.stop_anchor: float | None = None
         self._init_db()
 
     def reset_state(self) -> None:
@@ -92,6 +105,7 @@ class PaperBroker:
         self.entry_atr_pct = None
         self.high_water = None
         self.low_water = None
+        self.stop_anchor = None
 
     # -- ledger ---------------------------------------------------------
     def _init_db(self) -> None:
@@ -143,6 +157,45 @@ class PaperBroker:
         self.entry_atr_pct = None
         self.high_water = None
         self.low_water = None
+        self.stop_anchor = None
+
+    # -- stop anchor (adds / averaging) --------------------------------
+    def _stop_pct_for(self, atr_pct: float | None) -> float:
+        """Initial-stop distance as a fraction of entry for an ATR
+        context -- the same derivation stop_level has always used."""
+        if atr_pct:
+            return min(max(self.STOP_ATR_MULT * atr_pct,
+                           self.STOP_MIN_PCT), self.STOP_MAX_PCT)
+        return self.stop_loss_pct
+
+    def _anchor_for(self, entry: float, atr_pct: float | None,
+                    is_long: bool) -> float:
+        pct = self._stop_pct_for(atr_pct)
+        return entry * (1 - pct) if is_long else entry * (1 + pct)
+
+    def _ratchet_anchor_on_add(self, is_long: bool, old_entry: float,
+                               old_atr: float | None,
+                               new_atr: float | None) -> None:
+        """Recompute the stop anchor after an add blended the entry.
+
+        The candidate comes from the NEW blended entry and the CURRENT
+        ATR (an add carrying no ATR keeps the stored context); the
+        stored anchor then moves only toward price -- tighter, never
+        looser -- so size already held keeps the stop it was promised.
+        A position restored without an anchor (legacy state) first
+        adopts the level its PRE-add entry/ATR implied, then ratchets
+        from there, so the fix is self-healing on old state."""
+        if self.stop_anchor is None:
+            self.stop_anchor = self._anchor_for(old_entry, old_atr,
+                                                is_long)
+        if new_atr is not None:
+            self.entry_atr_pct = new_atr
+        cand = self._anchor_for(self.entry_price, self.entry_atr_pct,
+                                is_long)
+        if is_long:
+            self.stop_anchor = max(self.stop_anchor, cand)
+        else:
+            self.stop_anchor = min(self.stop_anchor, cand)
 
     def buy(self, price: float, reason: str = "signal", ts: str | None = None,
             atr_pct: float | None = None,
@@ -168,12 +221,17 @@ class PaperBroker:
             self.entry_price = price
             self.entry_atr_pct = atr_pct
             self.high_water = price
+            self.stop_anchor = self._anchor_for(price, atr_pct, True)
         else:
-            # weighted-average entry on adds
+            # weighted-average entry on adds; the stop anchor ratchets
+            # (tighter-only) off the new blend and current ATR.
+            old_entry, old_atr = self.entry_price, self.entry_atr_pct
             self.entry_price = (
                 self.entry_price * self.btc + price * qty
             ) / (self.btc + qty)
             self.high_water = max(self.high_water or price, price)
+            self._ratchet_anchor_on_add(True, old_entry, old_atr,
+                                        atr_pct)
         self.btc += qty
         fill = Fill(ts or self._now(), "BUY", price, qty, fee, reason, context)
         self._record(fill)
@@ -246,12 +304,16 @@ class PaperBroker:
             self.entry_price = price
             self.entry_atr_pct = atr_pct
             self.low_water = price
+            self.stop_anchor = self._anchor_for(price, atr_pct, False)
         else:
             # weighted-average entry on adds (magnitudes; btc is negative)
+            old_entry, old_atr = self.entry_price, self.entry_atr_pct
             held = abs(self.btc)
             self.entry_price = (
                 self.entry_price * held + price * qty) / (held + qty)
             self.low_water = min(self.low_water or price, price)
+            self._ratchet_anchor_on_add(False, old_entry, old_atr,
+                                        atr_pct)
         self.btc -= qty
         fill = Fill(ts or self._now(), "SELL", price, qty, fee,
                     "short_open", context)
@@ -295,7 +357,12 @@ class PaperBroker:
         Short (v5) mirrors exactly: initial stop ABOVE entry by the same
         ATR-sized pct, trailing stop above the LOWEST close once price
         has fallen TRAIL_ACTIVATE_PCT below entry, effective stop is the
-        LOWER of the two (the tighter one)."""
+        LOWER of the two (the tighter one).
+
+        The initial stop is the position's locked ANCHOR when one is
+        set (ratchets tighter-only on adds -- see module docstring);
+        the entry-derived formula below is the fallback for positions
+        restored from state that predates the anchor."""
         if self.btc == 0 or not self.entry_price:
             return None
         atr = self.entry_atr_pct
@@ -308,7 +375,8 @@ class PaperBroker:
             base_pct = self.stop_loss_pct
             trail_pct = 0.04
         if self.btc > 0:
-            level = self.entry_price * (1 - base_pct)
+            level = (self.stop_anchor if self.stop_anchor is not None
+                     else self.entry_price * (1 - base_pct))
             trailing = False
             hw = self.high_water
             if hw is not None and hw >= self.entry_price * (1 + self.TRAIL_ACTIVATE_PCT):
@@ -316,7 +384,8 @@ class PaperBroker:
                 if trail_level > level:
                     level, trailing = trail_level, True
             return level, trailing
-        level = self.entry_price * (1 + base_pct)
+        level = (self.stop_anchor if self.stop_anchor is not None
+                 else self.entry_price * (1 + base_pct))
         trailing = False
         lw = self.low_water
         if lw is not None and lw <= self.entry_price * (1 - self.TRAIL_ACTIVATE_PCT):

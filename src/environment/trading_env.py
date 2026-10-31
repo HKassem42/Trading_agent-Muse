@@ -51,8 +51,17 @@ class TradingEnv(gym.Env):
         steps_per_day: int = 24,
         min_round_trips: int = 2,
         fill_mode: str = "close",
+        feature_columns: list[str] | None = None,
     ) -> None:
         super().__init__()
+        # Feature set (2026-10-25 generalization for the features-v6
+        # lab study): defaults to the production FEATURE_COLUMNS, in
+        # which case every observation is byte-identical to before.
+        # A study passes its own column list and the env serves that
+        # state width end to end (state, decision context, obs space).
+        self.feature_columns = (list(feature_columns)
+                                if feature_columns else list(FEATURE_COLUMNS))
+        self.state_features = self.feature_columns + ["stacker_p_up"]
         self.df = df.reset_index(drop=True)
         self.stacker_p_up = np.asarray(stacker_p_up, dtype=float)
         assert len(self.stacker_p_up) == len(self.df), "stacker votes must align with df"
@@ -80,7 +89,7 @@ class TradingEnv(gym.Env):
         # lives in [-1, 1] -- features by construction, the rest by the
         # transforms in _state plus a final clip guard.
         self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(len(STATE_FEATURES) + 3,), dtype=np.float32
+            low=-1.0, high=1.0, shape=(len(self.state_features) + 3,), dtype=np.float32
         )
         self.action_space = spaces.Discrete(4)  # hold / buy / sell / short
         self._cursor = 0
@@ -93,7 +102,7 @@ class TradingEnv(gym.Env):
         price = float(row["close"])
         # stacker p_up is a probability in [0, 1]; center it to [-1, 1].
         p_up_c = 2.0 * float(self.stacker_p_up[i]) - 1.0
-        market = [float(row[c]) for c in FEATURE_COLUMNS] + [p_up_c]
+        market = [float(row[c]) for c in self.feature_columns] + [p_up_c]
         eq = self.broker.equity(price)
         # cash/btc fractions already live in [0, 1]; unrealized_pct is an
         # unbounded return, so clip it. Final clip is a belt-and-braces
@@ -133,7 +142,7 @@ class TradingEnv(gym.Env):
     def _decision_context(self, i: int) -> str:
         """JSON snapshot stored on fills made from this decision row."""
         row = self.df.iloc[i]
-        feats = [round(float(row[c]), 4) for c in FEATURE_COLUMNS]
+        feats = [round(float(row[c]), 4) for c in self.feature_columns]
         return json.dumps({"f": feats, "p": round(float(self.stacker_p_up[i]), 4)})
 
     def _atr_pct(self, i: int) -> float | None:

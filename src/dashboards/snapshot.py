@@ -23,8 +23,8 @@ DATA = ROOT / "data"
 ET = ZoneInfo("America/New_York")
 
 
-def _paper_db():
-    p = DATA / "paper.db"
+def _paper_db(path=None):
+    p = Path(path) if path is not None else DATA / "paper.db"
     return sqlite3.connect(p) if p.exists() else None
 
 
@@ -205,6 +205,8 @@ def _fresh_account_snapshot(snap: dict) -> dict:
         "position": "FLAT",
         "entry_price": None,
         "stop_price": None,
+        "stop_anchor": None,
+        "stop_trailing": 0,
         "unrealized_pct": 0.0,
         "day_pnl": 0.0,
         "day_reward": 0,  # no day yet -- neither +1 nor -1
@@ -225,9 +227,73 @@ def _fresh_account_snapshot(snap: dict) -> dict:
     return snap
 
 
-def build_trading_snapshot() -> dict:
+def _restored_broker(live: dict):
+    """A PaperBroker restored from the persisted live_state fields,
+    mirroring live.py's restore field for field, on an in-memory
+    ledger so the display path never touches paper.db. entry_price
+    falls back to last_entry_price, the alias live.py keeps in sync
+    (anchor-era states that predate one of the two fields still
+    restore). Returns None if the broker cannot be built."""
+    try:
+        from trading.broker import PaperBroker
+    except Exception:
+        return None
+    broker = PaperBroker(":memory:", starting_balance=100_000,
+                         max_position_pct=0.25, stop_loss_pct=0.05)
+    if live.get("cash") is not None:
+        broker.cash = float(live["cash"])
+    broker.btc = float(live.get("btc") or 0.0)
+    broker.entry_price = (live.get("entry_price")
+                          or live.get("last_entry_price"))
+    broker.entry_atr_pct = live.get("entry_atr_pct")
+    broker.high_water = live.get("high_water")
+    broker.low_water = live.get("low_water")
+    broker.stop_anchor = live.get("stop_anchor")
+    return broker
+
+
+def _stop_display(live: dict, btc: float):
+    """(effective stop, trailing_active, anchor) for the dashboards.
+
+    The displayed stop is the level that would actually FIRE:
+    PaperBroker.stop_level() on the restored live state -- the
+    locked anchor until the trailing arm activates (price 3%+ in
+    the position's favor), then the tighter trailing level. The
+    2026-10-24 anchor-only mirror made every feed agree with each
+    other while disagreeing with the broker (the dashboard drew
+    the $86,607.68 anchor while the broker would fire at
+    $81,285.08); delegating to stop_level itself keeps display
+    and exit logic from ever drifting apart again, and anchor-less
+    legacy states get the broker's own entry/ATR fallback from
+    the same call. The anchor rides along as its own value so no
+    information is lost. Flat -> (None, False, None); when the
+    broker cannot produce a level (a state without an entry),
+    fall back to the anchor."""
+    if not btc:
+        return None, False, None
+    anchor = live.get("stop_anchor")
+    anchor_f = round(float(anchor), 2) if anchor else None
+    broker = _restored_broker(live)
+    lvl = broker.stop_level() if broker is not None else None
+    if lvl is None:
+        return anchor_f, False, anchor_f
+    level, trailing = lvl
+    return round(level, 2), bool(trailing), anchor_f
+
+
+def _display_stop(live: dict, btc: float) -> float | None:
+    """The stop price the dashboards headline for the current
+    position: the broker's EFFECTIVE stop (see _stop_display)."""
+    return _stop_display(live, btc)[0]
+
+
+def build_trading_snapshot(db_path=None, state_path=None) -> dict:
+    """The Live Desk snapshot for one paper book. Defaults are the
+    production book (data/paper.db + data/live_state.json); the
+    Champion #2 shadow desk passes its own book/state paths (same
+    shape, fully separate files -- see src/trading/live_shadow.py)."""
     snap: dict = {"as_of": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    con = _paper_db()
+    con = _paper_db(db_path)
     if con is None:
         return {**snap, "status": "not_started"}
     con.row_factory = sqlite3.Row
@@ -267,11 +333,13 @@ def build_trading_snapshot() -> dict:
         "SELECT ts, side, price, qty, fee, reason FROM trades ORDER BY id DESC LIMIT 20"
     ).fetchall()
 
-    state_file = DATA / "live_state.json"
+    state_file = (Path(state_path) if state_path is not None
+                  else DATA / "live_state.json")
     live = json.loads(state_file.read_text()) if state_file.exists() else {}
 
     position = "LONG" if btc > 0 else ("SHORT" if btc < 0 else "FLAT")
     entry = live.get("last_entry_price")
+    eff_stop, stop_trailing, stop_anchor = _stop_display(live, btc)
     stats = trade_stats(con)
     calendar = daily_calendar(con)
     curve = [
@@ -286,10 +354,15 @@ def build_trading_snapshot() -> dict:
         "btc_value": round(btc * price, 2),
         "position": position,
         "entry_price": entry,
-        # Flat-fallback stop display (the trading feed's market lines use
-        # the broker's real ATR level via compact._live_stop_level): a
-        # short's stop sits ABOVE entry, a long's below.
-        "stop_price": round(entry * (0.95 if btc >= 0 else 1.05), 2) if entry else None,
+        # Stop display = the broker's EFFECTIVE stop on the restored
+        # state (the locked anchor until the trailing arm activates,
+        # then the tighter trailing level -- see _stop_display;
+        # compact._live_stop_level mirrors the same value for the
+        # market feed); the anchor and the trailing flag ride along
+        # as their own fields. Flat -> stop_price/anchor None.
+        "stop_price": eff_stop,
+        "stop_anchor": stop_anchor,
+        "stop_trailing": 1 if stop_trailing else 0,
         "unrealized_pct": (round(price / entry - 1, 4) if btc > 0
                            else round(1 - price / entry, 4) if btc < 0
                            else 0.0) if entry else 0.0,

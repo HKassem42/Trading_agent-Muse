@@ -2,7 +2,8 @@
 
 Designed to run every hour via cron (the parent owns the schedule). Each
 invocation:
-1. Loads the champion stacker + champion PPO.
+1. Loads the DRIVER'S-SEAT stacker + PPO (models/live_seat/ -- the
+   champions Kass seated for live trading; see SEAT_DIR below).
 2. Fetches the latest closed 1h candles; processes any not yet seen
    (tracked in data/live_state.json, so restarts are safe).
 3. For each new candle: compute features -> stacker P(up) -> PPO action
@@ -30,11 +31,28 @@ from environment.trading_env import TradingEnv
 from features.technical_indicators import FEATURE_COLUMNS, add_features
 from models.stacker import load as load_stacker
 from trading.broker import PaperBroker
+from trading.decision_log import (append_decision, broker_stop_level,
+                                  describe_outcome, make_record,
+                                  stance_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = ROOT / "models"
 DATA = ROOT / "data"
 STATE_FILE = DATA / "live_state.json"
+
+# The driver's seat (seat separation, Kass 2026-10-25): the live loop
+# trades ONLY the artifacts seated here -- copies of the exact
+# champions Kass picked for live trading, recorded in
+# data/live_seat.json. The Training Lab's champions
+# (models/stacker_champion.pkl, models/ppo_champion.zip) are grading
+# baselines for the lab and are NEVER loaded here: a lab crowning
+# must not move the live book, and the seat changes only when Kass
+# names a new driver (manual procedure in models/live_seat/README.md).
+# A missing seat file is a loud failure, never a silent fallback to
+# the lab champions.
+SEAT_DIR = MODELS / "live_seat"
+SEAT_STACKER = SEAT_DIR / "stacker.pkl"
+SEAT_PPO = SEAT_DIR / "ppo.zip"
 
 
 def load_state() -> dict:
@@ -116,20 +134,20 @@ def save_state(state: dict) -> None:
 
 
 def run_once() -> dict:
-    stacker = load_stacker(MODELS / "stacker_champion.pkl")
+    stacker = load_stacker(SEAT_STACKER)
     from stable_baselines3 import PPO
-    ppo = PPO.load(MODELS / "ppo_champion.zip")
+    ppo = PPO.load(SEAT_PPO)
 
     # Feature-recipe upgrades change the observation dimension. If the
-    # champion was trained on the old recipe, skip trading (rather than
-    # crash) until a new champion is promoted by the training loop.
+    # seated brain was trained on an old recipe, skip trading (rather
+    # than crash) until Kass seats a brain built for the current one.
     expected_dim = len(FEATURE_COLUMNS) + 1 + 3  # features + p_up + portfolio
     model_dim = int(ppo.observation_space.shape[0])
     if model_dim != expected_dim:
         return {"processed": 0,
-                "skipped": f"champion expects {model_dim}-dim obs, "
+                "skipped": f"seated champion expects {model_dim}-dim obs, "
                            f"recipe now builds {expected_dim}-dim; "
-                           f"awaiting new champion promotion"}
+                           f"awaiting a driver-seat change"}
 
     broker = PaperBroker(DATA / "paper.db", starting_balance=100_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
@@ -148,6 +166,12 @@ def run_once() -> dict:
         broker.entry_atr_pct = state.get("entry_atr_pct")
         broker.high_water = state.get("high_water")
         broker.low_water = state.get("low_water")
+        # Locked stop anchor (2026-10-22): without this round-trip the
+        # ratchet would reset every hourly run and adds would fall back
+        # to the loosening blended-entry formula. Absent on pre-anchor
+        # state -- the broker then derives the stop from entry/ATR
+        # until the next add adopts-and-ratchets it.
+        broker.stop_anchor = state.get("stop_anchor")
 
     # ONE fetch (audit 2026-10-20): the old code fetched 5d to decide what
     # to process and 60d for features -- two snapshots of the market that
@@ -228,17 +252,37 @@ def run_once() -> dict:
         # volatility-sized stop from here on (either direction, v5).
         if broker.btc != 0 and broker.entry_atr_pct is None:
             broker.entry_atr_pct = atr_pct
-        broker.check_stop(price, ts=ts_s, low=float(row["low"]),
-                          high=float(row["high"]), context=ctx)
+        pos_before = broker.btc
+        stop_fill = broker.check_stop(price, ts=ts_s, low=float(row["low"]),
+                                      high=float(row["high"]), context=ctx)
+        fill = None
         if int(action) == 1:
-            broker.buy(price, reason="ppo_live", ts=ts_s,
-                       atr_pct=atr_pct, context=ctx)
-        elif int(action) == 2:
-            broker.sell(price, reason="ppo_live", ts=ts_s, context=ctx)
-        elif int(action) == 3:
-            broker.short_open(price, reason="ppo_live", ts=ts_s,
+            fill = broker.buy(price, reason="ppo_live", ts=ts_s,
                               atr_pct=atr_pct, context=ctx)
+        elif int(action) == 2:
+            fill = broker.sell(price, reason="ppo_live", ts=ts_s,
+                               context=ctx)
+        elif int(action) == 3:
+            fill = broker.short_open(price, reason="ppo_live", ts=ts_s,
+                                     atr_pct=atr_pct, context=ctx)
         broker.snapshot(ts_s, price)
+        # Decision log (instrumentation only, 2026-10-31): what the
+        # bot was thinking on this candle, from values already in
+        # hand -- failure-isolated, never alters the trade path.
+        _d_action, _d_taken, _d_reason = describe_outcome(
+            int(action), stop_fill, fill)
+        _d_eq = broker.equity(price)
+        append_decision("book1", make_record(
+            ts=ts_s, close=price, p_up=round(p_up, 4),
+            stance=stance_name(int(action)), action=_d_action,
+            taken=_d_taken, reason=_d_reason,
+            pos_before=pos_before, pos_after=broker.btc,
+            equity=round(_d_eq, 2),
+            stop_level=broker_stop_level(broker),
+            exposure_pct=(round(100.0 * abs(broker.btc) * price
+                                / _d_eq, 2) if _d_eq else None),
+            features={c: float(frow[c]) for c in FEATURE_COLUMNS}),
+            decisions_dir=STATE_FILE.parent / "decisions")
         # Persist the account after EVERY candle (audit 2026-10-20): the
         # old end-of-run-only save meant a mid-loop crash left durable
         # fills in the ledger next to stale account state, and the next
@@ -256,6 +300,7 @@ def run_once() -> dict:
         state["entry_atr_pct"] = broker.entry_atr_pct
         state["high_water"] = broker.high_water
         state["low_water"] = broker.low_water
+        state["stop_anchor"] = broker.stop_anchor
         save_state(state)
         processed += 1
 
