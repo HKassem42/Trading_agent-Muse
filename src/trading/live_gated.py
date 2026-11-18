@@ -2,23 +2,42 @@
 (Kass approved 2026-10-30; pre-registered in
 refs/forward-test-gated-book3-2026-10-30.md BEFORE the first run).
 
-Book #3 is the EXACT twin of Book #2 (src/trading/live_shadow.py):
-    Driver: PPO run 44  -  Eyes: Stacker Champion #4 (run 73,
-    Muse's Pick #2, pick2_98 frame)
-    production PaperBroker, closed-1h decisions, $100,000 FLAT.
-The ONLY difference: every ENTRY attempt is first evaluated by
-run 82's frozen meta-label gate (refs/meta-label-study-2026-10-30.md).
-If the gate's P(profitable) for the attempt is below 0.55, the
-entry is VETOED — logged in this book's own gate_decisions table
-and never executed. Exits and all position management (sells,
-covers, through-flat closes, protective stops) are never gated.
+Book #3 began as the EXACT twin of Book #2 (src/trading/
+live_shadow.py): Driver PPO run 44, Eyes Stacker Champion #4
+(run 73, Muse's Pick #2, pick2_98 frame), production
+PaperBroker, closed-1h decisions, $100,000 FLAT — with every
+ENTRY attempt first evaluated by run 82's frozen meta-label
+gate (refs/meta-label-study-2026-10-30.md).
+
+SEGMENT 2 (Kass's direct order, 2026-11-03): the driver became
+PPO run 99 (seated by Kass's pick, recorded duel verdict NOT
+PROMOTED) and the gate's veto threshold went to 0.50.
+
+SEGMENT 3 (Kass's direct order, 2026-11-04): the gate's veto
+threshold is back to 0.55, read from the seat manifest
+(data/gated_seat.json) — the threshold is a seat parameter
+Kass sets; driver (run 99) and eyes (run 73) unchanged; the
+gate MODEL stays run 82's frozen artifact, hash-pinned, never
+retrained or refit. Segment 1 (2026-10-30 → 2026-11-03T23:00Z)
+ran run 44 @ 0.55 and closed with 7 attempts, 0 taken,
+7 vetoed. Segment 2 (2026-11-04T00:00Z → 2026-11-04T21:00Z)
+ran run 99 @ 0.50 and closed with 14 attempts, 9 taken,
+5 vetoed. The segment record is the amendment in
+refs/forward-test-gated-book3-2026-10-30.md.
+
+If the gate's P(profitable) for an attempt is below the seat
+threshold, the entry is VETOED — logged in this book's own
+gate_decisions table and never executed. Exits and all
+position management (sells, covers, through-flat closes,
+protective stops) are never gated.
 
 The gate is the study's own machinery, not a re-implementation:
 the 104-vector is built by training.meta_label.feature_row (the
 98 pick2_98 values in the champion's recorded column order +
 [p_up, |p_up - 0.5|, atr_rel, volatility_21, atr_pct_raw, side])
-and scored by training.meta_label.MetaGate with the frozen
-threshold 0.55. The gate model file is a byte-copy of the
+and scored by training.meta_label.MetaGate with the seat
+manifest's threshold (0.55 in Segment 1; 0.50 in Segment 2;
+0.55 again since Kass's 2026-11-04 order). The gate model file is a byte-copy of the
 study's artifact, hash-pinned in the seat manifest; it is never
 retrained or refit during the test. Gate parity with the study
 is pinned in tests/test_gated_desk.py against the study's own
@@ -85,13 +104,19 @@ SEAT_GATE = SEAT_DIR / "gate_model.pkl"
 # Canonical sources the seat was copied from (the pinned runs).
 SOURCE_STACKER = MODELS / "stacker_champion.pkl"        # run 73
 SOURCE_STACKER_META = MODELS / "stacker_champion.json"   # run 73
-SOURCE_PPO = MODELS / "ppo_champion.zip"                 # run 44
+SOURCE_PPO = MODELS / "ppo_run99.zip"                    # run 99 (preserved copy;
+# ppo_challenger.zip is overwritten by every nightly retrain)
 SOURCE_GATE = DATA / "meta_label" / "meta_model.pkl"     # run 82
 
 STARTING_BALANCE = 100_000.0
-DRIVER_RUN = 44
+DRIVER_RUN = 99
 EYES_RUN = 73
 GATE_RUN = 82
+# The seat's current gate threshold (Segment 3). At runtime the
+# manifest (data/gated_seat.json) is authoritative — this is
+# only build_manifest's seed-time value. Kass sets it; the gate
+# MODEL below stays frozen by hash regardless.
+SEAT_GATE_THRESHOLD = 0.55
 # The frozen gate identity (run-82 study record): the seat copy
 # and its canonical source must both hash to this, always.
 GATE_MODEL_SHA256 = \
@@ -162,7 +187,7 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
             "brain": "PPO", "run_id": DRIVER_RUN,
             "file": "models/gated_seat/ppo.zip",
             "sha256": _sha256(seat_dir / "ppo.zip"),
-            "source": "models/ppo_champion.zip",
+            "source": "models/ppo_run99.zip",
         },
         "eyes": {
             "brain": "Stacker", "run_id": EYES_RUN,
@@ -182,7 +207,7 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
             "file": "models/gated_seat/gate_model.pkl",
             "sha256": _sha256(seat_dir / "gate_model.pkl"),
             "source": "data/meta_label/meta_model.pkl",
-            "threshold": GATE_THRESHOLD,
+            "threshold": SEAT_GATE_THRESHOLD,
             "feature_vector": "104 = 98 pick2_98 scored values "
                               "(champion's recorded column order) + "
                               "[p_up, |p_up-0.5|, atr_rel, "
@@ -198,21 +223,27 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
         "starting_balance": int(STARTING_BALANCE),
         "started": started,
         "seeded_by": "Book #3 gated forward test build (Kass "
-                     "approved the forward test 2026-10-30)",
-        "pinned": "Driver pinned to PPO run 44, eyes pinned to "
-                  "Stacker run 73 (Champion #4), gate pinned to "
-                  "run 82's frozen meta-model at threshold 0.55: "
-                  "this seat does NOT follow future lab crownings "
-                  "and the gate is NEVER retrained or refit. Any "
-                  "change to the gate, the threshold, or the pair "
-                  "ends the forward test (pre-registration, "
-                  "refs/forward-test-gated-book3-2026-10-30.md).",
-        "note": "Book #3: Book #2's exact twin (same driver, same "
-                "eyes, same broker) plus run 82's hard entry veto "
-                "-- the forward test of the meta-label gate. "
-                "Primary evidence: the gate_decisions table in "
-                "data/paper_gated.db, each veto scored against "
-                "the corresponding fill Book #2 actually took.",
+                     "approved the forward test 2026-10-30); "
+                     "driver re-seated to run 99 and threshold "
+                     "set to 0.50 by Kass's direct order "
+                     "2026-11-03 (Segment 2)",
+        "pinned": "Driver pinned to PPO run 99 (Kass's pick "
+                  "2026-11-03; recorded duel verdict NOT "
+                  "PROMOTED), eyes pinned to Stacker run 73 "
+                  "(Champion #4), gate MODEL pinned to run 82's "
+                  "frozen meta-model by hash (NEVER retrained or "
+                  "refit), gate threshold a seat parameter "
+                  "(0.55 in Segment 1; 0.50 since 2026-11-03). "
+                  "This seat does NOT follow future lab "
+                  "crownings. Segment record: the amendment in "
+                  "refs/forward-test-gated-book3-2026-10-30.md.",
+        "note": "Book #3: the gated shadow book. Segment 1: "
+                "Book #2's exact twin (run 44 driver) plus run "
+                "82's entry veto at 0.55 (7 attempts, 0 taken). "
+                "Segment 2: run 99 driver, veto at 0.50. Primary "
+                "evidence: the gate_decisions table in "
+                "data/paper_gated.db; each row records the "
+                "threshold it was judged at.",
     }
 
 
@@ -395,10 +426,15 @@ def run_once(cfg: GatedConfig = DEFAULT_CONFIG, fetch=None,
     verify_seat(man, cfg.seat_dir)
     threshold = float((man.get("gate") or {}).get(
         "threshold", GATE_THRESHOLD))
-    if threshold != GATE_THRESHOLD:
+    if not 0.0 < threshold < 1.0:
         raise ValueError(
-            f"gated manifest threshold {threshold} != the frozen "
-            f"{GATE_THRESHOLD}; refusing to run a changed test")
+            f"gated manifest threshold {threshold} is not a "
+            f"probability; refusing to run")
+    # The threshold is a SEAT parameter: it lives in the manifest
+    # and changes only on Kass's order (Segment 1 ran at the
+    # study's 0.55; Kass set 0.50 on 2026-11-03 and restored
+    # 0.55 on 2026-11-04). What stays
+    # frozen is the gate MODEL — verify_seat hash-pins it above.
     fetch = fetch or fetch_klines
     state = load_state(cfg)
     last_ts = state.get("last_ts")

@@ -9,7 +9,7 @@ stop ANCHOR because the three displays disagreed with each other
 $82,118.42 on the same live short). That pin made the feeds agree
 with EACH OTHER while disagreeing with the BROKER: the anchor is
 only the locked INITIAL stop, and once the trailing arm activates
-(price 3%+ in the position's favor) the level that actually fires
+(price TRAIL_ACTIVATE_PCT+ in the position's favor) the level that actually fires
 is the tighter trailing level. On that same short the broker's
 effective stop was $81,285.08 (low_water $79,691.25 x 1.02) while
 the dashboard drew $86,607.68 -- Kass spotted that the displayed
@@ -62,8 +62,8 @@ LONG_LIVE = {
     "stop_anchor": LONG_ANCHOR,
 }
 
-# Same anchors, but the water marks never moved the 3% activation
-# distance past entry, so the trailing arm is NOT active and the
+# Same anchors, but the water marks never moved the activation
+# distance (2% since 2026-11-02) past entry, so the trailing arm is NOT active and the
 # effective stop IS the anchor.
 SHORT_UNTRAILED = {
     **SHORT_LIVE, "low_water": 79000.0,   # only -1.25% from entry

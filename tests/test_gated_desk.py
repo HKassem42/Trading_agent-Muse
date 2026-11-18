@@ -1,12 +1,17 @@
 """BOOK #3 — GATED SHADOW (forward test, Kass approved 2026-10-30;
 pre-registered in refs/forward-test-gated-book3-2026-10-30.md).
 
-Book #3 is Book #2's exact twin (Driver PPO run 44, Eyes Stacker
-run 73 pick2_98, production broker, $100k flat) with ONE
-difference: run 82's frozen meta-label gate vetoes ENTRY attempts
-whose P(profitable) < 0.55. Pins:
+Book #3 is the gated shadow book (Eyes Stacker run 73 pick2_98,
+production broker, $100k flat): run 82's frozen meta-label gate
+vetoes ENTRY attempts whose P(profitable) < the seat threshold.
+Segment 1 (2026-10-30 → 2026-11-03) was Book #2's exact twin
+(Driver PPO run 44) at threshold 0.55; Segment 2 (Kass's direct
+order 2026-11-03) seats Driver PPO run 99 at threshold 0.50;
+Segment 3 (Kass's direct order 2026-11-04) keeps run 99 and
+restores threshold 0.55 — the threshold lives in
+data/gated_seat.json. Pins:
 
-- the gate seat: byte-copies of run 44 / run 73 / the run-82 gate
+- the gate seat: byte-copies of run 99 / run 73 / the run-82 gate
   model (sha256 cf7630...), hash-pinned in data/gated_seat.json;
   a tampered or missing seat file is a LOUD failure;
 - the 104-vector: the live gate probability for a candle equals
@@ -14,7 +19,7 @@ whose P(profitable) < 0.55. Pins:
   holdout arrays (frame_hold.npy / votes_hold.npy / context.npz)
   -- the live path routes through meta_label.feature_row, never
   a re-derived variant;
-- veto behavior: a sub-0.55 entry is skipped AND logged in the
+- veto behavior: a sub-threshold entry is skipped AND logged in the
   gate_decisions table (the test's primary evidence); an allowed
   entry executes and is logged TAKEN; exits and position
   management (sell, cover, through-flat close) are NEVER gated
@@ -48,7 +53,7 @@ MODELS = ROOT / "models"
 GATED_SEAT = MODELS / "gated_seat"
 GATED_MANIFEST = DATA / "gated_seat.json"
 
-RUN44_PPO_SHA = "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb"
+RUN99_PPO_SHA = "fa2c1677980bf97fd9cf885669981d90d42b8b1942b8a0fc5a3a22f4ce10fe0b"
 RUN73_STK_SHA = "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
 GATE82_SHA = "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a"
 
@@ -71,7 +76,7 @@ def _ohlcv(n: int, seed: int = 7, start: str = "2024-01-01") -> pd.DataFrame:
 # ------------------------------------------------------------- the seat
 
 def test_gated_seat_files_are_byte_copies_of_the_pinned_artifacts():
-    assert _sha(GATED_SEAT / "ppo.zip") == RUN44_PPO_SHA
+    assert _sha(GATED_SEAT / "ppo.zip") == RUN99_PPO_SHA
     assert _sha(GATED_SEAT / "stacker.pkl") == RUN73_STK_SHA
     assert _sha(GATED_SEAT / "gate_model.pkl") == GATE82_SHA
     # and the gate source itself is still the study's frozen file
@@ -81,8 +86,8 @@ def test_gated_seat_files_are_byte_copies_of_the_pinned_artifacts():
 def test_gated_manifest_pins_the_forward_test_configuration():
     man = json.loads(GATED_MANIFEST.read_text())
     assert man["book"] == "Book #3"
-    assert man["driver"]["run_id"] == 44
-    assert man["driver"]["sha256"] == RUN44_PPO_SHA
+    assert man["driver"]["run_id"] == 99
+    assert man["driver"]["sha256"] == RUN99_PPO_SHA
     assert man["eyes"]["run_id"] == 73
     assert man["eyes"]["sha256"] == RUN73_STK_SHA
     assert man["eyes"]["feature_set"] == "pick2_98"
@@ -266,11 +271,28 @@ def _tmp_cfg(tmp_path):
     )
 
 
-def _seeded(tmp_path):
+def _pin_sources(monkeypatch):
+    """ensure_seat verifies the seat against the engine's canonical
+    stacker sources, which pointed at the lab champion files while
+    the seat's eyes WERE the lab champion. Since Kass's 2026-11-02
+    LAB-ONLY crowning of run 96, the lab files are a different
+    brain and the seat deliberately diverges; pin the sources to
+    the seat's own pinned run-73 artifacts for these fixtures (the
+    hash pins themselves live in the seat tests above)."""
+    from trading import live_gated
+
+    monkeypatch.setattr(
+        live_gated, "SOURCE_STACKER", GATED_SEAT / "stacker.pkl")
+    monkeypatch.setattr(
+        live_gated, "SOURCE_STACKER_META", GATED_SEAT / "stacker.json")
+
+
+def _seeded(tmp_path, monkeypatch):
     """(cfg, columns, start) with the desk seeded on a 601-row
     frame whose last row is the forming candle."""
     from trading import live_gated
 
+    _pin_sources(monkeypatch)
     meta = json.loads((GATED_SEAT / "stacker.json").read_text())
     columns = list(meta["feature_columns"])
     cfg = _tmp_cfg(tmp_path)
@@ -301,10 +323,10 @@ def _trades(cfg):
         con.close()
 
 
-def test_vetoed_entry_is_skipped_and_logged(tmp_path):
+def test_vetoed_entry_is_skipped_and_logged(tmp_path, monkeypatch):
     from trading import live_gated
 
-    cfg, columns, start, _raw = _seeded(tmp_path)
+    cfg, columns, start, _raw = _seeded(tmp_path, monkeypatch)
     raw2 = _ohlcv(603, start=start)
     gate = _SequenceGateModel([0.30])  # below 0.55: veto
     res = live_gated.run_once(
@@ -325,10 +347,11 @@ def test_vetoed_entry_is_skipped_and_logged(tmp_path):
     assert state["last_gate_decision"]["verdict"] == "VETOED"
 
 
-def test_allowed_entry_executes_and_is_logged_taken(tmp_path):
+def test_allowed_entry_executes_and_is_logged_taken(
+        tmp_path, monkeypatch):
     from trading import live_gated
 
-    cfg, columns, start, _raw = _seeded(tmp_path)
+    cfg, columns, start, _raw = _seeded(tmp_path, monkeypatch)
     raw2 = _ohlcv(603, start=start)
     gate = _SequenceGateModel([0.90])  # above 0.55: taken
     res = live_gated.run_once(
@@ -342,10 +365,11 @@ def test_allowed_entry_executes_and_is_logged_taken(tmp_path):
     assert rows[0][2] == pytest.approx(0.90)
 
 
-def test_exits_and_management_are_never_gated(tmp_path):
+def test_exits_and_management_are_never_gated(
+        tmp_path, monkeypatch):
     from trading import live_gated
 
-    cfg, columns, start, _raw = _seeded(tmp_path)
+    cfg, columns, start, _raw = _seeded(tmp_path, monkeypatch)
     # Candle 1: buy (gate consulted once, allowed). Candle 2: SELL
     # exits the long -- the gate must NOT be consulted again (the
     # script has exactly one probability) and the exit must fill.
@@ -362,10 +386,11 @@ def test_exits_and_management_are_never_gated(tmp_path):
     assert state["btc"] == 0.0
 
 
-def test_cover_and_through_flat_close_are_never_gated(tmp_path):
+def test_cover_and_through_flat_close_are_never_gated(
+        tmp_path, monkeypatch):
     from trading import live_gated
 
-    cfg, columns, start, _raw = _seeded(tmp_path)
+    cfg, columns, start, _raw = _seeded(tmp_path, monkeypatch)
     # Short opens (gated, allowed), then a BUY while short is a
     # COVER -- management, not an entry: executes ungated. (The
     # cover is tranche-capped like every broker fill, so it may
@@ -410,10 +435,11 @@ def _book12_fingerprint() -> dict:
     return out
 
 
-def test_gated_engine_perimeter_idempotence_and_floor(tmp_path):
+def test_gated_engine_perimeter_idempotence_and_floor(
+        tmp_path, monkeypatch):
     from trading import live_gated
 
-    cfg, columns, start, raw = _seeded(tmp_path)
+    cfg, columns, start, raw = _seeded(tmp_path, monkeypatch)
     anchor = raw.index[-2]
     state = json.loads(cfg.state_file.read_text())
     assert state["last_ts"] == anchor.isoformat()
@@ -466,10 +492,12 @@ def test_gated_engine_refuses_to_run_unseeded(tmp_path):
             gate_model=_SequenceGateModel([]))
 
 
-def test_seed_refuses_to_seed_over_an_inconsistent_ledger(tmp_path):
+def test_seed_refuses_to_seed_over_an_inconsistent_ledger(
+        tmp_path, monkeypatch):
     from trading.broker import PaperBroker
     from trading import live_gated
 
+    _pin_sources(monkeypatch)
     cfg = _tmp_cfg(tmp_path)
     bk = PaperBroker(cfg.db_file, starting_balance=100_000)
     bk.snapshot("2026-10-30T00:00:00+00:00", 100.0)  # equity, no state
@@ -572,6 +600,20 @@ def test_gated_veto_feed_rows_and_counts(monkeypatch, tmp_path):
     assert rows[0][3] == "VETOED" and rows[0][1] == -1
     assert rows[0][2] == pytest.approx(0.21)
     assert rows[1][3] == "TAKEN" and rows[1][1] == 1
+
+
+def test_gated_race_b2_label_derives_from_shadow_seat(monkeypatch, tmp_path):
+    # Regression 2026-11-10: build_gated_race hard-coded Book #2 as
+    # "Champion #4 / Run 73" after Kass swapped Book #2's eyes to
+    # Champion #11 / Run 119 — the label must derive from the
+    # shadow seat manifest, like build_shadow_race does.
+    compact = _patch_gated_paths(monkeypatch, tmp_path)
+    r = compact.build_gated_race()
+    desk2 = compact._shadow_desk_block()
+    expected = (f"{desk2['book_name']} (PPO Run {desk2['driver']['run']} "
+                f"driver · {desk2['eyes']['champion']} Run "
+                f"{desk2['eyes']['run']} eyes)")
+    assert r["b2"]["label"] == expected
 
 
 def test_gated_race_alignment_invariants(monkeypatch, tmp_path):

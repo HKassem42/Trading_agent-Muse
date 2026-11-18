@@ -46,7 +46,7 @@ def test_default_config_is_the_production_recipe():
     assert cfg.stop_mult == PaperBroker.STOP_ATR_MULT == 2.0
     assert cfg.stop_min_pct == PaperBroker.STOP_MIN_PCT == 0.025
     assert cfg.stop_max_pct == PaperBroker.STOP_MAX_PCT == 0.08
-    assert cfg.trail_activate_pct == PaperBroker.TRAIL_ACTIVATE_PCT == 0.03
+    assert cfg.trail_activate_pct == PaperBroker.TRAIL_ACTIVATE_PCT == 0.02
     assert cfg.trail_atr_mult == PaperBroker.TRAIL_ATR_MULT == 1.5
     assert cfg.trail_min_pct == PaperBroker.TRAIL_MIN_PCT == 0.02
     assert cfg.trail_max_pct == PaperBroker.TRAIL_MAX_PCT == 0.06

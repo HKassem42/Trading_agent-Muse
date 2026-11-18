@@ -12,7 +12,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -32,10 +35,107 @@ from trading.broker import PaperBroker
 # The weekly deep train's single uninterrupted 300k learn was the
 # shape refs/diagnosis-2026-10-21.md records being SIGKILLed three
 # times on this box; the diagnosis battery's 300k arm only completed
-# as 12 checkpointed 25k chunks. Below the threshold (the nightly
-# 60k run) training is the original single learn call, unchanged.
-CHUNK_THRESHOLD = 100_000
+# as 12 checkpointed 25k chunks.
+#
+# Threshold lowered 100k -> 50k on 2026-11-17 (Kass's order) to bring
+# the NIGHTLY 60k train inside the checkpointed class: as a single
+# uninterrupted learn it was killed by runtime restarts on
+# 2026-11-14, 2026-11-16 and 2026-11-17 -- three of four nights --
+# losing the whole PPO phase each time. Below the threshold (manual
+# CLI runs, short study trains) training is the original single
+# learn call, unchanged.
+CHUNK_THRESHOLD = 50_000
 CHUNK_SIZE = 25_000
+
+# Progress sidecar for checkpointed trains (deep-train resume fix,
+# Kass approved 2026-11-04; ported to the nightly train 2026-11-17).
+# The chunked trainer above already saved the challenger after
+# every segment, but a killed process relaunched from step 0
+# anyway: train() warm-started only from the champion and never
+# looked at the challenger's own checkpoints -- the Nov 1 weekly
+# deep train died three times and attempt 2's 175,000 steps were
+# discarded. Now, whenever a checkpointed train (timesteps >=
+# CHUNK_THRESHOLD -- the weekly 300k deep train AND, since the
+# 2026-11-17 threshold lowering, the nightly 60k train) saves a
+# segment checkpoint, it also writes this sidecar next to it, and
+# on entry such a train resumes from its own challenger checkpoint
+# at the recorded step count -- but ONLY when every recorded field
+# matches the current invocation exactly and the checkpoint still
+# loads cleanly. Any mismatch or load failure falls back to the
+# old behavior (warm-start from the champion, step 0) with the
+# reason printed. Short trains below the threshold never write or
+# read the sidecar, and a completed checkpointed train of ANY
+# length deletes its sidecar so no stale progress leaks into a
+# later, different train.
+PROGRESS_SIDECAR = "ppo_challenger_progress.json"
+
+
+def _sha256_file(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _feature_set_tag(feature_columns) -> str:
+    """Deterministic tag for the exact feature set a train reads:
+    the sha256 of the ordered column list (the production
+    FEATURE_COLUMNS when feature_columns is None)."""
+    cols = list(feature_columns or FEATURE_COLUMNS)
+    return hashlib.sha256(",".join(cols).encode()).hexdigest()
+
+
+def _write_progress_sidecar(path: Path, *, steps_done: int,
+                            target: int, feature_tag: str,
+                            champion_sha256, challenger_path: Path,
+                            started: str) -> None:
+    path.write_text(json.dumps({
+        "steps_done": steps_done,
+        "target_steps": target,
+        "feature_set": feature_tag,
+        "champion_sha256": champion_sha256,
+        "challenger_sha256": _sha256_file(challenger_path),
+        "started": started,
+    }))
+
+
+def _resume_candidate(timesteps: int, champion_path: Path,
+                      out_path: Path, feature_columns):
+    """Validate a leftover progress sidecar against THIS invocation.
+
+    Returns (sidecar_dict, "") when the run may resume from the
+    challenger checkpoint, else (None, reason). Pure validation --
+    the caller still has to load the checkpoint, and a load failure
+    there falls back the same way. A sidecar that records a
+    completed train (steps_done >= target) is stale by definition:
+    the owning train deletes its sidecar on completion, so one that
+    survives with a full count is not this invocation's to resume.
+    """
+    sidecar_path = champion_path.parent / PROGRESS_SIDECAR
+    if not sidecar_path.exists():
+        return None, "no progress sidecar"
+    try:
+        side = json.loads(sidecar_path.read_text())
+        if not isinstance(side, dict):
+            raise ValueError("sidecar is not a JSON object")
+    except Exception as e:
+        return None, f"progress sidecar unreadable ({type(e).__name__})"
+    if side.get("target_steps") != timesteps:
+        return None, (f"sidecar target {side.get('target_steps')} "
+                      f"!= this run's {timesteps}")
+    if side.get("feature_set") != _feature_set_tag(feature_columns):
+        return None, "sidecar feature set does not match this run"
+    if side.get("champion_sha256") != _sha256_file(champion_path):
+        return None, "champion file changed since the sidecar was written"
+    steps_done = side.get("steps_done")
+    if not isinstance(steps_done, int) or not 0 < steps_done < timesteps:
+        return None, f"sidecar steps_done {steps_done!r} is not resumable"
+    if not out_path.exists():
+        return None, "challenger checkpoint is missing"
+    if side.get("challenger_sha256") != _sha256_file(out_path):
+        return None, ("challenger checkpoint changed since the "
+                      "sidecar was written (partial save or a "
+                      "different train overwrote it)")
+    return side, ""
 
 
 def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: Path,
@@ -172,7 +272,40 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     env = Monitor(TradingEnv(sup, p_up, broker,
                              feature_columns=feature_columns))
 
-    if warm_start and champion_path.exists():
+    out = champion_path.parent / "ppo_challenger.zip"
+    sidecar_path = champion_path.parent / PROGRESS_SIDECAR
+    checkpointed = timesteps >= CHUNK_THRESHOLD
+    done_steps = 0
+    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    model = None
+    if checkpointed and warm_start:
+        # Resume attempt (see PROGRESS_SIDECAR note above): continue
+        # THIS train from its own challenger checkpoint when the
+        # sidecar proves the checkpoint belongs to this exact
+        # invocation. Any doubt falls through to the warm start
+        # below, unchanged.
+        cand, reason = _resume_candidate(timesteps, champion_path,
+                                         out, feature_columns)
+        if cand is not None:
+            try:
+                model = PPO.load(out, env=env)
+                # Same explicit ent_coef application as the
+                # warm-start path: load restores saved
+                # hyperparameters, the caller's setting wins.
+                model.ent_coef = ent_coef
+                done_steps = int(cand["steps_done"])
+                started = str(cand.get("started") or started)
+                print(f"resuming challenger from {out} at "
+                      f"{done_steps}/{timesteps} steps (train "
+                      f"started {started})")
+            except Exception as e:
+                print(f"resume failed ({type(e).__name__}: {e}); "
+                      f"falling back to warm start")
+                model = None
+                done_steps = 0
+        elif sidecar_path.exists():
+            print(f"resume skipped: {reason}; warm-starting as usual")
+    if model is None and warm_start and champion_path.exists():
         try:
             model = PPO.load(champion_path, env=env)
             # PPO.load restores the champion's saved hyperparameters, so
@@ -187,8 +320,6 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
             # fall back to a fresh brain rather than crashing the nightly run
             print(f"warm-start failed ({type(e).__name__}), training fresh: {e}")
             model = None
-    else:
-        model = None
     if model is None:
         model = PPO("MlpPolicy", env, verbose=0, seed=42,
                     learning_rate=3e-4, n_steps=512, batch_size=64,
@@ -199,13 +330,16 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     # bare curve callback -- byte-for-byte the pre-2026-10-26 call.
     learn_cb = (CallbackList([curve_cb, telem_cb])
                 if telem_cb is not None else curve_cb)
-    out = champion_path.parent / "ppo_challenger.zip"
     if timesteps >= CHUNK_THRESHOLD:
         # Segmented + checkpointed (see CHUNK_* note above): each
         # segment continues the same model (reset_num_timesteps=False
         # after the first) and the challenger is saved after EVERY
         # segment, so a kill loses at most one segment of training.
-        done_steps, first = 0, True
+        # A resumed train (done_steps > 0 on entry) continues the
+        # same accounting instead of restarting it, and every
+        # segment save also refreshes the progress sidecar so the
+        # NEXT relaunch can prove where this train got to.
+        first = done_steps == 0
         while done_steps < timesteps:
             seg = min(CHUNK_SIZE, timesteps - done_steps)
             model.learn(total_timesteps=seg, callback=learn_cb,
@@ -213,11 +347,21 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
             first = False
             done_steps += seg
             model.save(out)
+            _write_progress_sidecar(
+                sidecar_path, steps_done=done_steps, target=timesteps,
+                feature_tag=_feature_set_tag(feature_columns),
+                champion_sha256=_sha256_file(champion_path),
+                challenger_path=out, started=started)
             print(f"checkpoint: {done_steps}/{timesteps} steps -> {out}")
     else:
         model.learn(total_timesteps=timesteps, callback=learn_cb)
 
     model.save(out)
+    if checkpointed:
+        # This train completed: its sidecar must not leak into a
+        # later, different train and be mistaken for resumable
+        # progress.
+        sidecar_path.unlink(missing_ok=True)
     print(f"saved challenger -> {out}")
     # Learning curve sidecar (v4): downsampled to <=24 points, read by the
     # nightly job into the run record for the Training Lab chart. The

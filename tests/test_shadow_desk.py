@@ -3,27 +3,31 @@ gets "his own trading dashboard so we don't have to wait to plug
 that in and test" + "make sure to label everything properly").
 
 A parallel, fully independent LIVE paper book for the pairing
-Driver: PPO run 44 - Eyes: Stacker Champion #4 (run 73, Muse's
-Pick #2, pick2_98) -- so it builds a live track record without
-touching Book #1 (the driver's seat: PPO 44 + stacker run 40
-prod21). The desk was seeded 2026-10-25 with Champion #2's eyes
-(run 64 -- the pairing graded +$461.81 as the champion side of
-the scored-eyes study); on 2026-10-26 Kass crowned run 69
-Champion #3 and seated it here, superseding the run-64 pin (the
-book was flat, $100,000, 0 fills, at that swap). On 2026-10-27
-Muse crowned run 73 Champion #4 under Kass's delegation and
-swapped the eyes 69 -> 73 MID-POSITION (Book #2 was short
--0.311631 BTC @ $80,222.97, opened under run 69's vote); the
-swap and the position record ride in the manifest's
+Driver: PPO run 44 - Eyes: Stacker Champion #11 (run 119, the
+HA nightly stacker, ha10) -- so it builds a live track record
+without touching Book #1 (the driver's seat: PPO 44 + stacker
+run 40 prod21). The desk was seeded 2026-10-25 with Champion
+#2's eyes (run 64 -- the pairing graded +$461.81 as the champion
+side of the scored-eyes study); on 2026-10-26 Kass crowned run
+69 Champion #3 and seated it here, superseding the run-64 pin
+(the book was flat, $100,000, 0 fills, at that swap). On
+2026-10-27 Muse crowned run 73 Champion #4 under Kass's
+delegation and swapped the eyes 69 -> 73 MID-POSITION (Book #2
+was short -0.311631 BTC @ $80,222.97, opened under run 69's
+vote). On 2026-11-09 Kass ordered the four pending HA winners
+crowned and the highest seated here: run 119 (Champion #11)
+replaced run 73 MID-POSITION (short -0.342743 BTC @ $74,364.07),
+and the eyes' frame changed with it (pick2_98 -> ha10); the
+swaps and the position records ride in the manifest's
 eyes_swapped entry.
 
 Pins:
-- the shadow seat: byte-copies of run 44's PPO and run 73's stacker,
-  hash-pinned in data/shadow_seat.json, PINNED to run 73 (the seat
-  does not follow future lab crownings); a tampered or missing seat
-  file is a loud failure, never a silent fallback;
+- the shadow seat: byte-copies of run 44's PPO and run 119's
+  stacker, hash-pinned in data/shadow_seat.json, PINNED to run
+  119 (the seat does not follow future lab crownings); a tampered
+  or missing seat file is a loud failure, never a silent fallback;
 - the shadow vote: the engine's vote for a candle equals the
-  champion's own predict_proba on the scored frame assembled the
+  champion's own predict_proba on its own frame assembled the
   study's way (two independent assemblies must agree);
 - the PERIMETER: a shadow run writes ONLY the shadow DB/state --
   production paper.db rows, live_state.json, the live seat, the lab
@@ -33,9 +37,10 @@ Pins:
   backfilled into trades;
 - the feeds: snapshot/ledger/market shapes mirror the Live Desk
   contracts; the race feed aligns both books + buy-and-hold to the
-  shadow start with exact invariants; the vision feed's groups
-  partition the seat's non-composite scored columns exactly and
-  every score is a percentile in [0, 100].
+  shadow start with exact invariants; the vision feed carries the
+  seat's own frame rows for the book's own last candle (the HA
+  rows since Champion #11; the scored-groups contract of the
+  retired seats is pinned in git history).
 """
 
 from __future__ import annotations
@@ -62,12 +67,13 @@ SHADOW_SEAT = MODELS / "shadow_seat"
 SHADOW_MANIFEST = DATA / "shadow_seat.json"
 
 RUN44_PPO_SHA = "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb"
-RUN73_STK_SHA = "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
-# The champion meta's sha is NOT pinned absolutely: it carries
-# the crowning timestamp. The pin that matters is byte-equality
-# between the seat copy and the lab champion file (asserted
-# below) plus the meta's content (run 73 / Champion #4 /
-# pick2_98 / 98 columns, asserted in the manifest test).
+RUN119_STK_SHA = "63476e31f74445959de4718e5d69a71c0dae496b5c68a3d95c2cdacde498e861"
+RUN119_META_SHA = "3a5394382babf89d05e120d23482fdf352fb7d2dec0cc62fd78f4ddee4e0bbdb"
+# The champion meta carries the crowning timestamp, so its sha
+# changes at every crowning; the pins that matter are the seat
+# copies' hashes above plus the meta's content (run 119 /
+# Champion #11 / ha10 / 10 columns, asserted in the manifest
+# test).
 
 
 def _sha(p: Path) -> str:
@@ -93,45 +99,48 @@ def test_shadow_seat_files_are_byte_copies_of_the_pinned_runs():
     assert (SHADOW_SEAT / "ppo.zip").exists()
     assert (SHADOW_SEAT / "stacker.pkl").exists()
     assert (SHADOW_SEAT / "stacker.json").exists()
-    # Byte-identical to the canonical run artifacts.
-    assert _sha(SHADOW_SEAT / "ppo.zip") == _sha(MODELS / "ppo_champion.zip")
+    # The seat pins run 44's PPO and run 119's stacker BY HASH.
+    # The lab champion files are a separate record: the lab PPO
+    # crown moved to run 112 on 2026-11-06 and the lab stacker
+    # crown will move again at future crownings; the seat must
+    # NOT follow either (the manifest's own "pinned / not
+    # follow" rule). Today the seat stacker happens to be
+    # byte-equal to the lab champion file because Kass seated
+    # the sitting champion itself — a fact, not a coupling.
     assert _sha(SHADOW_SEAT / "ppo.zip") == RUN44_PPO_SHA
-    assert _sha(SHADOW_SEAT / "stacker.pkl") == _sha(
-        MODELS / "stacker_champion.pkl")
-    assert _sha(SHADOW_SEAT / "stacker.pkl") == RUN73_STK_SHA
-    assert _sha(SHADOW_SEAT / "stacker.json") == _sha(
-        MODELS / "stacker_champion.json")
+    assert _sha(SHADOW_SEAT / "stacker.pkl") == RUN119_STK_SHA
+    assert _sha(SHADOW_SEAT / "stacker.json") == RUN119_META_SHA
     meta = json.loads((SHADOW_SEAT / "stacker.json").read_text())
-    assert meta["run_id"] == 73 and meta["champion_no"] == 4
-    assert meta["feature_set"] == "pick2_98"
-    assert len(meta["feature_columns"]) == 98
+    assert meta["run_id"] == 119 and meta["champion_no"] == 11
+    assert meta["feature_set"] == "ha10"
+    assert len(meta["feature_columns"]) == 10
 
 
-def test_shadow_manifest_pins_run73_and_records_the_configuration():
+def test_shadow_manifest_pins_run119_and_records_the_configuration():
     man = json.loads(SHADOW_MANIFEST.read_text())
     assert man["driver"]["run_id"] == 44
     assert man["driver"]["sha256"] == RUN44_PPO_SHA
-    assert man["eyes"]["run_id"] == 73
-    assert man["eyes"]["champion"] == "Champion #4"
-    assert man["eyes"]["name"] == "Muse's Pick #2 Stacker"
-    assert man["eyes"]["feature_set"] == "pick2_98"
-    assert man["eyes"]["n_features"] == 98
-    assert man["eyes"]["sha256"] == RUN73_STK_SHA
-    assert man["eyes"]["meta_sha256"] == _sha(
-        MODELS / "stacker_champion.json")
+    assert man["eyes"]["run_id"] == 119
+    assert man["eyes"]["champion"] == "Champion #11"
+    assert man["eyes"]["name"] == "HA Nightly Stacker"
+    assert man["eyes"]["feature_set"] == "ha10"
+    assert man["eyes"]["n_features"] == 10
+    assert man["eyes"]["sha256"] == RUN119_STK_SHA
+    assert man["eyes"]["meta_sha256"] == RUN119_META_SHA
     # Pinned: the seat must NOT follow future lab crownings.
-    assert "73" in man["pinned"] and "not follow" in man["pinned"].lower()
+    assert "119" in man["pinned"] and "not follow" in man["pinned"].lower()
     # The swap history is on the record: 64 -> 69 (Kass, flat
-    # book) then 69 -> 73 (Muse's ruling under Kass's 2026-10-27
-    # delegation, MID-POSITION: the open short was opened under
-    # run 69's vote and the record says so).
+    # book), 69 -> 73 (Muse's ruling under Kass's 2026-10-27
+    # delegation, MID-POSITION), then 73 -> 119 (Kass's order
+    # 2026-11-09, MID-POSITION: the open short was opened under
+    # run 73's votes and the record says so).
     hist = {(h["from_run"], h["to_run"])
             for h in man["eyes_swap_history"]}
-    assert hist == {(64, 69), (69, 73)}
-    assert man["eyes_swapped"]["from_run"] == 69
-    assert man["eyes_swapped"]["to_run"] == 73
+    assert hist == {(64, 69), (69, 73), (73, 119)}
+    assert man["eyes_swapped"]["from_run"] == 73
+    assert man["eyes_swapped"]["to_run"] == 119
     assert "SHORT" in man["eyes_swapped"]["note"]
-    assert "80,222.97" in man["eyes_swapped"]["note"]
+    assert "74,364.07" in man["eyes_swapped"]["note"]
     # The graded exam is attributed to the pairing it graded
     # (44 + run 69, from the Pick #2 duel record), not to the
     # current one, and it CARRIES its values on the manifest.
@@ -173,30 +182,39 @@ def test_verify_seat_accepts_the_real_shadow_seat():
 
 def test_shadow_vote_matches_champion_computed_the_study_way():
     """The engine's vote for a candle == the champion's predict_proba on
-    the scored frame restricted to its recorded columns -- computed
+    its own frame restricted to its recorded columns -- computed
     here independently of the engine's own assembly path. Since
-    Champion #4 (run 73, 2026-10-27) the study's way is Pick #2's
-    frame: the scored102 frame plus its four causal features,
-    assembled by features.pick2_features."""
+    Champion #11 (run 119, 2026-11-09) the study's way is the
+    HA candle matrix: models.muse_pick10.build_ha_matrix (the
+    frame Pick #11 was graded on and nightly grades the HA
+    champions with)."""
     import joblib
 
-    from features import pick2_features
+    from models.muse_pick10 import HA_COLUMNS, build_ha_matrix
     from trading import live_shadow
 
     df = _ohlcv(7000)
-    frame, cols, _ev = pick2_features.build_pick2_frame(df)
+    frame = build_ha_matrix(df)[HA_COLUMNS]
     meta = json.loads((SHADOW_SEAT / "stacker.json").read_text())
     want = list(meta["feature_columns"])
-    assert list(want) == list(cols) and len(want) == 98
+    assert list(want) == list(HA_COLUMNS) and len(want) == 10
     finite = frame[want].dropna()
     assert len(finite) > 100
     ts = finite.index[-1]
     # Way 1 (the study's): direct predict on the restricted frame.
-    champ = joblib.load(MODELS / "stacker_champion.pkl")
+    # The reference artifact is run 119's pinned model — the seat
+    # copy IS run 119's artifact (sha-pinned RUN119_STK_SHA
+    # above); the lab champion file is a separate record that
+    # future crownings will move.
+    champ = joblib.load(SHADOW_SEAT / "stacker.pkl")
     expect = float(champ.predict_proba(frame.loc[[ts], want])[0, 1])
-    # Way 2: the engine's vote on the SHADOW seat copy.
+    # Way 2: the engine's vote — its own seat frame builder's
+    # assembly, on the SHADOW seat copy.
+    eng_frame, eng_cols = live_shadow.seat_frame_builder(
+        SHADOW_SEAT)(df)
+    assert list(eng_cols) == want
     seat_model = joblib.load(SHADOW_SEAT / "stacker.pkl")
-    got = live_shadow.champion2_vote(seat_model, frame, ts, want)
+    got = live_shadow.champion2_vote(seat_model, eng_frame, ts, want)
     assert got == expect
     assert 0.0 <= got <= 1.0
 
@@ -269,8 +287,25 @@ def _production_fingerprint() -> dict:
     }
 
 
-def test_shadow_engine_perimeter_idempotence_and_floor(tmp_path):
+def test_shadow_engine_perimeter_idempotence_and_floor(
+        tmp_path, monkeypatch):
     from trading import live_shadow
+
+    # ensure_seat verifies the seat against the engine's canonical
+    # sources, which pointed at the lab champion files while the
+    # seat's eyes WERE the lab champion. Since Kass's 2026-11-02
+    # LAB-ONLY crowning of run 96, the lab files are a different
+    # brain and the seat deliberately diverges — and since the
+    # 2026-11-06 crowning of run 112 the lab PPO file diverged
+    # too; pin the sources to the seat's own pinned artifacts for
+    # this fixture (the hash pins themselves live in the seat
+    # tests above).
+    monkeypatch.setattr(
+        live_shadow, "SOURCE_STACKER", SHADOW_SEAT / "stacker.pkl")
+    monkeypatch.setattr(
+        live_shadow, "SOURCE_STACKER_META", SHADOW_SEAT / "stacker.json")
+    monkeypatch.setattr(
+        live_shadow, "SOURCE_PPO", SHADOW_SEAT / "ppo.zip")
 
     meta = json.loads((SHADOW_SEAT / "stacker.json").read_text())
     columns = list(meta["feature_columns"])
@@ -429,17 +464,22 @@ def test_shadow_race_alignment_invariants(monkeypatch, tmp_path):
     assert r["b2"]["label"].startswith("Book #2")
 
 
-def test_shadow_vision_groups_partition_the_seat_columns(
+def test_shadow_vision_ha_rows_match_the_seat_columns(
         monkeypatch, tmp_path):
+    """Since Champion #11 (ha10) took the seat, the shadow vision
+    feed is the HA payload: both parts carry the seat's 10 HA
+    rows in the champion's own column order, part 0 headlines
+    the vote computed on those columns, and part 1 rides the
+    driver's production 21 along for continuity. (The scored
+    groups partition this test pinned for Champions #2–#4 is
+    retired with those seats.)"""
+    from models.muse_pick10 import HA_COLUMNS
     from src.dashboards import compact
 
     meta = json.loads((SHADOW_SEAT / "stacker.json").read_text())
     columns = list(meta["feature_columns"])
+    assert columns == list(HA_COLUMNS)
     raw = _ohlcv(300, start="2026-10-20")
-
-    def fake_builder(df):
-        frame = pd.DataFrame(63.2, index=df.index, columns=columns)
-        return frame, list(columns)
 
     seen = {}
 
@@ -450,25 +490,18 @@ def test_shadow_vision_groups_partition_the_seat_columns(
 
     monkeypatch.setattr(compact, "_shadow_seat_stacker",
                         lambda: (_Vote(), meta))
-    v0 = compact.build_shadow_vision(
-        0, fetch=lambda *a, **kw: raw, scored_builder=fake_builder)
-    v1 = compact.build_shadow_vision(
-        1, fetch=lambda *a, **kw: raw, scored_builder=fake_builder)
+    v0 = compact.build_shadow_vision(0, fetch=lambda *a, **kw: raw)
+    v1 = compact.build_shadow_vision(1, fetch=lambda *a, **kw: raw)
+    # The book's own state pin names a real-market candle that is
+    # not in this synthetic frame, so the vote is the model's own
+    # computation on the newest complete synthetic candle.
     assert v0["p_up"] == 0.5123
     assert seen["cols"] == columns  # the champion's own column order
-    assert v0["master"] == 63.2
-    names = []
+    assert "groups" not in v0 and "master" not in v0
     for part in (v0, v1):
-        for g, rows in part["groups"].items():
-            names += [r[0] for r in rows]
-            for _, val in rows:
-                assert 0.0 <= val <= 100.0
-    indicators = [c for c in columns if not c.startswith("score_")]
-    # Exact partition of the seat's non-composite columns (94
-    # since Champion #4: the 90 scored indicators + Pick #2's 4).
-    assert sorted(names) == sorted(indicators)
-    assert set(v0["groups"]) | set(v1["groups"]) == {
-        "trend", "momentum", "volume", "other"}
+        assert [r[0] for r in part["ha_rows"]] == columns
+        for _name, _label, val in part["ha_rows"]:
+            assert isinstance(val, float)
     # The raw production 21 ride along in part 1 for continuity.
     assert [r[0] for r in v1["f21"]] == FEATURE_COLUMNS
 

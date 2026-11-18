@@ -70,7 +70,7 @@ EPISODES = 10
 # ----------------------------------------------------------------- config
 _TRAIL_PRESETS = {
     #            (activate_pct, atr_mult, min_pct, max_pct)
-    "current": (0.03, 1.5, 0.02, 0.06),   # the production v4 recipe
+    "current": (0.02, 1.5, 0.02, 0.06),   # the production recipe (activation 2% since Kass 2026-11-02; the Oct 2026 exit study ran it at 3%)
     "tight": (0.02, 1.0, 0.02, 0.06),     # arms earlier, trails closer
     "off": (float("inf"), 1.5, 0.02, 0.06),  # never arms
 }
@@ -86,7 +86,7 @@ class ExitConfig:
     tp_value: float = 0.0                # 0.04 / 0.08, or 2.0 for 2R
     transition: str = "T0"               # T0 | T1 | T2
     # resolved trailing numbers (set from `trail` in __post_init__)
-    trail_activate_pct: float = 0.03
+    trail_activate_pct: float = 0.02  # placeholder — __post_init__ resolves it from _TRAIL_PRESETS[trail]
     trail_atr_mult: float = 1.5
     trail_min_pct: float = 0.02
     trail_max_pct: float = 0.06

@@ -498,3 +498,58 @@ def test_champions_roster_after_champion3_crowning(tmp_path, monkeypatch):
         compact._all_runs_desc())}
     assert n1[2] == names[40] and n2[2] == names[64]
     assert n3[2] == names[69] and ppo_row[2] == names[44]
+
+
+def test_former_champion_ha_frame_tag_from_record(tmp_path, monkeypatch):
+    """Champion #7 crowning (2026-11-06): a displaced HA champion's
+    roster row must keep its ha10 tag -- run 110 carries it via its
+    muse_pick11 family, run 111 via its recorded nightly reason.
+    Before the fix both fell through to the prod21 fallback."""
+    import json as _json
+    import sqlite3 as _sqlite3
+
+    from dashboards import compact
+
+    (tmp_path / "models").mkdir(parents=True)
+    (tmp_path / "data").mkdir(parents=True)
+    (tmp_path / "models" / "stacker_champion.json").write_text(_json.dumps(
+        {"run_id": 111, "feature_set": "ha10"}))
+    (tmp_path / "data" / "live_seat.json").write_text(_json.dumps({
+        "seat": {"stacker": {"run_id": 40, "feature_set": "prod21"},
+                 "ppo": {"run_id": 44}},
+        "ppo_champion_run_id": 112}))
+    con = _sqlite3.connect(tmp_path / "data" / "training.db")
+    con.execute("CREATE TABLE runs(id INTEGER PRIMARY KEY, ts TEXT,"
+                " kind TEXT, metrics TEXT, promoted INTEGER)")
+    rows = [
+        (40, "stacker", {"challenger_acc": 0.4798,
+                         "challenger_wf_acc": 0.4986,
+                         "precision": 0.483,
+                         "pending_decision": "approved"}, 1),
+        (110, "stacker", {"challenger_acc": 0.5341,
+                          "challenger_wf_acc": 0.5234,
+                          "precision": 0.526,
+                          "family": "muse_pick11",
+                          "pending_decision": "approved"}, 1),
+        (111, "stacker", {"challenger_acc": 0.5379,
+                          "challenger_wf_acc": 0.5303,
+                          "precision": 0.5286,
+                          "reason": "HA stacker challenger holdout acc "
+                                    "0.5379 > champion 0.5328",
+                          "pending_decision": "approved"}, 1),
+        (112, "ppo", {"challenger": {"score": -291.6,
+                                     "total_pnl": 738.69}}, 1),
+    ]
+    for rid, kind, metrics, prom in rows:
+        con.execute("INSERT INTO runs VALUES (?, '2026-11-06', ?, ?, ?)",
+                    (rid, kind, _json.dumps(metrics), prom))
+    con.commit()
+    con.close()
+    monkeypatch.setattr(compact, "ROOT", tmp_path)
+    champs = compact.build_champions()
+    assert champs is not None
+    by_run = {r[1]: r for r in champs["stk"]}
+    assert by_run[110][3] == "ha10" and by_run[110][7] == 4
+    assert by_run[111][3] == "ha10" and by_run[111][7] == 1
+    (ppo_row,) = champs["ppo"]
+    assert ppo_row[1] == 112 and ppo_row[5] == 1

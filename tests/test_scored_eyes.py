@@ -80,34 +80,31 @@ def test_score_to_state_preserves_series_index():
 def test_champion_columns_are_the_recorded_columns():
     meta = json.loads((ROOT / "models" / "stacker_champion.json")
                       .read_text())
-    # Run 73 since the 2026-10-27 crowning (Champion #4, Muse's
-    # ruling under Kass's delegation): the champion reads Pick
-    # #2's 98-column frame (pick2_98) -- the scored102 frame's
-    # recorded 94 PLUS Pick #2's four causal features, in that
-    # order. The pin's substance is unchanged: the champion's
-    # columns are its RECORDED columns, and the scored102 set
-    # this study was built against is still run 64's recorded 94,
-    # read from the registry (it no longer depends on who holds
-    # the crown).
-    assert meta["feature_set"] == "pick2_98"
-    assert meta["run_id"] == 73
+    # Run 96 since Kass's 2026-11-02 LAB-ONLY crowning (Champion
+    # #5): the champion is a nightly prod21 stacker, so its recorded
+    # columns are the production 21, in FEATURE_COLUMNS order. The
+    # pin's substance is unchanged: the champion's columns are its
+    # RECORDED columns. The scored102 set this study was built
+    # against is still run 64's recorded 94, read from the registry
+    # (it no longer depends on who holds the crown) -- and because
+    # the reigning champion is NOT a scored-frame stacker, the
+    # scored-eyes bridge must refuse it loudly rather than feed it
+    # the wrong frame.
+    assert meta["feature_set"] == "prod21"
+    assert meta["run_id"] == 96
+    from features.technical_indicators import FEATURE_COLUMNS
+    assert meta["feature_columns"] == list(FEATURE_COLUMNS)
+    assert len(meta["feature_columns"]) == 21
     import sqlite3
     con = sqlite3.connect(ROOT / "data" / "training.db")
     m64 = json.loads(con.execute(
         "SELECT metrics FROM runs WHERE id=64").fetchone()[0])
-    m73 = json.loads(con.execute(
-        "SELECT metrics FROM runs WHERE id=73").fetchone()[0])
     con.close()
     recorded94 = m64["full_indicator_stacker"]["features"]
     assert len(recorded94) == 94
     assert set(scored_features.scored_columns()) == set(recorded94)
-    from features import pick2_features
-    assert meta["feature_columns"] == m73["muse_pick2"]["features"]
-    assert meta["feature_columns"] == (
-        recorded94 + list(pick2_features.NEW_COLUMNS))
-    cols = scored_eyes.champion_columns()
-    assert cols == meta["feature_columns"]
-    assert len(cols) == 98
+    with pytest.raises(AssertionError, match="not a scored-frame"):
+        scored_eyes.champion_columns()
 
 
 # ------------------------------------------------------------ env sup

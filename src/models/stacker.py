@@ -54,12 +54,19 @@ def build_pipeline(random_state: int = 42) -> ImbPipeline:
 
 
 def walk_forward_score(X: pd.DataFrame, y: pd.Series, n_splits: int = 5,
-                       random_state: int = 42) -> dict:
-    """TimeSeriesSplit CV. Returns mean accuracy/precision across folds."""
+                       random_state: int = 42,
+                       pipeline_factory=None) -> dict:
+    """TimeSeriesSplit CV. Returns mean accuracy/precision across folds.
+
+    `pipeline_factory` (added 2026-11-05 for the HA stacker line)
+    defaults to this module's production recipe; the nightly HA
+    challenger passes the Pick recipe factory instead. The split
+    convention is unchanged either way."""
+    factory = pipeline_factory or build_pipeline
     tss = TimeSeriesSplit(n_splits=n_splits)
     accs, precs = [], []
     for train_idx, test_idx in tss.split(X):
-        pipe = build_pipeline(random_state)
+        pipe = factory(random_state)
         pipe.fit(X.iloc[train_idx], y.iloc[train_idx])
         pred = pipe.predict(X.iloc[test_idx])
         accs.append(accuracy_score(y.iloc[test_idx], pred))

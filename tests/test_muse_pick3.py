@@ -87,7 +87,7 @@ def test_production_broker_untouched(tmp_path):
     assert PaperBroker.STOP_ATR_MULT == 2.0
     assert PaperBroker.STOP_MIN_PCT == 0.025
     assert PaperBroker.STOP_MAX_PCT == 0.08
-    assert PaperBroker.TRAIL_ACTIVATE_PCT == 0.03
+    assert PaperBroker.TRAIL_ACTIVATE_PCT == 0.02  # Kass 2026-11-02 (was 0.03)
     assert PaperBroker.TRAIL_ATR_MULT == 1.5
     assert PaperBroker.TRAIL_MIN_PCT == 0.02
     assert PaperBroker.TRAIL_MAX_PCT == 0.06
@@ -329,8 +329,10 @@ def test_pick3_run_is_named_and_verdicted_in_the_index():
     ("Stacker v5.1", caught on the feed before its first push)."""
     from dashboards import compact
 
-    feed = compact.build_compact_training()
-    entry = next(e for e in feed["models"] if e[0] == 75)
+    # The index ships in push_models_page pages since 2026-11-17;
+    # assemble it the way the desk does.
+    entry = next(e for p in compact.build_models_pages()
+                 for e in p["rows"] if e[0] == 75)
     assert entry[2] == "Muse's Pick #3 PPO"
     assert entry[3] == 16
     assert entry[5] == pytest.approx(-415.9)

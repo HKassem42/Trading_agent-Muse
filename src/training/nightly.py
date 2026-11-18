@@ -22,6 +22,7 @@ Usage: python -m src.training.nightly
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -65,6 +66,114 @@ def log_run(kind: str, metrics: dict, promoted: bool) -> None:
             (datetime.now(timezone.utc).isoformat(timespec="seconds"),
              kind, json.dumps(metrics), int(promoted)),
         )
+
+
+def _file_sha256(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+# -- deep-run stacker re-grade skip (resume fix, 2026-11-04) --------
+#
+# Runs 93/94/95 are one deep run's stacker challenger graded and
+# registered THREE times: the Nov 1 weekly deep train kept dying
+# during the PPO phase, and every relaunch re-ran this whole
+# pipeline from the top, stacker included. Their identity as
+# duplicates is not identical metrics (each relaunch re-fetched a
+# slightly shifted frame) -- it is the same deep run: same date-based
+# run_id, same champion stacker file, deep mode. Stacker rows a
+# deep run registers therefore carry that identity (deep /
+# deep_run_id / champion_stacker_sha256 in their metrics), and a
+# later attempt of the same deep run finds the row here and skips
+# re-grading / re-registering. Nightly rows carry no deep tag and
+# never match; a different night or a different champion stacker
+# never matches either.
+
+def find_registered_deep_stacker(run_id: str,
+                                 champion_stacker_sha256) -> dict | None:
+    """The metrics of a stacker challenger already graded and
+    registered by THIS deep run (same run id, same champion stacker
+    bytes), or None."""
+    if not champion_stacker_sha256:
+        return None
+    with sqlite3.connect(registry_db()) as con:
+        rows = con.execute(
+            "SELECT metrics FROM runs WHERE kind='stacker' ORDER BY id"
+        ).fetchall()
+    for (raw,) in rows:
+        try:
+            metrics = json.loads(raw)
+        except Exception:
+            continue
+        if (metrics.get("deep") is True
+                and metrics.get("deep_run_id") == run_id
+                and metrics.get("champion_stacker_sha256")
+                == champion_stacker_sha256):
+            return metrics
+    return None
+
+
+def deep_stacker_skip(deep: bool, run_id: str,
+                      champion_stacker_sha256) -> dict | None:
+    """The skip decision: only a deep run may skip, and only when
+    its own earlier attempt already registered the stacker."""
+    if not deep:
+        return None
+    return find_registered_deep_stacker(run_id, champion_stacker_sha256)
+
+
+# -- nightly-run stacker re-grade skip (resume port, 2026-11-17) ---
+#
+# The nightly path had the deep run's original disease in a milder
+# form: the stacker skip above keyed only on deep identity, so when
+# the midnight retrain was killed during its PPO phase (runtime
+# restarts, 2026-11-14 / 2026-11-16 / 2026-11-17) there was no safe
+# relaunch -- re-running the pipeline re-graded and re-registered
+# the stacker challenger (run 129 is exactly that duplicate, from
+# an interrupted re-run, superseded by run 130). Nightly stacker
+# rows therefore carry the same style of identity (nightly /
+# nightly_run_id / champion_stacker_sha256), and a relaunched
+# nightly run finds its own row and skips to the PPO phase. The
+# two identities never cross-match: a deep row has no nightly tag,
+# a nightly row is never deep -- which matters on Sundays, when
+# the nightly run and the deep train share a UTC date and must not
+# suppress each other's grading. Kass's order, 2026-11-17: port
+# the deep-train resume machinery to the nightly run.
+
+def find_registered_nightly_stacker(run_id: str,
+                                    champion_stacker_sha256) -> dict | None:
+    """The metrics of a stacker challenger already graded and
+    registered by THIS nightly run (same run id, same champion
+    stacker bytes), or None."""
+    if not champion_stacker_sha256:
+        return None
+    with sqlite3.connect(registry_db()) as con:
+        rows = con.execute(
+            "SELECT metrics FROM runs WHERE kind='stacker' ORDER BY id"
+        ).fetchall()
+    for (raw,) in rows:
+        try:
+            metrics = json.loads(raw)
+        except Exception:
+            continue
+        if (metrics.get("nightly") is True
+                and metrics.get("nightly_run_id") == run_id
+                and metrics.get("champion_stacker_sha256")
+                == champion_stacker_sha256):
+            return metrics
+    return None
+
+
+def nightly_stacker_skip(deep: bool, run_id: str,
+                         champion_stacker_sha256) -> dict | None:
+    """The skip decision: only a nightly (non-deep) run may skip,
+    and only when its own earlier attempt already registered the
+    stacker."""
+    if deep:
+        return None
+    return find_registered_nightly_stacker(run_id,
+                                           champion_stacker_sha256)
 
 
 def vote_histogram(votes) -> dict:
@@ -124,7 +233,8 @@ def stacker_run_metrics(challenger_acc, champion_acc,
     return metrics
 
 
-def crossfit_p_up(X: pd.DataFrame, y: pd.Series, folds: int = 4) -> np.ndarray:
+def crossfit_p_up(X: pd.DataFrame, y: pd.Series, folds: int = 4,
+                  pipeline_factory=None) -> np.ndarray:
     """Out-of-fold stacker votes for the training frame.
 
     PPO trains on one of the 16 observation dims being the stacker's P(up).
@@ -138,13 +248,35 @@ def crossfit_p_up(X: pd.DataFrame, y: pd.Series, folds: int = 4) -> np.ndarray:
     """
     from sklearn.model_selection import TimeSeriesSplit
 
+    factory = pipeline_factory or stacker.build_pipeline
     p_up = np.full(len(X), 0.5)
     tss = TimeSeriesSplit(n_splits=folds)
     for tr_idx, te_idx in tss.split(X):
-        pipe = stacker.build_pipeline(random_state=42)
+        pipe = factory(random_state=42)
         pipe.fit(X.iloc[tr_idx], y.iloc[tr_idx])
         p_up[te_idx] = pipe.predict_proba(X.iloc[te_idx])[:, 1]
     return p_up
+
+
+def train_ha_challenger(Htr: pd.DataFrame, ytr: pd.Series,
+                        out_path: Path) -> dict:
+    """The nightly stacker challenger since 2026-11-05 (Kass's
+    Pick #11 line, crowned Lab Stacker Champion #6): the flat Pick
+    recipe (models.muse_pick.build_pick_pipeline) fitted on the
+    10-value Heikin-Ashi candle matrix. Walk-forward scored with
+    the stacker module's TimeSeriesSplit convention and the Pick
+    factory, so the recorded WF means the same thing as before.
+    Mirrors stacker.train_and_save's contract."""
+    from models.muse_pick import build_pick_pipeline
+    score = stacker.walk_forward_score(
+        Htr, ytr, pipeline_factory=build_pick_pipeline)
+    pipe = build_pick_pipeline(42)
+    pipe.fit(Htr, ytr)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pipe, out_path)
+    score["model_path"] = str(out_path)
+    return score
 
 
 def evaluate_ppo(model_path: Path, sup, p_up, episodes: int = 10,
@@ -385,6 +517,15 @@ def champion_holdout_frame(df: pd.DataFrame, hold_sup: pd.DataFrame,
         frame, cols, _ev = pick2_features.build_pick2_frame(df)
         want = list((meta or {}).get("feature_columns") or cols)
         return frame.reindex(hold_sup.index)[want], tag
+    if tag == "ha10":
+        # Champion #6 (run 110, Muse's Pick #11, crowned 2026-11-05):
+        # the 10-value Heikin-Ashi candle matrix (models.muse_pick10),
+        # restricted to the champion's recorded columns.
+        from models.muse_pick10 import build_ha_matrix
+        frame = build_ha_matrix(df)
+        want = list((meta or {}).get("feature_columns")
+                    or list(frame.columns))
+        return frame.reindex(hold_sup.index)[want], tag
     raise ValueError(f"unknown champion feature_set tag: {tag!r}")
 
 
@@ -432,6 +573,15 @@ def gate_decision(chall: dict, formula_pass: bool) -> tuple[bool, str | None]:
 
 # -- the promotion lock (Kass directive 2026-10-25) -------------------
 
+def _deep_mode() -> bool:
+    """TAM_DEEP is set for the weekly deep train. Read at module
+    scope on purpose: main() carries a legacy local `import os`
+    in its PPO section, which makes `os` a main()-local name for
+    the whole function -- reading os.environ earlier in main()
+    raises UnboundLocalError."""
+    return bool(os.environ.get("TAM_DEEP"))
+
+
 def promotion_locked() -> bool:
     """Kass's rule (2026-10-25): no challenger advances to champion
     without his explicit agreement, so the install step of every
@@ -474,99 +624,190 @@ def main() -> None:
     assert train_sup.index.max() < hold_sup.index.min(), "train/holdout overlap"
     windows_sup = [hold_sup.iloc[k * 264:(k + 1) * 264] for k in range(3)]
 
-    # -- stacker challenger --
-    # Promotion is judged on the SHARED holdout with a strict >, not by
-    # comparing walk-forward accuracies computed on different windows at
-    # different times (audit 2026-10-20: the old rule compared tonight's
-    # challenger WF accuracy against the champion's stored WF accuracy
-    # from its own older window, and promoted on ties).
-    from sklearn.metrics import accuracy_score, precision_score
+    # HA stacker line (Kass's Pick #11, crowned Lab Stacker
+    # Champion #6 on 2026-11-05; Kass delegated the nightly call
+    # to Muse, who chose YES): the nightly stacker challenger is
+    # the flat Pick recipe on the 10-value Heikin-Ashi candle
+    # matrix, and the PPO's cross-fitted training votes come from
+    # the same recipe on the same matrix, so the stacker line is
+    # retrained on its own frame every night. The HA recursion
+    # runs on the full raw history; rows are then aligned to the
+    # supervised train/holdout indexes.
+    from models.muse_pick import build_pick_pipeline as _pick_factory
+    from models.muse_pick10 import HA_COLUMNS as _HA_COLS
+    from models.muse_pick10 import build_ha_matrix as _ha_matrix
+    _ha_all = _ha_matrix(df)
+    Htr = _ha_all.reindex(train_sup.index)[_HA_COLS]
+    Hhold = _ha_all.reindex(hold_sup.index)[_HA_COLS]
+    assert Htr.index.equals(train_sup.index)
+    assert Hhold.index.equals(hold_sup.index)
 
-    Xtr, ytr = feature_matrix(train_sup)
-    Xhold, yhold = feature_matrix(hold_sup)
-    score = stacker.train_and_save(Xtr, ytr, MODELS / "stacker_challenger.pkl")
-    challenger_model = joblib.load(MODELS / "stacker_challenger.pkl")
-    chall_pred = challenger_model.predict(Xhold)
-    chall_acc = float(accuracy_score(yhold, chall_pred))
-    chall_prec = float(precision_score(yhold, chall_pred, zero_division=0))
-    champ_pkl = MODELS / "stacker_champion.pkl"
-    champ_score_path = MODELS / "stacker_champion.json"
-    champ_meta = _champion_meta()
-    champ_Xhold = None
-    if champ_pkl.exists():
-        champ_model = joblib.load(champ_pkl)
-        # Dual-frame grading (seat separation, 2026-10-25): the lab
-        # champion is scored on ITS OWN feature set -- the frame
-        # follows its metadata tag (see champion_holdout_frame);
-        # the challenger above stays on the production 21. A frame
-        # failure degrades to the no-champion sentinel with a loud
-        # print, the same contract as a missing champion file: the
-        # anomaly lands in tonight's record instead of misgrading
-        # the champion silently.
-        try:
-            champ_Xhold, _champ_tag = champion_holdout_frame(
-                df, hold_sup, champ_meta)
-            champ_acc = float(accuracy_score(
-                yhold, champ_model.predict(champ_Xhold)))
-        except Exception as e:
-            print(f"WARNING: lab champion could not be graded on "
-                  f"its feature set ({type(e).__name__}: {e}); "
-                  f"treating it as no champion for tonight's duel",
-                  flush=True)
-            champ_Xhold, champ_acc = None, -1.0
-    else:
-        champ_acc = -1.0
-    stacker_promoted = chall_acc > champ_acc
-    stacker_reason = (
-        f"stacker challenger holdout acc {chall_acc:.4f} > champion {champ_acc:.4f}"
-        if stacker_promoted else
-        f"stacker challenger holdout acc {chall_acc:.4f} did not beat champion {champ_acc:.4f}")
-    # Rollback shelf (v4): snapshot the current champions BEFORE any
-    # replacement tonight, so a bad promotion can be undone in one step.
-    archive_champions(run_id)
-    # Promotion lock (Kass, 2026-10-25): a winning challenger is held
-    # as PENDING KASS APPROVAL -- the verdict is graded and recorded
-    # exactly as before, but the champion files are NOT replaced and
-    # the registry's promoted flag stays 0 until Kass agrees.
+    # Promotion lock state + deep-run identity, settled before the
+    # stacker block (the block's own promotion logic and the PPO
+    # section below both read `locked`).
     locked = promotion_locked()
-    stacker_pending = stacker_promoted and locked
-    stacker_install = stacker_promoted and not locked
-    if stacker_pending:
-        stacker_reason += (
-            " — WOULD PROMOTE: held as PENDING KASS APPROVAL under "
-            "the promotion lock; champion kept")
-    if stacker_install:
-        (MODELS / "stacker_challenger.pkl").replace(champ_pkl)
-        champ_score_path.write_text(json.dumps({
-            "accuracy": chall_acc,
-            "precision": chall_prec,
-            "wf_accuracy": score["accuracy"],
-            "wf_precision": score["precision"],
-            "folds": score["folds"],
-            "model_path": str(champ_pkl),
-        }))
-    # Instrumentation (2026-10-31): capture the challenger's holdout
-    # up-probability votes so stacker_run_metrics can persist their
-    # summary in the run record. predict_proba feeds NOTHING else --
-    # chall_acc / chall_prec above come from predict exactly as
-    # before, and the verdict/promotion logic never sees the votes.
-    # Any failure here leaves chall_votes=None and the grade stands.
-    try:
-        chall_votes = challenger_model.predict_proba(Xhold)[:, 1]
-    except Exception as e:
-        print(f"WARNING: challenger vote capture failed "
-              f"({type(e).__name__}: {e}); grading unaffected",
+    deep_run = _deep_mode()
+    champ_stacker_sha = _file_sha256(MODELS / "stacker_champion.pkl")
+    prior_deep_stacker = deep_stacker_skip(deep_run, run_id,
+                                           champ_stacker_sha)
+    prior_nightly_stacker = nightly_stacker_skip(deep_run, run_id,
+                                                 champ_stacker_sha)
+    prior_stacker = (prior_deep_stacker
+                     if prior_deep_stacker is not None
+                     else prior_nightly_stacker)
+    if prior_stacker is not None:
+        # Resumed attempt of a run whose stacker challenger was
+        # already graded and registered by an earlier attempt of
+        # the SAME run (deep: the runs 93/94/95 duplication;
+        # nightly: run 129's duplicate grading): skip the whole
+        # re-grade/re-register. The two things the PPO section
+        # below reads from this block -- champ_meta and the
+        # champion's own holdout frame -- are rebuilt here so the
+        # duel's votes still come from the lab champion on its own
+        # feature set, exactly as on the grading path.
+        print(f"stacker: {'deep' if deep_run else 'nightly'} run "
+              f"{run_id} already graded and registered its stacker "
+              f"challenger (holdout acc "
+              f"{prior_stacker.get('challenger_acc')}); skipping "
+              f"re-grade on this resumed attempt",
               flush=True)
-        chall_votes = None
-    log_run("stacker", stacker_run_metrics(
-        chall_acc, champ_acc, score["accuracy"], chall_prec,
-        score["folds"], stacker_pending, stacker_reason,
-        votes=chall_votes), stacker_install)
-    add_lab_note("Stacker duel — PENDING KASS APPROVAL"
-                 if stacker_pending else "Stacker duel", stacker_reason)
-    print(f"stacker: challenger holdout acc={chall_acc:.4f} (wf {score['accuracy']:.4f}) "
-          f"champion holdout acc={champ_acc:.4f} promoted={stacker_install} "
-          f"pending={stacker_pending}", flush=True)
+        archive_champions(run_id)
+        # The PPO section cross-fits its training votes on Xtr/ytr,
+        # which the grading path computes in the else block -- a
+        # resumed attempt still needs them.
+        Xtr, ytr = feature_matrix(train_sup)
+        champ_meta = _champion_meta()
+        champ_Xhold = None
+        try:
+            champ_Xhold, _skip_tag = champion_holdout_frame(
+                df, hold_sup, champ_meta)
+        except Exception as e:
+            print(f"WARNING: lab champion frame rebuild for the "
+                  f"PPO duel failed ({type(e).__name__}: {e}); "
+                  f"the PPO section will grade on neutral votes",
+                  flush=True)
+            champ_Xhold = None
+    else:
+        # -- stacker challenger --
+        # Promotion is judged on the SHARED holdout with a strict >, not by
+        # comparing walk-forward accuracies computed on different windows at
+        # different times (audit 2026-10-20: the old rule compared tonight's
+        # challenger WF accuracy against the champion's stored WF accuracy
+        # from its own older window, and promoted on ties).
+        from sklearn.metrics import accuracy_score, precision_score
+
+        Xtr, ytr = feature_matrix(train_sup)
+        Xhold, yhold = feature_matrix(hold_sup)
+        score = train_ha_challenger(Htr, ytr,
+                                    MODELS / "stacker_challenger.pkl")
+        challenger_model = joblib.load(MODELS / "stacker_challenger.pkl")
+        chall_pred = challenger_model.predict(Hhold)
+        chall_acc = float(accuracy_score(yhold, chall_pred))
+        chall_prec = float(precision_score(yhold, chall_pred, zero_division=0))
+        champ_pkl = MODELS / "stacker_champion.pkl"
+        champ_score_path = MODELS / "stacker_champion.json"
+        champ_meta = _champion_meta()
+        champ_Xhold = None
+        if champ_pkl.exists():
+            champ_model = joblib.load(champ_pkl)
+            # Dual-frame grading (seat separation, 2026-10-25): the lab
+            # champion is scored on ITS OWN feature set -- the frame
+            # follows its metadata tag (see champion_holdout_frame);
+            # the challenger above is the HA recipe (since 2026-11-05;
+            # before that it stayed on the production 21). A frame
+            # failure degrades to the no-champion sentinel with a loud
+            # print, the same contract as a missing champion file: the
+            # anomaly lands in tonight's record instead of misgrading
+            # the champion silently.
+            try:
+                champ_Xhold, _champ_tag = champion_holdout_frame(
+                    df, hold_sup, champ_meta)
+                champ_acc = float(accuracy_score(
+                    yhold, champ_model.predict(champ_Xhold)))
+            except Exception as e:
+                print(f"WARNING: lab champion could not be graded on "
+                      f"its feature set ({type(e).__name__}: {e}); "
+                      f"treating it as no champion for tonight's duel",
+                      flush=True)
+                champ_Xhold, champ_acc = None, -1.0
+        else:
+            champ_acc = -1.0
+        stacker_promoted = chall_acc > champ_acc
+        stacker_reason = (
+            f"HA stacker challenger holdout acc {chall_acc:.4f} > champion {champ_acc:.4f}"
+            if stacker_promoted else
+            f"HA stacker challenger holdout acc {chall_acc:.4f} did not beat champion {champ_acc:.4f}")
+        # Rollback shelf (v4): snapshot the current champions BEFORE any
+        # replacement tonight, so a bad promotion can be undone in one step.
+        archive_champions(run_id)
+        # Promotion lock (Kass, 2026-10-25): a winning challenger is held
+        # as PENDING KASS APPROVAL -- the verdict is graded and recorded
+        # exactly as before, but the champion files are NOT replaced and
+        # the registry's promoted flag stays 0 until Kass agrees.
+        # (`locked` is settled before the stacker block, in main.)
+        stacker_pending = stacker_promoted and locked
+        stacker_install = stacker_promoted and not locked
+        if stacker_pending:
+            stacker_reason += (
+                " — WOULD PROMOTE: held as PENDING KASS APPROVAL under "
+                "the promotion lock; champion kept")
+        if stacker_install:
+            (MODELS / "stacker_challenger.pkl").replace(champ_pkl)
+            champ_score_path.write_text(json.dumps({
+                "accuracy": chall_acc,
+                "precision": chall_prec,
+                "wf_accuracy": score["accuracy"],
+                "wf_precision": score["precision"],
+                "folds": score["folds"],
+                "model_path": str(champ_pkl),
+                "feature_set": "ha10",
+                "feature_columns": list(_HA_COLS),
+            }))
+            # The champion IS the challenger now: the PPO section
+            # below must read the new champion's votes on ITS OWN
+            # frame (the HA holdout matrix), not on the replaced
+            # champion's frame built above.
+            champ_Xhold = Hhold
+        # Instrumentation (2026-10-31): capture the challenger's holdout
+        # up-probability votes so stacker_run_metrics can persist their
+        # summary in the run record. predict_proba feeds NOTHING else --
+        # chall_acc / chall_prec above come from predict exactly as
+        # before, and the verdict/promotion logic never sees the votes.
+        # Any failure here leaves chall_votes=None and the grade stands.
+        try:
+            chall_votes = challenger_model.predict_proba(Hhold)[:, 1]
+        except Exception as e:
+            print(f"WARNING: challenger vote capture failed "
+                  f"({type(e).__name__}: {e}); grading unaffected",
+                  flush=True)
+            chall_votes = None
+        stacker_metrics = stacker_run_metrics(
+            chall_acc, champ_acc, score["accuracy"], chall_prec,
+            score["folds"], stacker_pending, stacker_reason,
+            votes=chall_votes)
+        if deep_run:
+            # Tag the row with this deep run's identity so a relaunched
+            # attempt of the SAME deep run can find it and skip
+            # re-grading (see find_registered_deep_stacker above).
+            stacker_metrics["deep"] = True
+            stacker_metrics["deep_run_id"] = run_id
+            stacker_metrics["champion_stacker_sha256"] = champ_stacker_sha
+        else:
+            # Tag the row with this nightly run's identity so a
+            # relaunched attempt of the SAME night (the PPO phase
+            # killed by a runtime restart) can find it and skip
+            # re-grading (see find_registered_nightly_stacker
+            # above; the run 129 duplicate is what happens without
+            # it).
+            stacker_metrics["nightly"] = True
+            stacker_metrics["nightly_run_id"] = run_id
+            stacker_metrics["champion_stacker_sha256"] = champ_stacker_sha
+        log_run("stacker", stacker_metrics, stacker_install)
+        add_lab_note("Stacker duel — PENDING KASS APPROVAL"
+                     if stacker_pending else "Stacker duel", stacker_reason)
+        print(f"stacker: challenger holdout acc={chall_acc:.4f} (wf {score['accuracy']:.4f}) "
+              f"champion holdout acc={champ_acc:.4f} promoted={stacker_install} "
+              f"pending={stacker_pending}", flush=True)
 
     # -- PPO challenger (warm-started) --
     # Trains ONLY on train_sup, with cross-fitted (out-of-fold) stacker
@@ -594,7 +835,8 @@ def main() -> None:
         p_up_hold_all = stacker_model.predict_proba(
             hold_sup[FEATURE_COLUMNS])[:, 1]
     p_up_windows = [p_up_hold_all[k * 264:(k + 1) * 264] for k in range(3)]
-    p_up_train = crossfit_p_up(Xtr, ytr)
+    p_up_train = crossfit_p_up(Htr, ytr,
+                               pipeline_factory=_pick_factory)
     # Weekly deep train (v4): TAM_DEEP=1 -> 300k steps instead of 60k.
     deep = bool(os.environ.get("TAM_DEEP"))
     timesteps = 300_000 if deep else 60_000

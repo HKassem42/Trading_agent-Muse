@@ -1,9 +1,10 @@
 """SHADOW live loop (Kass directive, 2026-10-25; seat swapped
-2026-10-26 and again 2026-10-27).
+2026-10-26, 2026-10-27 and 2026-11-09).
 
 A parallel, fully independent paper-trading book for the pairing
-    Driver: PPO run 44  -  Eyes: Stacker Champion #4 (run 73,
-    Muse's Pick #2: RF+XGB+LGBM+ExtraTrees -> LR)
+    Driver: PPO run 44  -  Eyes: Stacker Champion #11 (run 119,
+    the HA nightly stacker: RF+XGB+LGBM+ExtraTrees -> LR reading
+    the 10 Heikin-Ashi candle values, feature_set tag "ha10")
 The desk was seeded 2026-10-25 with Champion #2's eyes (run 64) --
 the configuration graded +$461.81 as the champion side of the
 scored-eyes study (refs/scored-eyes-ppo-study-2026-10-25.md).
@@ -24,7 +25,11 @@ exactly as the driver's seat does, but its stacker vote comes
 from the seated champion reading its own scored frame (run 73:
 the scored102 frame plus Pick #2's four causal features, 98
 columns, feature_set tag "pick2_98"), not from the seat's
-run-40 prod21 stacker. Kass asked for this desk so the seated
+run-40 prod21 stacker. (The run-73 configuration this desk ran
+until 2026-11-09 read the scored102 frame plus Pick #2's four
+causal features, 98 columns, feature_set tag "pick2_98"; the
+frame dispatch below still serves those tags for the record.)
+Kass asked for this desk so the seated
 champion's eyes build a LIVE track record -- "so we don't have
 to wait to plug that in and test" -- without disturbing the
 driver's-seat test (Book #1) he is still evaluating.
@@ -41,12 +46,26 @@ tampered shadow seat file is a loud failure -- never a fallback to
 the lab champions or the driver's seat (the seat-separation
 doctrine of src/trading/live.py, applied to the shadow seat).
 
-The seat is PINNED to run 73: a future lab crowning does not
+On 2026-11-09 Kass ordered the four pending HA stacker winners
+(113 / 115 / 117 / 119) crowned and "the highest one of our
+numbers" seated here: run 119 (holdout 0.5530, Champion #11)
+replaced run 73 MID-POSITION (Book #2 held a short opened under
+run 44 + run 73's votes) -- the book and its state again carried
+over, un-reseeded, by that recorded order; the swap and the
+position record ride in the manifest's eyes_swapped entry. The
+eyes' frame changed with the swap: run 119 reads the ha10 HA
+candle matrix, so this loop now dispatches its frame builder on
+the seat's feature_set tag (scored frames for the retired
+champions, ha10 for Champion #11) -- the nightly grading
+doctrine, applied to the shadow seat.
+
+The seat is PINNED to run 119: a future lab crowning does not
 move this desk. The seated champion's successor reaches this
 seat only by Kass's explicit decision (or his recorded
 delegation of the ruling), executed manually (see
 models/shadow_seat/README.md) -- exactly how run 69 replaced
-run 64 on 2026-10-26 and run 73 replaced run 69 on 2026-10-27.
+run 64 on 2026-10-26, run 73 replaced run 69 on 2026-10-27, and
+run 119 replaced run 73 on 2026-11-09.
 
 Trading mechanics are NOT forked: the broker is the production
 PaperBroker (25% tranche, 75% exposure cap, 0.15% fees, ATR
@@ -94,13 +113,13 @@ SEAT_STACKER_META = SEAT_DIR / "stacker.json"
 SEAT_PPO = SEAT_DIR / "ppo.zip"
 
 # Canonical sources the seat was copied from (the pinned runs).
-SOURCE_STACKER = MODELS / "stacker_champion.pkl"        # run 73
-SOURCE_STACKER_META = MODELS / "stacker_champion.json"   # run 73
+SOURCE_STACKER = MODELS / "stacker_champion.pkl"        # run 119
+SOURCE_STACKER_META = MODELS / "stacker_champion.json"   # run 119
 SOURCE_PPO = MODELS / "ppo_champion.zip"                 # run 44
 
 STARTING_BALANCE = 100_000.0
 DRIVER_RUN = 44
-EYES_RUN = 73
+EYES_RUN = 119
 
 
 @dataclass(frozen=True)
@@ -148,7 +167,7 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
     meta = json.loads((seat_dir / "stacker.json").read_text())
     cols = list(meta.get("feature_columns") or [])
     return {
-        "desk": "TradingAgent Live — Shadow (Champion #4 Eyes)",
+        "desk": "TradingAgent Live — Shadow (Champion #11 Eyes)",
         "book": "Book #2",
         "driver": {
             "brain": "PPO", "run_id": DRIVER_RUN,
@@ -158,9 +177,9 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
         },
         "eyes": {
             "brain": "Stacker", "run_id": EYES_RUN,
-            "name": "Muse's Pick #2 Stacker",
-            "champion": "Champion #4",
-            "feature_set": meta.get("feature_set", "scored102"),
+            "name": "HA Nightly Stacker",
+            "champion": "Champion #11",
+            "feature_set": meta.get("feature_set", "ha10"),
             "n_features": len(cols),
             "file": "models/shadow_seat/stacker.pkl",
             "sha256": _sha256(seat_dir / "stacker.pkl"),
@@ -176,7 +195,8 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
                      "2026-10-25); eyes swapped to run 69 by Kass's "
                      "decision 2026-10-26; eyes swapped to run 73 "
                      "by Muse's ruling under Kass's delegation "
-                     "2026-10-27",
+                     "2026-10-27; eyes swapped to run 119 by Kass's "
+                     "order 2026-11-09",
         "wfe_exam": {
             "driver_run": 44, "eyes_run": 69,
             "pnl": 162.12, "pct": 0.1621, "days": 33,
@@ -187,16 +207,15 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
                       "holdout. The current pairing (44 + run "
                       "73) has no graded exam.",
         },
-        "pinned": "Stacker pinned to run 73 (Champion #4, Muse's "
-                  "Pick #2) and PPO pinned to run 44: this seat "
-                  "does NOT follow future lab crownings and is "
-                  "NOT the driver's seat. It changes only by "
-                  "Kass's explicit decision (or his recorded "
+        "pinned": "Stacker pinned to run 119 (Champion #11, the "
+                  "HA nightly stacker) and PPO pinned to run 44: "
+                  "this seat does NOT follow future lab crownings "
+                  "and is NOT the driver's seat. It changes only "
+                  "by Kass's explicit decision (or his recorded "
                   "delegation of the ruling), executed manually "
                   "(procedure: models/shadow_seat/README.md). "
-                  "The run-73 pin supersedes the run-69 pin "
-                  "(2026-10-26) by Muse's ruling under Kass's "
-                  "delegation of 2026-10-27.",
+                  "The run-119 pin supersedes the run-73 pin "
+                  "(2026-10-27) by Kass's order of 2026-11-09.",
         "note": "Book #2: a shadow paper book so the seated "
                 "stacker champion's eyes accumulate a live track "
                 "record next to Book #1 (the driver's seat: PPO "
@@ -208,8 +227,11 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
                 "Kass's 2026-10-26 swap — the book was flat with "
                 "zero fills under run 64; run 73 (Champion #4, "
                 "Muse's Pick #2) from the 2026-10-27 swap — the "
-                "book was MID-SHORT at that swap (see the "
-                "eyes_swapped entry for the position record).",
+                "book was MID-SHORT at that swap; run 119 "
+                "(Champion #11, HA nightly stacker, ha10) from "
+                "Kass's 2026-11-09 order — the book was MID-SHORT "
+                "at that swap too (see the eyes_swapped entry "
+                "for the position record).",
     }
 
 
@@ -243,46 +265,64 @@ def verify_seat(manifest: dict, seat_dir: Path) -> None:
                 f"unpinned artifact")
 
 
-# The scored frames a shadow seat stacker may read: the
-# matrix-v3 scored102 frame (Champions #2/#3) and Pick #2's
-# 98-column extension of it (Champion #4, run 73). Anything else
-# is a loud failure -- never a silent fallback to another frame.
-_SEAT_FRAMES = {"scored102": 94, "pick2_98": 98}
+# The frames a shadow seat stacker may read: the matrix-v3
+# scored102 frame (Champions #2/#3), Pick #2's 98-column
+# extension of it (Champion #4, run 73), and the ha10 Heikin-Ashi
+# candle matrix (Champion #11, run 119, seated 2026-11-09 by
+# Kass's order). Anything else is a loud failure -- never a
+# silent fallback to another frame.
+_SEAT_FRAMES = {"scored102": 94, "pick2_98": 98, "ha10": 10}
 
 
 def seat_columns(seat_dir: Path = SEAT_DIR) -> list[str]:
     """The seated champion's recorded feature columns, from the seat's own
     metadata sidecar -- the exact columns the crowned stacker
     reads, in its own order (94 for the scored102 champions, 98
-    for Champion #4's pick2_98 frame)."""
+    for Champion #4's pick2_98 frame, 10 for Champion #11's
+    ha10 frame)."""
     meta = json.loads((seat_dir / "stacker.json").read_text())
     cols = list(meta.get("feature_columns") or [])
     want = _SEAT_FRAMES.get(meta.get("feature_set"))
     if want is None or len(cols) != want:
         raise ValueError(
-            f"shadow seat stacker is not a known scored artifact "
+            f"shadow seat stacker is not a known artifact "
             f"(feature_set={meta.get('feature_set')!r}, "
             f"columns={len(cols)})")
     return cols
 
 
+def _ha_frame(raw: pd.DataFrame):
+    """(frame, columns): the HA candle matrix over the raw
+    candles -- the same builder live_ha.py serves its seat and
+    nightly grades the HA champions with."""
+    from models.muse_pick10 import HA_COLUMNS, build_ha_matrix
+
+    frame = build_ha_matrix(raw)
+    return frame[HA_COLUMNS], list(HA_COLUMNS)
+
+
 def seat_frame_builder(seat_dir: Path = SEAT_DIR):
-    """The scored-frame builder matching the seat stacker's own
-    feature_set tag (features.pick2_features.builder_for_tag):
-    the loop must build the frame the SEATED stacker reads, which
-    changed when Champion #4 (pick2_98) took the seat."""
+    """The frame builder matching the seat stacker's own
+    feature_set tag: the loop must build the frame the SEATED
+    stacker reads, which changed when Champion #4 (pick2_98)
+    took the seat and again when Champion #11 (ha10) took it on
+    2026-11-09. Scored tags dispatch through
+    features.pick2_features.builder_for_tag; ha10 builds the HA
+    candle matrix."""
+    meta = json.loads((seat_dir / "stacker.json").read_text())
+    if meta.get("feature_set") == "ha10":
+        return _ha_frame
     from features import pick2_features
 
-    meta = json.loads((seat_dir / "stacker.json").read_text())
     return pick2_features.builder_for_tag(meta.get("feature_set"))
 
 
 def champion2_vote(model, scored_frame: pd.DataFrame, ts,
                    columns: list[str]) -> float:
     """The seated champion's P(up) for one candle: its own predict_proba on
-    the scored frame restricted to its recorded columns -- the same
+    its own frame restricted to its recorded columns -- the same
     computation the scored-eyes study graded the champion side
-    with (nightly.py's dual-frame vote path)."""
+    with (nightly.py's per-frame vote path)."""
     return float(model.predict_proba(scored_frame.loc[[ts], columns])[0, 1])
 
 
@@ -430,9 +470,9 @@ def seed(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None) -> dict:
 # ------------------------------------------------------------ main loop
 
 def _default_scored_builder(raw: pd.DataFrame):
-    """The seat's own scored frame (see seat_frame_builder):
-    scored102 for the earlier champions, pick2_98 (98 columns)
-    for Champion #4."""
+    """The seat's own frame (see seat_frame_builder): scored102
+    for the earlier champions, pick2_98 (98 columns) for
+    Champion #4, the ha10 HA matrix for Champion #11."""
     return seat_frame_builder()(raw)
 
 
@@ -522,8 +562,8 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
             break
         srow = scored_frame.loc[ts, columns]
         if srow.isna().any():
-            print(f"candle {ts} has NaN scored features; stopping "
-                  f"shadow run here", flush=True)
+            print(f"candle {ts} has NaN seat-frame features; "
+                  f"stopping shadow run here", flush=True)
             break
         p_up = champion2_vote(stacker, scored_frame, ts, columns)
         price = float(row["close"])
@@ -566,8 +606,9 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         broker.snapshot(ts_s, price)
         # Decision log (instrumentation only, 2026-10-31): what the
         # bot was thinking on this candle, from values already in
-        # hand -- the scored row this candle's vote was computed
-        # from included. Failure-isolated; never alters trading.
+        # hand -- the seat-frame row this candle's vote was
+        # computed from included. Failure-isolated; never alters
+        # trading.
         _d_action, _d_taken, _d_reason = describe_outcome(
             int(action), stop_fill, fill)
         _d_eq = broker.equity(price)

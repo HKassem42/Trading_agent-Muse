@@ -124,3 +124,147 @@ disjoint from Book #1/#2 files by construction (its own
 config) and the perimeter is proven in
 tests/test_gated_desk.py (Book #1/#2 files bit-identical
 across a gated seed + step).
+
+---
+
+## AMENDMENT — Segment 2 (2026-11-03, Kass's direct order)
+
+Appended 2026-11-04T00:17Z. The original pre-registration above
+is unchanged; this amendment records a configuration change
+Kass ordered in the main chat on 2026-11-03 (~19:14 ET):
+
+> "switch out book three to 99 I wanna see how it does"
+> (and on the gate threshold:) "Our gate might be a little too
+> conservative if you wanna put it back at 50 percent instead
+> of 55 as the veto that might be good too"
+
+Per the "No mid-test changes" clause above, a changed
+configuration is a new segment of the test. The book, the
+ledger, and the gate_decisions table continue; every decision
+row records the threshold it was judged at, so the segments
+are separable in the evidence itself.
+
+### Segment 1 — CLOSED (2026-10-30T16:00Z → 2026-11-03T23:00Z)
+
+Configuration: driver PPO run 44 · eyes Stacker run 73 ·
+run 82 gate @ 0.55. The segment closes at the last candle
+processed under that seat (state last_ts 2026-11-03T23:00Z).
+
+Record: **7 entry attempts, 0 taken, 7 vetoed.** The book
+never traded; equity $100,000 throughout.
+
+- Vetoes #1–#2 (longs, 2026-10-30 20:00Z / 21:00Z, probas
+  0.1394 / 0.5454): scored **SAVED** — the corresponding
+  Books #1/#2 round trip closed net −$62.36 (Book #1) /
+  −$62.11 (Book #2) while Book #3 stayed flat.
+- Vetoes #3–#7 (shorts, 2026-10-31T17:00Z → 2026-11-01T09:00Z,
+  probas 0.1977 / 0.2129 / 0.0829 / 0.2040 / 0.1216): score
+  together against the shared Books #1/#2 short opened
+  2026-10-31T17:00Z @ $77,559.24 — **still open at the swap**,
+  so their scoring remains pending and carries into Segment 2
+  unchanged (the daily veto-outcome check stands).
+
+### Segment 2 — OPEN (from the first candle under the new seat)
+
+Configuration: **driver PPO run 99** · eyes Stacker run 73
+(unchanged) · **run 82 gate model unchanged** (sha256
+cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a,
+never retrained or refit) · **gate threshold 0.50**.
+
+Run 99 provenance: the PPO challenger from the 2026-11-03
+midnight retrain (registry run 99, ts 2026-11-03T05:24:22Z),
+preserved at `models/ppo_run99.zip`, sha256
+fa2c1677980bf97fd9cf885669981d90d42b8b1942b8a0fc5a3a22f4ce10fe0b
+(mtime and reward-curve cross-checked against the registry).
+Its recorded duel verdict is **NOT PROMOTED** (1/3 windows,
+aggregate −760.78 vs champion +23.07, P&L +$697.65 vs
++$531.86 — lost on the score formula's drawdown penalty).
+It sits in Book #3 by Kass's direct pick, not by promotion;
+the promotion lock is untouched and Book #1's live seat is
+unchanged.
+
+At the swap the book was FLAT, $100,000, 0 trades. Pre-swap
+seat backed up to
+`models/archive/20261104T0016_pre_book3_driver99_gate050/`.
+
+### Rationale (Kass's, recorded)
+
+At 0.55 the gate vetoed 7 of 7 proposals across five days:
+the forward test produced veto evidence but zero taken-trade
+evidence — nothing to measure the gate's discrimination on
+the trades it lets through, and nothing to measure run 99's
+driving at all. At 0.50, exactly **1 of the 7** past proposals
+would have passed (veto #2, the 2026-10-30T21:00Z long at
+proba 0.5454); the other six were all below 0.22. Segment 2
+therefore tests a modestly less conservative gate, not an
+open door.
+
+### Evidence rules from here
+
+- Veto scoring against Book #2's fills continues per
+  decision, as pre-registered; Segment-2 vetoes score against
+  Book #2's corresponding candles on the same basis.
+- The 10-veto review checkpoint counts all recorded vetoes
+  (7 at the swap), with Segment-2 decisions reported
+  separately alongside.
+- Any further change to the driver, the gate model, or the
+  threshold is another Kass-ordered segment, appended here —
+  never a silent edit.
+
+## Amendment — Segment 3 (2026-11-04, Kass's direct order)
+
+### Segment 2 — CLOSED (2026-11-04T00:00Z → 2026-11-04T21:00Z candles)
+
+Record: **14 entry attempts, 9 taken, 5 vetoed** at threshold
+0.50. The book's first trade (2026-11-04T02:00Z long, gate
+passed at 0.9386) closed +$32.73; a short stack built the
+same day stopped out for **−$2,257.27** (2026-11-04T15:00Z
+candle) — nearly the whole equity gap vs Book #2. At the
+close the book was SHORT −0.912837 BTC @ $80,280.14 (stop
+$82,219.59), equity $97,779.37, 10 trades total.
+
+Scoring completed since the Segment 2 amendment was written:
+vetoes #3–#7 scored **SAVED** — the shared Books #1/#2 short
+they blocked stopped out 2026-11-04T14:00Z @ $79,498.22 and
+Book #2's round trip netted **−$702.89** (Book #1 −$705.69).
+Segment 1's gate record is final: **7-for-7 vetoes SAVED,
+both blocked round trips losers.** The pre-registered
+10-veto checkpoint was reached 2026-11-04T19:00Z (veto #10,
+short-side, proba 0.0421) and reported to Kass the same day.
+Totals at the Segment 2 close: **21 attempts, 9 taken,
+12 vetoed.**
+
+### Segment 3 — OPEN (from the first candle under the restored seat)
+
+Configuration: **driver PPO run 99** (unchanged) · eyes
+Stacker run 73 (unchanged) · **run 82 gate model unchanged**
+(sha256 cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a,
+never retrained or refit) · **gate threshold restored to
+0.55**.
+
+Kass's order (main chat, 2026-11-04 17:37 ET, answering the
+10-veto checkpoint review): *"Tighten book three back to
+.55."* The review put the two segments side by side —
+Segment 1 at 0.55 went 7-for-7 SAVED but never traded;
+Segment 2 at 0.50 traded, and its taken side is dominated
+by the −$2,257.27 stop-out. Kass picked the tighter gate;
+the run 99 driver stays, so Segment 3 reads as run 99's
+brain under the original 0.55 discipline.
+
+The change landed 2026-11-04T22:39Z, mid-position (the open
+short carries over; exits are never gated, so the position
+is unaffected — only future entries face 0.55). Pre-change
+seat backed up to
+`models/archive/20261104T2239_pre_book3_gate055_segment3/`.
+Segment 3 begins with the first candle processed under the
+restored seat (the 2026-11-04T22:00:00Z candle).
+
+### Evidence rules from here
+
+- Decision rows keep recording the threshold each attempt
+  was judged at; segment totals are reported per segment
+  alongside the running totals.
+- The next review checkpoint is the pre-registered 30-day
+  mark (~2026-11-29).
+- Run 83's gate remains separately PENDING KASS; nothing in
+  this amendment rules on it.

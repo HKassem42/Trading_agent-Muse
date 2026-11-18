@@ -67,17 +67,25 @@ def _already_logged(path: Path, ts: str) -> bool:
 
 
 def append_decision(book_id: str, record: dict,
-                    decisions_dir=None) -> bool:
+                    decisions_dir=None,
+                    allow_duplicate_ts: bool = False) -> bool:
     """Append one candle's decision record for a book. Returns
     True when a line was written, False when skipped (duplicate
-    candle) or on ANY failure -- never raises."""
+    candle) or on ANY failure -- never raises.
+
+    allow_duplicate_ts (Book #5's open-decision mode, 2026-11-13):
+    a candle there gets its decision record at its OPEN and, if
+    its wick later stops the position out, a second record at its
+    close -- the opt-in lets that exit record append instead of
+    being deduped away. Every other caller keeps the default
+    one-record-per-candle dedupe exactly as before."""
     try:
         d = Path(decisions_dir) if decisions_dir else DECISIONS_DIR
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"{book_id}.jsonl"
         ts = record.get("ts")
-        if ts is not None and path.exists() \
-                and _already_logged(path, ts):
+        if not allow_duplicate_ts and ts is not None \
+                and path.exists() and _already_logged(path, ts):
             return False
         line = json.dumps(record)
         with path.open("a", encoding="utf-8") as fh:

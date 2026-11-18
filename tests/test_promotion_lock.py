@@ -132,7 +132,7 @@ def _setup(tmp_path, monkeypatch, *, stacker_challenger_good: bool,
                         lambda *a, **k: frame.copy())
     monkeypatch.setattr(nightly, "promotion_locked", lambda: locked)
     monkeypatch.setattr(nightly, "crossfit_p_up",
-                        lambda X, y, folds=4: np.full(len(X), 0.5))
+                        lambda X, y, folds=4, **k: np.full(len(X), 0.5))
     monkeypatch.setattr(stacker, "build_pipeline",
                         lambda random_state=42: _light_pipeline())
     monkeypatch.setattr(stacker, "walk_forward_score",
@@ -164,6 +164,22 @@ def _setup(tmp_path, monkeypatch, *, stacker_challenger_good: bool,
                 "model_path": str(out_path)}
 
     monkeypatch.setattr(stacker, "train_and_save", fake_train_and_save)
+
+    # Since 2026-11-05 the nightly stacker challenger is the HA
+    # recipe (nightly.train_ha_challenger); stub that seam with the
+    # same controlled good/permuted-label semantics, fitted on the
+    # HA frame it is handed.
+    def fake_train_ha_challenger(X, y, out_path):
+        yy = (y if stacker_challenger_good
+              else pd.Series(rng.permutation(y.to_numpy()),
+                             index=y.index))
+        pipe = _light_pipeline().fit(X, yy)
+        joblib.dump(pipe, out_path)
+        return {"accuracy": 0.5, "precision": 0.5, "folds": 5,
+                "model_path": str(out_path)}
+
+    monkeypatch.setattr(nightly, "train_ha_challenger",
+                        fake_train_ha_challenger)
 
     if ppo_champion:
         (models / "ppo_champion.zip").write_bytes(b"CHAMPION-PPO-BYTES")

@@ -119,13 +119,21 @@ Training run short keys:
   family's recorded config/design note (lab families) -- each present
   only when the run itself recorded it (added 2026-10-25; absent,
   never fabricated, for runs that predate the field).
-  The feed carries the last 6 runs (was 8 before the 2026-10-23 size
-  diet; the models index below is the complete record of every run).
+  The feed carries the last 4 runs (was 8 before the 2026-10-23 size
+  diet, 6 until the 2026-11-05 diet; the models index below is the
+  complete record of every run).
 
 Training models index (snapshot.models, added 2026-10-22 -- Kass's
 "display EVERY model tried" directive): one row per registered run,
-newest first, covering ALL runs in training.db (the detailed runs list
-above stays the last 6). Row = [i, d, n, f, p, s, pl, v]:
+newest first (the detailed runs list above stays the last 4). Since
+2026-11-05 the shipped index is trimmed under Kass's directive of
+that day: failed runs 16-50 (never promoted, no seat or crown) are
+omitted from the feed to keep it inside its size budget, and the
+feed carries the count as snapshot.models_omitted; the COMPLETE
+record of every run stays in training.db, the Champions &
+Challengers workbook, and the Model Atlas. _models_index itself
+still covers ALL runs (the champs roster derives names from it).
+Row = [i, d, n, f, p, s, pl, v]:
   i=run id, d=date "MM-DD", n=display name (derived in compact.py from
   the run's own record: metrics.family for lab runs -- "HA-Seq v1",
   "GBM Focus <arm> -- <label>", "GBM Lag <arm> -- <label>",
@@ -142,7 +150,12 @@ above stays the last 6). Row = [i, d, n, f, p, s, pl, v]:
   10=hierarchy, 11=features_v6, 12=full_indicator_stacker,
   13=scored_eyes_ppo, 14=muse_pick, 15=muse_pick2, 16=muse_pick3,
   17=meta_label, 18=eyes_v2, 19=regime_swing, 20=ha_deep,
-  21=ha_shift),
+  21=ha_shift, 22=muse_next_try, 23=muse_next_try2,
+  24=muse_pick4, 25=muse_pick5, 26=muse_pick6, 27=muse_pick7,
+  28=muse_pick8, 29=muse_pick9,
+  30=muse_pick10,
+  31=muse_pick11,
+  32=muse_pick12, 33=muse_pick13),
   p=promoted (0/1), s=headline
   (PPO-family: duel aggregate score; stacker: holdout accuracy),
   pl=duel holdout P&L in whole dollars (null for the stacker; exact
@@ -306,6 +319,19 @@ def _downsample_curve(curve: list[dict]) -> list[dict]:
     return [{"t": p["t"], "equity": round(p["equity"], 2)} for p in out]
 
 
+# Feed bound (2026-11-17 size fix): the calendar heatmap ships
+# only the newest 371 days (53 weeks). snapshot.daily_calendar
+# spans every day since the book's first closed trade -- one
+# entry per day, forever -- which made every book snapshot feed
+# grow ~72B/day without limit (+26KB/yr). The full history stays
+# in the book's DB; the desk's heatmap window is a year + a week.
+CALENDAR_FEED_DAYS = 371
+
+
+def _feed_calendar(s: dict) -> list:
+    return (s.get("daily_calendar") or [])[-CALENDAR_FEED_DAYS:]
+
+
 def _drawdown_stats(s: dict) -> dict:
     """Current + worst drawdown as NUMBERS (viz research L1): the strip is
     derived in the frontend, but the two values a reader actually quotes --
@@ -380,7 +406,7 @@ def build_compact_trading() -> dict:
         "stacker_p_up": round(s["stacker_p_up"], 4) if s["stacker_p_up"] is not None else None,
         "last_candle": s["last_candle"],
         "trade_stats": s["trade_stats"],
-        "daily_calendar": s["daily_calendar"],
+        "daily_calendar": _feed_calendar(s),
         "activity": s["activity"],
         "equity_curve": curve,
         "bench": bench["bench"],
@@ -591,8 +617,31 @@ def _market_candles():
     return start, candles, df
 
 
-def build_market(part: int, db_path=None, state_path=None) -> dict:
+def build_market(part: int, db_path=None, state_path=None,
+                 ha: bool = False) -> dict:
     start, candles, df = _market_candles()
+    if ha:
+        # Book #4's chart is the Heikin-Ashi candle stream
+        # (Kass's order, 2026-11-05): HA OHLC computed over the
+        # full 5d window (the recursion's seed warmth dies within
+        # the lead-in rows), volume stays the real volume, and
+        # markers/entry/stop below stay on real prices -- the
+        # trading itself is on real prices; only the candle
+        # rendering is HA.
+        from data.market_data import fetch_klines
+        from models.ha_seq import heikin_ashi
+
+        closed_full = fetch_klines("BTC-USD", interval="1h",
+                                   period="5d").iloc[:-1]
+        full_df = closed_full.tail(96)
+        h = heikin_ashi(closed_full).tail(96)
+        candles = [[int(round(h["ha_open"].iloc[i])),
+                    int(round(h["ha_high"].iloc[i])),
+                    int(round(h["ha_low"].iloc[i])),
+                    int(round(h["ha_close"].iloc[i])),
+                    int(round(full_df["volume"].iloc[i]))]
+                   for i in range(len(full_df))]
+        start = int(full_df.index[0].timestamp())
     half = 48
     if part == 0:
         return {"start": start, "step": 3600, "candles": candles[:half]}
@@ -898,27 +947,45 @@ def _drift_block(fetch=None) -> dict | None:
         return None
 
 
-def build_vision() -> dict:
-    """What the bot sees on the latest closed 1h candle: all 21 features
-    (v5; v3 contract, all in [-1, 1]) + the DRIVER'S-SEAT stacker's
-    P(up) -- the seat artifact the live loop actually trades with
-    (seat separation, 2026-10-25), never the Training Lab's champion,
-    which may read an entirely different feature set. Each f row's
-    4th element is the same signal in plain units (see _raw_frame),
-    or null when no honest raw exists for that row."""
+def build_vision(state_path=None, fetch=None) -> dict:
+    """What the bot saw on its OWN last processed candle: all 21
+    features (v5; v3 contract, all in [-1, 1]) + the DRIVER'S-SEAT
+    stacker's P(up) -- the seat artifact the live loop actually
+    trades with (seat separation, 2026-10-25), never the Training
+    Lab's champion, which may read an entirely different feature
+    set. The candle and the vote are the live loop's OWN recorded
+    ones (live_state.json last_ts / last_p_up, see _own_candle_pin):
+    until 2026-11-03 this panel recomputed on the newest closed
+    candle, which could run ahead of the loop and disagree with
+    the desk's own snapshot vote. Each f row's 4th element is the
+    same signal in plain units (see _raw_frame), or null when no
+    honest raw exists for that row.
+
+    `fetch` is an optional market-fetch callable (the master build
+    passes its one shared memoized fetch, 2026-11-04); None keeps
+    the standalone behavior -- fetch_klines direct, including
+    inside the drift block."""
     import pandas as pd
 
     from data.market_data import fetch_klines
     from features.technical_indicators import FEATURE_COLUMNS, add_features
     from models.stacker import load as load_stacker
 
-    full = fetch_klines("BTC-USD", interval="1h", period="60d").iloc[:-1]
+    fetch = fetch or fetch_klines
+    full = fetch("BTC-USD", interval="1h", period="60d").iloc[:-1]
     feat = add_features(full)
     feat = feat.dropna(subset=FEATURE_COLUMNS)
-    ts, row = feat.index[-1], feat.iloc[-1]
-    p_up = None
+    own_ts, own_p = _own_candle_pin(
+        state_path if state_path is not None
+        else ROOT / "data" / "live_state.json")
+    pinned = own_ts is not None and own_ts in feat.index
+    if pinned:
+        ts, row = own_ts, feat.loc[own_ts]
+    else:
+        ts, row = feat.index[-1], feat.iloc[-1]
+    p_up = own_p if pinned else None
     champ = ROOT / "models" / "live_seat" / "stacker.pkl"
-    if champ.exists():
+    if p_up is None and champ.exists():
         stacker = load_stacker(champ)
         p_up = round(float(stacker.predict_proba(
             row[FEATURE_COLUMNS].to_frame().T)[0, 1]), 4)
@@ -939,7 +1006,7 @@ def build_vision() -> dict:
         "p_up": p_up,
         "f": rows,
     }
-    drift = _drift_block()
+    drift = _drift_block(fetch)
     if drift is not None:
         out["drift"] = drift
     return out
@@ -961,12 +1028,11 @@ def _mix(m: dict) -> dict:
     return {k: _n(round(v, 2)) for k, v in m.items()}
 
 
-def _verdict_reason(r: dict, m: dict) -> str | None:
-    """One-line verdict for a run card (viz research T1/T2: the reason a
-    brain was promoted or kept out must live on the dashboard, not only in
-    training.db). New runs store an explicit `reason`; historical runs are
-    reconstructed from what they actually recorded -- champion notes,
-    promotion_reason fields, or the duel outcome itself."""
+def _verdict_reason_raw(r: dict, m: dict) -> str | None:
+    """The run's verdict reason UNBOUNDED, exactly as recorded
+    (explicit `reason` / `promotion_reason`, else reconstructed from
+    what the run recorded -- champion notes, promotion fields, or
+    the duel outcome itself)."""
     reason = m.get("reason") or m.get("promotion_reason")
     if not reason and r["kind"] == "ppo":
         h = m.get("champion") or {}
@@ -981,11 +1047,24 @@ def _verdict_reason(r: dict, m: dict) -> str | None:
             reason = "challenger won the duel"
         else:
             reason = "champion kept the crown"
-    # Word/clause-bounded at the same 100-char cap, never a raw
-    # slice: the [:100] cut landed mid-number on run 88's reason
-    # ("...duel agg -1550 vs champion -" | "210, ...") in the
-    # 2026-10-31 dashboard review.
-    return _clause_bounded(str(reason), limit=100, word_fallback=True)
+    return str(reason) if reason else None
+
+
+def _verdict_reason(r: dict, m: dict) -> str | None:
+    """One-line verdict for a run card (viz research T1/T2: the reason a
+    brain was promoted or kept out must live on the dashboard, not only in
+    training.db), word/clause-bounded at the 100-char preview cap,
+    never a raw slice: the [:100] cut landed mid-number on run 88's
+    reason ("...duel agg -1550 vs champion -" | "210, ...") in the
+    2026-10-31 dashboard review. When the cap trims, the feed ALSO
+    ships the complete text as why_full (2026-11-03 audit: a preview
+    whose remainder exists nowhere in the payload is information
+    destroyed, not shortened)."""
+    raw = _verdict_reason_raw(r, m)
+    if raw is None:
+        return None
+    return _clause_bounded(raw, limit=100, word_fallback=True,
+                           ellipsis=True)
 
 
 def _duel_run(r: dict) -> dict:
@@ -1056,10 +1135,16 @@ def _duel_run(r: dict) -> dict:
             # regime cfg texts ("...sub-cha", "...deterministic
             # swi") in the 2026-10-31 dashboard review.
             out["cfg"] = _clause_bounded(cfg, limit=80,
-                                         word_fallback=True)
+                                         word_fallback=True,
+                                         ellipsis=True)
     why = _verdict_reason(r, m)
     if why:
         out["why"] = why
+        raw = _verdict_reason_raw(r, m)
+        if raw is not None and raw != why:
+            # The preview was trimmed: ship the complete recorded
+            # reason alongside it (2026-11-03 audit).
+            out["why_full"] = raw
     return out
 
 
@@ -1080,10 +1165,24 @@ def _lab_notes() -> list[dict]:
     # Word/clause-bounded at the same 90-char cap, never a raw
     # slice: the [:90] cut landed mid-number on the HA-Deep note
     # ("...exam acc 0.5" | "208 ...") in the 2026-10-31 review.
-    return [{"t": n["ts"], "h": n["title"],
-             "d": _clause_bounded(str(n["detail"]), limit=90,
-                                  word_fallback=True)}
-            for n in notes[-4:]][::-1]
+    # When the cap trims, the COMPLETE stored detail rides along as
+    # "full" (2026-11-03 audit: the preview was the only copy in the
+    # payload, so the two long Kass-directive notes -- the 1,218-char
+    # trailing-stop ruling and the 795-char run-96 crowning -- could
+    # not be read past ~90 chars anywhere on the dashboard).
+    out = []
+    # Newest 3 (was 4 until the 2026-11-05 size diet -- see the SIZE
+    # DIET note in build_compact_training; every shipped note still
+    # carries its complete text as "full" when its preview is trimmed).
+    for n in notes[-3:]:
+        full = str(n["detail"])
+        d = _clause_bounded(full, limit=90, word_fallback=True,
+                            ellipsis=True)
+        item = {"t": n["ts"], "h": n["title"], "d": d}
+        if d != full:
+            item["full"] = full
+        out.append(item)
+    return out[::-1]
 
 
 _FAMILY_CODES = {"ppo": 0, "stacker": 1, "ha_seq": 2, "gbm_focus": 3,
@@ -1099,7 +1198,19 @@ _FAMILY_CODES = {"ppo": 0, "stacker": 1, "ha_seq": 2, "gbm_focus": 3,
                  "eyes_v2": 18,
                  "regime_swing": 19,
                  "ha_deep": 20,
-                 "ha_shift": 21}
+                 "ha_shift": 21,
+                 "muse_next_try": 22,
+                 "muse_next_try2": 23,
+                 "muse_pick4": 24,
+                 "muse_pick5": 25,
+                 "muse_pick6": 26,
+                 "muse_pick7": 27,
+                 "muse_pick8": 28,
+                 "muse_pick9": 29,
+                 "muse_pick10": 30,
+                 "muse_pick11": 31,
+                 "muse_pick12": 32,
+                 "muse_pick13": 33}
 _GBM_ARM_LABELS = {"A": "Plain", "B": "Class-Weighted", "C": "SMOTE",
                    "D": "All-60 Features"}
 _GBM_LAG_ARM_LABELS = {"E": "Lag Class-Weighted", "F": "Lag SMOTE",
@@ -1146,6 +1257,17 @@ def _pick_version(cands: list[str]) -> str | None:
                                      tuple(int(x) for x in v.split("."))))
 
 
+# Kass's Pick-lineage rename (2026-11-04, Kass's direct order): runs
+# 101/102/103 are called Muse's Pick #4/#5/#6, continuing Pick #1
+# (run 69), Pick #2 (run 73) and Pick #3 (run 75). Runs 101/102 were
+# built as the "Muse's Next Try" studies and run 103 is the
+# 2026-11-04 nightly PPO challenger; this is a display-name decision
+# only -- families, registry records and recorded verdicts
+# (FAIL / FAIL / NOT PROMOTED) are untouched.
+_PICK_RENAMES = {101: "Muse's Pick #4", 102: "Muse's Pick #5",
+                 103: "Muse's Pick #6"}
+
+
 def _display_name(r: dict, version: str | None) -> str:
     """Human-readable model name for the all-runs index. Lab families
     carry their own names (metrics.family); nightly runs are
@@ -1153,6 +1275,9 @@ def _display_name(r: dict, version: str | None) -> str:
     recorded no version anywhere."""
     m = r.get("metrics") or {}
     fam = m.get("family") or r["kind"]
+    pick_name = _PICK_RENAMES.get(r.get("id"))
+    if pick_name:
+        return pick_name
     if fam == "ha_seq":
         return "HA-Seq v1"
     if fam == "gbm_focus":
@@ -1216,6 +1341,21 @@ def _display_name(r: dict, version: str | None) -> str:
         # before its first push, 2026-10-27).
         label = (m.get("muse_pick3") or {}).get("label") or ""
         return f"Muse's Pick #3 {label}" if label else "Muse's Pick #3"
+    if fam in ("muse_pick4", "muse_pick5", "muse_pick6",
+               "muse_pick7", "muse_pick8",
+               "muse_pick9", "muse_pick10",
+               "muse_pick11", "muse_pick12",
+               "muse_pick13"):
+        # Kass's 2026-11-04 order ("Name the 3 models you did,
+        # Muse's Pick #4 #5 #6"): three stacker challengers, each
+        # labeled by its study label (e.g. "Stacker — Three
+        # Clocks"). Without this case the index would fall back to
+        # a nightly name and mislabel the runs. muse_pick7 joined
+        # 2026-11-05 (Kass: "try muses pick the next one").
+        label = (m.get(fam) or {}).get("label") or ""
+        num = fam[len("muse_pick"):]  # "4".."10" (fam[-1] broke at pick10)
+        return (f"Muse's Pick #{num} {label}" if label
+                else f"Muse's Pick #{num}")
     if fam == "meta_label":
         # Pick A (2026-10-30, Kass's delegated new-system pick):
         # the tradeability gate run is labeled by its study label
@@ -1247,6 +1387,20 @@ def _display_name(r: dict, version: str | None) -> str:
         # ("HA Shift Trader").
         label = (m.get("ha_shift") or {}).get("label") or ""
         return label or "HA Shift Trader"
+    if fam == "muse_next_try":
+        # Muse's Next Try (2026-11-04, Kass's full delegation in
+        # the model-pick chat -- "Label it as ur next try"): the
+        # stacker is labeled by its study label ("Muse's Next
+        # Try"). Without this case the index fell back to a
+        # nightly name and mislabeled the run.
+        label = (m.get("muse_next_try") or {}).get("label") or ""
+        return label or "Muse's Next Try"
+    if fam == "muse_next_try2":
+        # Muse's Next Try #2 (2026-11-04, same Kass order): the
+        # recipe-selected follow-on to Next Try #1, labeled by its
+        # study label ("Muse's Next Try #2").
+        label = (m.get("muse_next_try2") or {}).get("label") or ""
+        return label or "Muse's Next Try #2"
     base = "PPO" if fam == "ppo" else "Stacker"
     return f"{base} v{version}" if version else f"{base} (early)"
 
@@ -1268,7 +1422,13 @@ def _model_entry(r: dict, name: str) -> list:
                                           "full_indicator_stacker",
                                           "muse_pick", "muse_pick2",
                                           "muse_pick3", "eyes_v2",
-                                          "ha_deep")
+                                          "ha_deep", "muse_next_try",
+                                          "muse_next_try2", "muse_pick4",
+                                          "muse_pick5", "muse_pick6",
+                                          "muse_pick7", "muse_pick8",
+                                          "muse_pick9", "muse_pick10",
+                                          "muse_pick11", "muse_pick12",
+                                          "muse_pick13")
                      else fam)
     if headline_kind == "stacker":
         acc = m.get("challenger_acc")
@@ -1326,6 +1486,15 @@ def _model_entry(r: dict, name: str) -> list:
         verdict = (m.get("ha_deep") or {}).get("verdict")
     elif fam == "ha_shift":
         verdict = (m.get("ha_shift") or {}).get("verdict")
+    elif fam == "muse_next_try":
+        verdict = (m.get("muse_next_try") or {}).get("verdict")
+    elif fam == "muse_next_try2":
+        verdict = (m.get("muse_next_try2") or {}).get("verdict")
+    elif fam in ("muse_pick4", "muse_pick5", "muse_pick6",
+                 "muse_pick7", "muse_pick8", "muse_pick9",
+                 "muse_pick10", "muse_pick11", "muse_pick12",
+                 "muse_pick13"):
+        verdict = (m.get(fam) or {}).get("verdict")
     return [r["id"], r["ts"][5:10], name, _FAMILY_CODES[fam],
             int(r["promoted"]), headline, pnl, verdict]
 
@@ -1352,6 +1521,35 @@ def _all_runs_desc() -> list[dict]:
     ]
     con.close()
     return runs
+
+
+# Kass's feed-trim directive (2026-11-05): when the Training feed
+# needs room, the older FAILED models come out of the feed's models
+# index -- runs at or under this id that were never promoted and
+# hold no seat or crown. The complete record stays in training.db,
+# the Champions & Challengers workbook, and the Model Atlas; only
+# the Lab feed's index is trimmed. Runs 1-15 are out of scope (the
+# pre-fix set, already display-eliminated since 2026-10-30 and
+# joined by id through the pfx flags). Run 44 is kept by id: it is
+# the lab PPO champion and the live-seat driver, installed by
+# Kass's manual override, so its promoted flag is 0 by design while
+# its recorded verdict stays NOT PROMOTED.
+_FEED_TRIM_MAX_ID = 50
+_FEED_TRIM_KEEP_IDS = {44}
+
+
+def _models_index_feed(runs_desc: list[dict]) -> tuple[list[list], int]:
+    """The models index AS SHIPPED in the training feed: the full
+    _models_index minus the failed runs Kass directed out of the
+    way (see _FEED_TRIM_MAX_ID). Returns (rows, omitted_count);
+    the feed carries the count as models_omitted so the trim reads
+    as design, never as silent loss."""
+    rows = _models_index(runs_desc)
+    promoted = {r["id"] for r in runs_desc if r.get("promoted")}
+    kept = [row for row in rows
+            if row[0] < 16 or row[0] > _FEED_TRIM_MAX_ID
+            or row[0] in promoted or row[0] in _FEED_TRIM_KEEP_IDS]
+    return kept, len(rows) - len(kept)
 
 
 def _models_index(runs_desc: list[dict]) -> list[list]:
@@ -1611,7 +1809,17 @@ def build_champions(runs_desc: list[dict] | None = None) -> dict | None:
         """A former champion's feature-set tag, from its own
         recorded study block (94 = the scored102 frame of
         Champions #2/#3; 98 = Pick #2's extension of it, the
-        pick2_98 frame of Champion #4)."""
+        pick2_98 frame of Champion #4). The HA champions carry
+        their frame in their record directly: Champion #6
+        (run 110) by its muse_pick11 family tag, the nightly
+        HA-line champions (run 111 on) by their recorded reason
+        (added 2026-11-06 at the Champion #7 crowning, when the
+        fallback below mislabeled run 110 as prod21)."""
+        if m.get("feature_set") == "ha10" or \
+                m.get("family") in ("muse_pick10", "muse_pick11"):
+            return "ha10"
+        if str(m.get("reason") or "").startswith("HA stacker challenger"):
+            return "ha10"
         for blk in m.values():
             if isinstance(blk, dict):
                 nf = blk.get("n_features")
@@ -1824,8 +2032,20 @@ def build_compact_training() -> dict:
     # registry recorded (~+281B in the current window) -- 8,642B at
     # 60 runs, sentinel re-baselined to 8,800B in
     # tests/test_compact_feeds.py with the basis recorded there.
+    # 2026-11-05 diet: the feed hit 17,776B at 110 registered runs --
+    # over the 16,384B budget -- after the Pick #7-#11 study burst put
+    # five long stacker records in the detail window and the run-110
+    # crowning added a 1,031-char lab note. Cuts, same doctrine as
+    # 2026-10-23 (no run, name, verdict, headline, roster entry, or
+    # gate fact leaves the dashboard): the detail window is the newest
+    # 4 (the models index below remains the complete record; runs
+    # 105/106 keep their index rows and run 105's duel stays in
+    # gate_hist) and the lab-notes window is the newest 3 (every
+    # shipped note still carries its full text when trimmed). Dieted
+    # size 16,089B at 110 runs; sentinel re-baselined to 16,200B in
+    # tests/test_compact_feeds.py with the basis recorded there.
     s = snapshot.build_training_snapshot()
-    runs = [_duel_run(r) for r in s["runs"][:6]]
+    runs = [_duel_run(r) for r in s["runs"][:4]]
     ch = s.get("champion") or {}
     # reward_series and rcurve read the FULL registry, not the
     # snapshot's 30-run window: the window silently dropped older PPO
@@ -1860,10 +2080,21 @@ def build_compact_training() -> dict:
                         sampled.append(rcurve[-1])
                     rcurve = sampled
                 break
+    _feed_models, _feed_omitted = _models_index_feed(_all_runs_desc())
     return {
         "as_of": s["as_of"],
         "runs": runs,
-        "models": _models_index(_all_runs_desc()),
+        # PAGINATION (2026-11-17 size fix): the models index no
+        # longer rides inside this snapshot. It was the feed's one
+        # unbounded section (~55B/row, ~90-118B/night forever);
+        # the snapshot now carries only the counts, and the full
+        # index ships via build_models_pages() + the dashboard's
+        # push_models_page action (see MODELS_PAGE_SIZE below).
+        # The index itself is NOT trimmed beyond Kass's
+        # 2026-11-05 directive (_models_index_feed): every kept
+        # row still reaches the desk, one page at a time.
+        "models_total": len(_feed_models),
+        "models_omitted": _feed_omitted,
         "champion": {
             "accuracy": round(ch["accuracy"], 4),
             "precision": round(ch["precision"], 4),
@@ -1901,6 +2132,53 @@ def build_compact_training() -> dict:
         "votes": _votes_block(),
         "weights": _policy_weights_block(),
     }
+
+
+# Models-index pagination (2026-11-17 size fix): the Training
+# Lab's models index is Kass's complete record -- the full list
+# IS the point, so it is never sliced to a tail. Instead it ships
+# in fixed-size pages through the dashboard's push_models_page
+# action ({page, pages, total, omitted, rows}); the desk assembles
+# the full index from the stored pages. 40 rows/page at ~55B/row
+# is ~2.3KB per push -- comfortably under the action-arg ceiling
+# class this dashboard has always accepted (its largest verified
+# snapshot acceptance is 7,925B) -- and the page COUNT is the only
+# thing that grows with the registry (300 runs = 8 pages), so no
+# single push ever grows again.
+MODELS_PAGE_SIZE = 40
+
+
+def build_models_pages(runs_desc: list[dict] | None = None) -> list[dict]:
+    """The full feed models index as a list of page payloads for
+    push_models_page, in page order (page 0 = newest runs). Each
+    page carries the same total/omitted so the desk can assemble
+    and label the complete index from any complete page set."""
+    if runs_desc is None:
+        runs_desc = _all_runs_desc()
+    rows, omitted = _models_index_feed(runs_desc)
+    pages = max(1, -(-len(rows) // MODELS_PAGE_SIZE))
+    out = []
+    for i in range(pages):
+        out.append({
+            "page": i,
+            "pages": pages,
+            "total": len(rows),
+            "omitted": omitted,
+            "rows": rows[i * MODELS_PAGE_SIZE:(i + 1) * MODELS_PAGE_SIZE],
+        })
+    return out
+
+
+def build_models_manifest() -> dict:
+    """Page-count manifest for the pushing jobs: how many
+    push_models_page calls the current registry needs, so a job
+    can loop `training_models_page <i>` for i in range(pages)
+    without parsing a payload."""
+    pages = build_models_pages()
+    return {"pages": len(pages),
+            "total": pages[0]["total"] if pages else 0,
+            "omitted": pages[0]["omitted"] if pages else 0,
+            "page_size": MODELS_PAGE_SIZE}
 
 
 def build_audit(runs_desc: list[dict]) -> dict:
@@ -2231,7 +2509,8 @@ def _gate_side(d: dict | None) -> dict | None:
 
 
 def _clause_bounded(text: str, limit: int = 200, *,
-                    word_fallback: bool = False) -> str:
+                    word_fallback: bool = False,
+                    ellipsis: bool = False) -> str:
     """A stored reason shortened for a compact feed WITHOUT ever
     cutting mid-word or mid-clause (2026-10-30 dashboard audit: the
     gate pending.why was sliced at [:100] and arrived on both
@@ -2259,13 +2538,30 @@ def _clause_bounded(text: str, limit: int = 200, *,
     slices ending "...sub-cha", "...deterministic swi" and a note
     preview ending "...exam acc 0.5"). The gate keeps the default
     (word_fallback=False): its stored reasons are verdict
-    sentences whose comparison clause must ride complete."""
+    sentences whose comparison clause must ride complete.
+
+    ellipsis (2026-11-03, training-feed previews): a word-boundary
+    cut with NO marker still reads as a mid-clause cut on the
+    dashboard -- the trailing-stop note preview arrived as
+    "...options tap 'Arm trailing at 2%" (83 chars, full text
+    1,218), a complete word but a sentence cut in half with no
+    sign anything was dropped. With ellipsis=True, every ACTUAL
+    trim appends a single "…" to the bounded prefix, so a preview
+    can grow past its cap by that one character and no more.
+    Untrimmed text (at/under the limit, or riding whole for lack
+    of any boundary) never gains one. The gate keeps the default
+    (ellipsis=False): its pending why is pinned as a verbatim
+    clause-complete prefix of the stored reason."""
     if len(text) <= limit:
         return text
+
+    def _mark(out: str) -> str:
+        return out + "…" if ellipsis and len(out) < len(text) else out
+
     bounds = [m.start() for m in re.finditer(r";| — ", text)]
     fits = [b for b in bounds if b <= limit]
     if fits:
-        return text[:fits[-1]].rstrip()
+        return _mark(text[:fits[-1]].rstrip())
     if word_fallback:
         cut = text.rfind(" ", 0, limit + 1)
         if cut > 0:
@@ -2274,9 +2570,9 @@ def _clause_bounded(text: str, limit: int = 200, *,
                 # A lone dash token at the cut is a dangling
                 # separator, not a word -- drop it too.
                 out = out[:-1].rstrip()
-            return out
+            return _mark(out)
     if bounds:
-        return text[:bounds[0]].rstrip()
+        return _mark(text[:bounds[0]].rstrip())
     return text
 
 
@@ -2356,11 +2652,16 @@ def build_gate() -> dict:
         # studies dueled study baselines, never the champion, so they
         # are not gate challengers even when they are the newest
         # PPO-kind rows in the registry.
-        gate_runs = [r for r in runs
+        # The duel is a registry fact, not a window fact (same cap
+        # class as the champion fallback above): the window-first
+        # read paired the registry champion with a STALE duel
+        # whenever the crowning run itself was capped out of the
+        # snapshot window -- exposed 2026-11-06 when Kass crowned
+        # run 112 and a promoted-run-capped window's newest duel
+        # was run 105's, graded against the previous champion.
+        # Always read the newest nightly duel from the registry.
+        gate_runs = [r for r in _registry_ppo()
                      if not (r.get("metrics") or {}).get("family")]
-        if not gate_runs:
-            gate_runs = [r for r in _registry_ppo()
-                         if not (r.get("metrics") or {}).get("family")]
         latest = gate_runs[0] if gate_runs else None
         m = (latest.get("metrics") or {}) if latest else {}
         c_side = _gate_side(m.get("challenger"))
@@ -2411,6 +2712,17 @@ def build_gate() -> dict:
     if (pending is not None and duel is not None and chall is not None
             and pending["k"] == "ppo" and pending["i"] == chall["i"]):
         duel["pend"] = 1
+    # Stacker champion identity (2026-11-13 dashboard review): sacc/
+    # sprec alone left Book #1's gate panel unable to NAME the sitting
+    # stacker champion without hard-coding it. schamp = the champions
+    # roster's current stacker row (status 1/3), registry-derived:
+    # {"i": run id, "n": crown number}. None when no crown exists.
+    schamp = None
+    roster = build_champions(_all_runs_desc())
+    if roster and roster.get("stk"):
+        current = [row for row in roster["stk"] if row[7] in (1, 3)]
+        if len(current) == 1:
+            schamp = {"i": current[0][1], "n": current[0][0]}
     return {
         "parked": parked,
         "park": park,
@@ -2420,6 +2732,7 @@ def build_gate() -> dict:
         "pending": pending,
         "sacc": round(ch["accuracy"], 4) if isinstance(ch.get("accuracy"), (int, float)) else None,
         "sprec": round(ch["precision"], 4) if isinstance(ch.get("precision"), (int, float)) else None,
+        "schamp": schamp,
     }
 
 
@@ -2484,6 +2797,35 @@ GATED_SEAT_DIR = ROOT / "models" / "gated_seat"
 GATED_RACE_B2_DB = DATA / "paper_shadow.db"
 GATED_RACE_B1_DB = DATA / "paper.db"
 
+# Book #4 (HA Desk, 2026-11-05): PPO run 44 driving with Pick
+# #11's HA-candle eyes (Champion #6, run 110) -- Kass's order the
+# day he crowned it. Its feeds mirror the shadow feed set; its
+# market feed renders the Heikin-Ashi candle stream (Kass's
+# explicit requirement), while markers/entry/stop stay on real
+# prices, as the trading itself does.
+HA_DB = DATA / "paper_ha.db"
+HA_STATE = DATA / "live_state_ha.json"
+HA_MANIFEST = DATA / "ha_seat.json"
+HA_SEAT_DIR = ROOT / "models" / "ha_seat"
+HA_RACE_B3_DB = DATA / "paper_gated.db"
+HA_RACE_B2_DB = DATA / "paper_shadow.db"
+HA_RACE_B1_DB = DATA / "paper.db"
+
+# Book #5 (Champions, 2026-11-12): Muse's book -- Kass's
+# full-freedom order. The sitting LAB champions trade as a pair
+# (PPO champion drives, stacker champion is the eyes); the seat
+# follows the crown via crowning-time re-pins (see
+# src/trading/live_champ.py). Its snapshot carries a "crown"
+# block (the pair's crowning records, the eyes' grading votes,
+# the seat-era lineage, and the bar the next challenger must
+# beat) and a "decisions" tail (Book #5's own per-candle log) --
+# panels no other desk has, by Muse's design.
+CHAMP_DB = DATA / "paper_champ.db"
+CHAMP_STATE = DATA / "live_state_champ.json"
+CHAMP_MANIFEST = DATA / "champ_seat.json"
+CHAMP_SEAT_DIR = ROOT / "models" / "champ_seat"
+CHAMP_DECISIONS = DATA / "decisions" / "book5.jsonl"
+
 
 def _shadow_manifest() -> dict:
     if SHADOW_MANIFEST.exists():
@@ -2509,6 +2851,8 @@ def _shadow_desk_block(man: dict | None = None) -> dict:
     e_run = eyes.get("run_id", 64)
     e_champ = eyes.get("champion", "Champion #2")
     e_n = eyes.get("n_features", 94)
+    e_set = eyes.get("feature_set", "scored102")
+    e_units = "HA candle values" if e_set == "ha10" else "scored indicators"
     return {
         "book": "Book #2",
         "book_name": f"Book #2 — {e_champ} Shadow",
@@ -2516,10 +2860,10 @@ def _shadow_desk_block(man: dict | None = None) -> dict:
         "driver": {"brain": d_brain, "run": d_run,
                    "label": f"Driver: {d_brain} · Run {d_run}"},
         "eyes": {"brain": e_brain, "run": e_run, "champion": e_champ,
-                 "feature_set": eyes.get("feature_set", "scored102"),
+                 "feature_set": e_set,
                  "n_features": e_n,
                  "label": f"Eyes: {e_brain} {e_champ} · Run {e_run} · "
-                          f"{e_n} scored indicators"},
+                          f"{e_n} {e_units}"},
         "started": man.get("started"),
         "starting_balance": man.get("starting_balance", 100000),
         "paper": 1,
@@ -2527,7 +2871,8 @@ def _shadow_desk_block(man: dict | None = None) -> dict:
 
 
 def _shadow_drift_block(fetch=None, scored_builder=None) -> dict | None:
-    """PSI drift summary for the shadow seat's scored eyes (2026-10-26):
+    """PSI drift summary for the shadow seat's eyes (2026-10-26;
+    frame follows the seat — the ha10 columns since 2026-11-09):
     the same windows as the Live drift grid (live = last 168 closed
     hours; baseline = the 792-hour grading holdout ending at the
     newest grading) over the shadow seat's recorded feature set.
@@ -2606,7 +2951,7 @@ def build_shadow_compact_trading() -> dict:
         if s["stacker_p_up"] is not None else None,
         "last_candle": s["last_candle"],
         "trade_stats": s["trade_stats"],
-        "daily_calendar": s["daily_calendar"],
+        "daily_calendar": _feed_calendar(s),
         "activity": s["activity"],
         "equity_curve": curve,
         "bench": bench["bench"],
@@ -2638,13 +2983,17 @@ def _shadow_seat_stacker():
 
 
 def _shadow_frame_builder():
-    """The scored-frame builder for the SHADOW seat stacker's own
-    feature_set tag (features.pick2_features.builder_for_tag):
-    scored102 for Champions #2/#3, pick2_98 (98 columns) since
-    Champion #4 took the seat on 2026-10-27."""
+    """The frame builder for the SHADOW seat stacker's own
+    feature_set tag: scored102 for Champions #2/#3, pick2_98 (98
+    columns) for Champion #4, and the ha10 HA candle matrix since
+    Champion #11 (run 119) took the seat on 2026-11-09 (Kass's
+    order: the highest of the crowned winners to Book #2). Scored
+    tags dispatch through features.pick2_features.builder_for_tag."""
+    meta = json.loads((SHADOW_SEAT_DIR / "stacker.json").read_text())
+    if meta.get("feature_set") == "ha10":
+        return _ha_frame_builder()
     from features import pick2_features
 
-    meta = json.loads((SHADOW_SEAT_DIR / "stacker.json").read_text())
     return pick2_features.builder_for_tag(meta.get("feature_set"))
 
 
@@ -2667,12 +3016,107 @@ def _scored_groups(frame_row, columns: list[str]) -> dict:
     return groups
 
 
-def build_shadow_vision(part: int, fetch=None, scored_builder=None) -> dict:
-    """What Champion #2 sees on the newest closed candle (see the
-    section header for the two-part split). The vote is computed
-    from the SHADOW seat artifact on the scored frame restricted
-    to the seat stacker's recorded columns -- the same inputs the shadow
-    loop itself trades on."""
+def _own_candle_pin(state_path):
+    """(ts, p_up) a book's OWN loop recorded in its state file, or
+    (None, None) when the state is missing/unreadable. The vision
+    builders pin to this candle (2026-11-03 audit): a vision feed
+    recomputed on the newest closed candle can run AHEAD of the
+    book's own loop, and for Books #2/#3 -- byte-identical run-73
+    eyes -- that recomputation returns the OTHER book's recorded
+    vote (Book #2's vision showed 0.4797 @21:00, Book #3's vote,
+    while Book #2's own state said 0.4712 @20:00). Every p_up on a
+    book's desk is that book's recorded vote or it is not shown as
+    the book's vote at all; the master feed learned this the same
+    day (see _master_book)."""
+    try:
+        st = json.loads(Path(state_path).read_text())
+        ts = st.get("last_ts")
+        p = st.get("last_p_up")
+        if ts is None or p is None:
+            return None, None
+        import pandas as pd
+
+        return pd.Timestamp(ts), round(float(p), 4)
+    except Exception:
+        return None, None
+
+
+def _shadow_vision_ha(part: int, fetch=None, ha_builder=None) -> dict:
+    """What the SHADOW seat's HA eyes (Champion #11, run 119,
+    ha10 — seated 2026-11-09) read on the book's OWN last
+    processed candle: build_ha_vision's payload shape on the
+    shadow seat/state/desk — the 10 HA values at that candle, the
+    book's recorded vote (see _own_candle_pin), and (part 1) the
+    driver's production-21 table for the same candle."""
+    import pandas as pd
+
+    from data.market_data import fetch_klines
+    from features.technical_indicators import FEATURE_COLUMNS, add_features
+
+    fetch = fetch or fetch_klines
+    raw = fetch("BTC-USD", interval="1h", period="730d")
+    closed = raw.iloc[:-1]
+    if ha_builder is None:
+        ha_builder = _ha_frame_builder()
+    frame, _cols = ha_builder(raw)
+    model, meta = _shadow_seat_stacker()
+    columns = list(meta["feature_columns"])
+    complete = frame.loc[frame.index.isin(closed.index), columns].dropna()
+    if complete.empty:
+        raise RuntimeError("HA frame has no complete closed row")
+    own_ts, own_p = _own_candle_pin(SHADOW_STATE)
+    pinned = own_ts is not None and own_ts in complete.index
+    ts = own_ts if pinned else complete.index[-1]
+    srow = complete.loc[ts]
+    ha_rows = [[c, HA_LABELS[c], round(float(srow[c]), 4)]
+               for c in columns]
+    if part == 0:
+        return {
+            "part": 0,
+            "ts": pd.Timestamp(ts).isoformat(),
+            "desk": _shadow_desk_block(),
+            "p_up": own_p if pinned else round(float(
+                model.predict_proba(frame.loc[[ts], columns])[0, 1]), 4),
+            "ha_rows": ha_rows,
+        }
+    feat = add_features(raw)
+    frow = feat.loc[ts]
+    raws = None
+    if _VISION_RAWS_EMITTED:
+        try:
+            raws = _raw_frame(raw)
+        except Exception:
+            raws = None
+    rows = []
+    for c in FEATURE_COLUMNS:
+        r = [c, FEATURE_LABELS[c], round(float(frow[c]), 3)]
+        if _VISION_RAWS_EMITTED:
+            r.append(_raw_str(raws, ts, c))
+        rows.append(r)
+    return {
+        "part": 1,
+        "ts": pd.Timestamp(ts).isoformat(),
+        "ha_rows": ha_rows,
+        "f21": rows,
+    }
+
+
+def build_shadow_vision(part: int, fetch=None, scored_builder=None,
+                        ha_builder=None) -> dict:
+    """What the shadow seat's eyes read on the book's OWN last
+    processed candle -- the candle its loop recorded in
+    live_state_shadow.json (see _own_candle_pin for why the panel
+    no longer recomputes on the newest closed candle). The values
+    come from the SHADOW seat artifact on its own frame restricted
+    to the seat stacker's recorded columns -- the same inputs the
+    shadow loop trades on. Since Champion #11 (ha10) took the
+    seat on 2026-11-09 the payload is the HA shape (see
+    _shadow_vision_ha); the scored shape below serves the retired
+    scored seats' record."""
+    _meta = json.loads((SHADOW_SEAT_DIR / "stacker.json").read_text())
+    if _meta.get("feature_set") == "ha10":
+        return _shadow_vision_ha(part, fetch=fetch,
+                                 ha_builder=ha_builder)
     import pandas as pd
 
     from data.market_data import fetch_klines
@@ -2689,7 +3133,9 @@ def build_shadow_vision(part: int, fetch=None, scored_builder=None) -> dict:
     complete = frame.loc[frame.index.isin(closed.index), columns].dropna()
     if complete.empty:
         raise RuntimeError("scored frame has no complete closed row")
-    ts = complete.index[-1]
+    own_ts, own_p = _own_candle_pin(SHADOW_STATE)
+    pinned = own_ts is not None and own_ts in complete.index
+    ts = own_ts if pinned else complete.index[-1]
     srow = complete.loc[ts]
     desk = _shadow_desk_block()
     if part == 0:
@@ -2698,7 +3144,7 @@ def build_shadow_vision(part: int, fetch=None, scored_builder=None) -> dict:
             "part": 0,
             "ts": pd.Timestamp(ts).isoformat(),
             "desk": desk,
-            "p_up": round(float(model.predict_proba(
+            "p_up": own_p if pinned else round(float(model.predict_proba(
                 frame.loc[[ts], columns])[0, 1]), 4),
             "master": round(float(srow["score_master"]), 1),
             "fam": {"trend": round(float(srow["score_trend"]), 1),
@@ -2739,6 +3185,25 @@ def _race_series(rows, timeline):
             last = rows[i][1]
             i += 1
         out.append([t, round(last, 2) if last is not None else None])
+    return out
+
+
+def _compress_flat_runs(pairs: list) -> list:
+    """Drop interior points of constant-value runs from a
+    [ts, value] pair curve (2026-11-02 master diet round 2).
+    Keeps the first point, the last point, and both edges of every
+    flat run, so a step/linear rendering of the compressed curve
+    is identical to the original everywhere; only the repeated
+    interior points of a run are spent bytes. A fully flat curve
+    collapses to its two endpoints."""
+    if len(pairs) <= 2:
+        return pairs
+    out = [pairs[0]]
+    for i in range(1, len(pairs) - 1):
+        if pairs[i][1] != pairs[i - 1][1] or \
+                pairs[i][1] != pairs[i + 1][1]:
+            out.append(pairs[i])
+    out.append(pairs[-1])
     return out
 
 
@@ -2957,9 +3422,10 @@ def _gated_manifest() -> dict:
 
 
 def _gated_desk_block(man: dict | None = None) -> dict:
-    """Book #3's identity, from its own seat manifest: the twin
-    pairing PLUS the frozen gate (run 82 @ 0.55), so every panel
-    label derives from the seat record, never from typed text."""
+    """Book #3's identity, from its own seat manifest: the
+    pairing PLUS the gate (run 82's frozen model; threshold from
+    the manifest), so every panel label derives from the seat
+    record, never from typed text."""
     man = _gated_manifest() if man is None else man
     drv = man.get("driver") or {}
     eyes = man.get("eyes") or {}
@@ -3035,10 +3501,14 @@ def _gate_summary() -> dict:
 
 def build_gated_veto() -> dict:
     """The Veto Log feed: every gate decision on an entry attempt
-    (newest first, capped at 500 rows with shown/total counts).
+    (newest first, capped at 200 rows with shown/total counts).
     This log is the forward test's PRIMARY evidence — it renders
-    the gated engine's own gate_decisions table verbatim."""
-    rows = _gate_decision_rows(limit=500)
+    the gated engine's own gate_decisions table verbatim. The
+    200-row window is a display bound (2026-11-17 size fix: the
+    old 500-row cap plateaued at ~23KB in one push); total /
+    taken / vetoed below always count the FULL table, and the
+    full table stays in the DB."""
+    rows = _gate_decision_rows(limit=200)
     total_rows = _gate_decision_rows()
     taken = sum(1 for r in total_rows if r[3] == "TAKEN")
     vetoed = sum(1 for r in total_rows if r[3] == "VETOED")
@@ -3148,7 +3618,7 @@ def build_gated_compact_trading() -> dict:
         if s["stacker_p_up"] is not None else None,
         "last_candle": s["last_candle"],
         "trade_stats": s["trade_stats"],
-        "daily_calendar": s["daily_calendar"],
+        "daily_calendar": _feed_calendar(s),
         "activity": s["activity"],
         "equity_curve": curve,
         "bench": bench["bench"],
@@ -3171,10 +3641,12 @@ def build_gated_market(part: int) -> dict:
 
 
 def build_gated_vision(part: int, fetch=None, scored_builder=None) -> dict:
-    """What Book #3's eyes (run 73, the gated seat copy) see on
-    the newest closed candle — the shadow vision shape on the
-    gated seat. The vote is computed from the GATED seat artifact
-    on the scored frame restricted to its recorded columns."""
+    """What Book #3's eyes (run 73, the gated seat copy) read on
+    the book's OWN last processed candle — the shadow vision shape
+    on the gated seat, pinned to live_state_gated.json exactly as
+    the shadow builder pins to its state (see _own_candle_pin).
+    The scores come from the GATED seat artifact on the scored
+    frame restricted to its recorded columns."""
     import pandas as pd
 
     from data.market_data import fetch_klines
@@ -3191,7 +3663,9 @@ def build_gated_vision(part: int, fetch=None, scored_builder=None) -> dict:
     complete = frame.loc[frame.index.isin(closed.index), columns].dropna()
     if complete.empty:
         raise RuntimeError("scored frame has no complete closed row")
-    ts = complete.index[-1]
+    own_ts, own_p = _own_candle_pin(GATED_STATE)
+    pinned = own_ts is not None and own_ts in complete.index
+    ts = own_ts if pinned else complete.index[-1]
     srow = complete.loc[ts]
     desk = _gated_desk_block()
     if part == 0:
@@ -3200,7 +3674,7 @@ def build_gated_vision(part: int, fetch=None, scored_builder=None) -> dict:
             "part": 0,
             "ts": pd.Timestamp(ts).isoformat(),
             "desk": desk,
-            "p_up": round(float(model.predict_proba(
+            "p_up": own_p if pinned else round(float(model.predict_proba(
                 frame.loc[[ts], columns])[0, 1]), 4),
             "master": round(float(srow["score_master"]), 1),
             "fam": {"trend": round(float(srow["score_trend"]), 1),
@@ -3240,6 +3714,7 @@ def build_gated_race() -> dict:
     is $100k of BTC at the gated-start close."""
     man = _gated_manifest()
     desk = _gated_desk_block(man)
+    sdesk = _shadow_desk_block()
     start = man.get("started")
     base_capital = float(man.get("starting_balance", 100000))
 
@@ -3302,12 +3777,17 @@ def build_gated_race() -> dict:
     return {
         "start": start,
         "desk": desk,
-        "b3": {"label": "Book #3 — Run 82 Gated Shadow (PPO Run 44 "
-                        "driver · Champion #4 Run 73 eyes · "
-                        "Meta-Label Run 82 gate @ 0.55)",
+        "b3": {"label": "Book #3 — Run 82 Gated Shadow (PPO Run "
+                        f"{desk['driver']['run']} driver · "
+                        f"{desk['eyes']['champion']} Run "
+                        f"{desk['eyes']['run']} eyes · Meta-Label "
+                        f"Run {desk['gate']['run']} gate @ "
+                        f"{desk['gate']['threshold']})",
                **b3_h, "curve": b3_curve},
-        "b2": {"label": "Book #2 — Champion #4 Shadow (PPO Run 44 "
-                        "driver · Champion #4 Run 73 eyes)",
+        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
+                        f"{sdesk['driver']['run']} driver · "
+                        f"{sdesk['eyes']['champion']} Run "
+                        f"{sdesk['eyes']['run']} eyes)",
                **b2_h, "curve": b2_curve},
         "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
                         f"Stacker Run 40 prod21 eyes)",
@@ -3320,9 +3800,862 @@ def build_gated_race() -> dict:
     }
 
 
+# ------------------------------------------------------------ Book #4 (HA)
+
+HA_LABELS = {
+    "ha_dir": "HA direction (green +1 / red −1)",
+    "ha_body_pct": "HA body %",
+    "ha_range_pct": "HA range %",
+    "ha_upper_wick": "HA upper wick share",
+    "ha_lower_wick": "HA lower wick share",
+    "ha_streak": "HA streak (signed run, ÷12)",
+    "ha_slope": "HA slope (close change)",
+    "ha_disp": "HA displacement vs raw close",
+    "raw_ret": "Raw candle 1h return",
+    "ha_body_rel": "HA body share of range",
+}
+
+
+def _ha_manifest() -> dict:
+    if HA_MANIFEST.exists():
+        try:
+            man = json.loads(HA_MANIFEST.read_text())
+            return man if isinstance(man, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _ha_desk_block(man: dict | None = None) -> dict:
+    """The HA desk's identity, from its seat manifest itself --
+    the same doctrine as the shadow/gated desk blocks: labels
+    derive from the seat record, never from a hard-coded string."""
+    man = _ha_manifest() if man is None else man
+    drv = man.get("driver") or {}
+    eyes = man.get("eyes") or {}
+    d_brain = drv.get("brain", "PPO")
+    d_run = drv.get("run_id", 44)
+    e_brain = eyes.get("brain", "Stacker")
+    e_run = eyes.get("run_id", 110)
+    e_champ = eyes.get("champion", "Champion #6")
+    e_n = eyes.get("n_features", 10)
+    return {
+        "book": "Book #4",
+        "book_name": f"Book #4 — {e_champ} HA Desk",
+        "desk": man.get("desk") or f"TradingAgent Live — {e_champ} (HA Desk)",
+        "driver": {"brain": d_brain, "run": d_run,
+                   "label": f"Driver: {d_brain} · Run {d_run}"},
+        "eyes": {"brain": e_brain, "run": e_run, "champion": e_champ,
+                 "feature_set": eyes.get("feature_set", "ha10"),
+                 "n_features": e_n,
+                 "label": f"Eyes: {e_brain} {e_champ} · Run {e_run} · "
+                          f"{e_n} HA candle values"},
+        "started": man.get("started"),
+        "starting_balance": man.get("starting_balance", 100000),
+        "paper": 1,
+    }
+
+
+def _ha_seat_stacker():
+    """(model, meta) for the HA seat stacker -- the pinned copy
+    in models/ha_seat/, never the lab champion file."""
+    from models.stacker import load as load_stacker
+
+    meta = json.loads((HA_SEAT_DIR / "stacker.json").read_text())
+    return load_stacker(HA_SEAT_DIR / "stacker.pkl"), meta
+
+
+def _ha_frame_builder():
+    """The HA frame builder: (raw) -> (HA matrix, HA_COLUMNS)."""
+    from models.muse_pick10 import HA_COLUMNS, build_ha_matrix
+
+    def _build(raw):
+        frame = build_ha_matrix(raw)
+        return frame[HA_COLUMNS], list(HA_COLUMNS)
+
+    return _build
+
+
+def _ha_drift_block(fetch=None, ha_builder=None) -> dict | None:
+    """PSI drift summary for the HA seat's eyes: the shadow
+    drift block's windows and bands over the 10 HA columns.
+    None on any failure."""
+    try:
+        from data.market_data import fetch_klines
+        from features.drift import psi_for_samples
+
+        fetch = fetch or fetch_klines
+        raw = fetch("BTC-USD", interval="1h", period="730d")
+        closed = raw.iloc[:-1]
+        if ha_builder is None:
+            ha_builder = _ha_frame_builder()
+        frame, _cols = ha_builder(raw)
+        frame = frame.loc[frame.index.isin(closed.index)]
+        _model, meta = _ha_seat_stacker()
+        columns = list(meta["feature_columns"])
+        base, live = _drift_windows(frame, _grading_base_end())
+        scored: list[tuple[str, float]] = []
+        bands = [0, 0, 0]
+        nb = 0
+        for c in columns:
+            v = psi_for_samples(base[c].to_numpy(), live[c].to_numpy())
+            if v is None:
+                nb += 1
+                continue
+            scored.append((c, v))
+            if v < 0.1:
+                bands[0] += 1
+            elif v < 0.25:
+                bands[1] += 1
+            else:
+                bands[2] += 1
+        scored.sort(key=lambda kv: -kv[1])
+        return {"worst": [[c, round(v, 3)] for c, v in scored[:10]],
+                "bands": bands, "nb": nb, "n": len(columns),
+                "base_end": str(base.index[-1].date())}
+    except Exception:
+        return None
+
+
+def build_ha_compact_trading() -> dict:
+    """Book #4's snapshot: the Live Desk snapshot shape computed
+    on the HA book/state, plus the desk identity block."""
+    s = snapshot.build_trading_snapshot(db_path=HA_DB,
+                                        state_path=HA_STATE)
+    live_ok = s.get("status") == "live"
+    if not live_ok:
+        s = snapshot._fresh_account_snapshot({"as_of": s.get("as_of")})
+    curve = _downsample_curve(s["equity_curve"])
+    bench = (_benchmark(curve, db_path=HA_DB) if live_ok
+             else {"bench": [], "bench_pct": None})
+    out = {
+        "as_of": s["as_of"],
+        "status": s["status"],
+        "desk": _ha_desk_block(),
+        "btc_price": round(s["btc_price"], 2),
+        "equity": s["equity"],
+        "cash": s["cash"],
+        "btc": s["btc"],
+        "btc_value": s["btc_value"],
+        "position": s["position"],
+        "entry_price": s["entry_price"],
+        "stop_price": s["stop_price"],
+        "stop_anchor": s["stop_anchor"],
+        "stop_trailing": s["stop_trailing"],
+        "unrealized_pct": s["unrealized_pct"],
+        "day_pnl": s["day_pnl"],
+        "day_reward": s["day_reward"],
+        "agent_stance": s["agent_stance"],
+        "stacker_p_up": round(s["stacker_p_up"], 4)
+        if s["stacker_p_up"] is not None else None,
+        "last_candle": s["last_candle"],
+        "trade_stats": s["trade_stats"],
+        "daily_calendar": _feed_calendar(s),
+        "activity": s["activity"],
+        "equity_curve": curve,
+        "bench": bench["bench"],
+        "bench_pct": bench["bench_pct"],
+        **_drawdown_stats(s),
+    }
+    drift = _ha_drift_block()
+    if drift is not None:
+        out["drift"] = drift
+    return out
+
+
+def build_ha_ledger() -> dict:
+    return build_ledger(db_path=HA_DB)
+
+
+def build_ha_market(part: int) -> dict:
+    return build_market(part, db_path=HA_DB, state_path=HA_STATE,
+                        ha=True)
+
+
+def build_ha_vision(part: int, fetch=None, ha_builder=None) -> dict:
+    """What Pick #11's eyes read on the book's OWN last processed
+    candle (pinned via _own_candle_pin, the audit doctrine): the
+    10 HA values at that candle, the book's recorded vote, and
+    (part 1) the driver's production-21 table for the same
+    candle -- the driver reads prod21 exactly like the other
+    books; only the eyes are HA."""
+    import pandas as pd
+
+    from data.market_data import fetch_klines
+    from features.technical_indicators import FEATURE_COLUMNS, add_features
+
+    fetch = fetch or fetch_klines
+    raw = fetch("BTC-USD", interval="1h", period="730d")
+    closed = raw.iloc[:-1]
+    if ha_builder is None:
+        ha_builder = _ha_frame_builder()
+    frame, _cols = ha_builder(raw)
+    model, meta = _ha_seat_stacker()
+    columns = list(meta["feature_columns"])
+    complete = frame.loc[frame.index.isin(closed.index), columns].dropna()
+    if complete.empty:
+        raise RuntimeError("HA frame has no complete closed row")
+    own_ts, own_p = _own_candle_pin(HA_STATE)
+    pinned = own_ts is not None and own_ts in complete.index
+    ts = own_ts if pinned else complete.index[-1]
+    srow = complete.loc[ts]
+    ha_rows = [[c, HA_LABELS[c], round(float(srow[c]), 4)]
+               for c in columns]
+    if part == 0:
+        return {
+            "part": 0,
+            "ts": pd.Timestamp(ts).isoformat(),
+            "desk": _ha_desk_block(),
+            "p_up": own_p if pinned else round(float(
+                model.predict_proba(frame.loc[[ts], columns])[0, 1]), 4),
+            "ha_rows": ha_rows,
+        }
+    feat = add_features(raw)
+    frow = feat.loc[ts]
+    raws = None
+    if _VISION_RAWS_EMITTED:
+        try:
+            raws = _raw_frame(raw)
+        except Exception:
+            raws = None
+    rows = []
+    for c in FEATURE_COLUMNS:
+        r = [c, FEATURE_LABELS[c], round(float(frow[c]), 3)]
+        if _VISION_RAWS_EMITTED:
+            r.append(_raw_str(raws, ts, c))
+        rows.append(r)
+    return {
+        "part": 1,
+        "ts": pd.Timestamp(ts).isoformat(),
+        "ha_rows": ha_rows,
+        "f21": rows,
+    }
+
+
+def build_ha_race() -> dict:
+    """The 5-way head-to-head since the HA start. Books #1/#2/#3
+    are read READ-ONLY from their own ledgers and rebased to
+    THEIR equity at the HA start (return-vs-return over the same
+    window); Book #4 races from its fresh $100k; buy-and-hold is
+    $100k of BTC at the HA-start close."""
+    man = _ha_manifest()
+    desk = _ha_desk_block(man)
+    g3 = _gated_desk_block()
+    sdesk = _shadow_desk_block()
+    start = man.get("started")
+    base_capital = float(man.get("starting_balance", 100000))
+
+    def _rows(db):
+        con = snapshot._paper_db(db)
+        if con is None:
+            return []
+        try:
+            return con.execute(
+                "SELECT ts, equity, price FROM equity ORDER BY ts ASC"
+            ).fetchall()
+        except Exception:
+            return []
+        finally:
+            con.close()
+
+    rows4 = _rows(HA_DB)
+    rows3 = [r for r in _rows(HA_RACE_B3_DB)
+             if start is None or r[0] >= start]
+    rows2 = [r for r in _rows(HA_RACE_B2_DB)
+             if start is None or r[0] >= start]
+    rows1 = [r for r in _rows(HA_RACE_B1_DB)
+             if start is None or r[0] >= start]
+    timeline = sorted({r[0] for r in rows4} | {r[0] for r in rows3}
+                      | {r[0] for r in rows2} | {r[0] for r in rows1})
+    if start is not None:
+        timeline = [t for t in timeline if t >= start]
+    curves = {}
+    for key, rows in (("b4", rows4), ("b3", rows3), ("b2", rows2),
+                      ("b1", rows1)):
+        curves[key] = _downsample_pairs(
+            _race_series([(r[0], r[1]) for r in rows], timeline))
+    px_rows = ([(r[0], r[2]) for r in rows4]
+               or [(r[0], r[2]) for r in rows3]
+               or [(r[0], r[2]) for r in rows2]
+               or [(r[0], r[2]) for r in rows1])
+    p0 = None
+    for t, px in px_rows:
+        if start is None or t >= start:
+            p0 = px
+            break
+    bh_curve = []
+    if p0:
+        bh_curve = _downsample_pairs(_race_series(
+            [(t, base_capital * px / p0) for t, px in px_rows
+             if start is None or t >= start], timeline))
+
+    def _headline(curve, base):
+        eq = next((v for _t, v in reversed(curve) if v is not None), base)
+        pnl = round(eq - base, 2)
+        return {"eq": round(eq, 2), "pnl": pnl,
+                "pct": round(100.0 * pnl / base, 2) if base else None}
+
+    def _base(curve):
+        return next((v for _t, v in curve if v is not None),
+                    base_capital)
+
+    b4_h = _headline(curves["b4"], base_capital)
+    b3_h = _headline(curves["b3"], _base(curves["b3"]))
+    b2_h = _headline(curves["b2"], _base(curves["b2"]))
+    b1_h = _headline(curves["b1"], _base(curves["b1"]))
+    bh_h = _headline(bh_curve, base_capital)
+    return {
+        "start": start,
+        "desk": desk,
+        "b4": {"label": f"{desk['book_name']} (PPO Run "
+                        f"{desk['driver']['run']} driver · "
+                        f"{desk['eyes']['champion']} Run "
+                        f"{desk['eyes']['run']} eyes)",
+               **b4_h, "curve": curves["b4"]},
+        "b3": {"label": f"Book #3 — Run 82 Gated Shadow (PPO Run "
+                        f"{g3['driver']['run']} driver · "
+                        f"{g3['eyes']['champion']} Run "
+                        f"{g3['eyes']['run']} eyes · Meta-Label "
+                        f"Run {g3['gate']['run']} gate @ "
+                        f"{g3['gate']['threshold']})",
+               **b3_h, "curve": curves["b3"]},
+        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
+                        f"{sdesk['driver']['run']} driver · "
+                        f"{sdesk['eyes']['champion']} Run "
+                        f"{sdesk['eyes']['run']} eyes)",
+               **b2_h, "curve": curves["b2"]},
+        "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
+                        f"Stacker Run 40 prod21 eyes)",
+               **b1_h, "curve": curves["b1"]},
+        "bh": {"label": "Buy & Hold BTC ($100k at race start)",
+               **bh_h, "curve": bh_curve},
+        "delta": round(b4_h["pnl"] - b2_h["pnl"], 2),
+        "delta_pct": round((b4_h["pct"] or 0.0) - (b2_h["pct"] or 0.0), 2),
+        "delta_b1": round(b4_h["pnl"] - b1_h["pnl"], 2),
+    }
+
+
+# ------------------------------------------------------------ Book #5
+
+def _champ_manifest() -> dict:
+    if CHAMP_MANIFEST.exists():
+        try:
+            man = json.loads(CHAMP_MANIFEST.read_text())
+            return man if isinstance(man, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _champ_desk_block(man: dict | None = None) -> dict:
+    """Book #5's identity, from its seat manifest itself -- the
+    labels-follow-the-seat doctrine, like every other desk."""
+    man = _champ_manifest() if man is None else man
+    drv = man.get("driver") or {}
+    eyes = man.get("eyes") or {}
+    d_brain = drv.get("brain", "PPO")
+    d_run = drv.get("run_id", 112)
+    e_brain = eyes.get("brain", "Stacker")
+    e_run = eyes.get("run_id", 126)
+    e_champ = eyes.get("champion", "Champion #13")
+    e_n = eyes.get("n_features", 10)
+    return {
+        "book": "Book #5",
+        "book_name": "Book #5 — Champions (Follows the Crown)",
+        "desk": man.get("desk") or "TradingAgent Live — Champions (Book #5)",
+        "driver": {"brain": d_brain, "run": d_run,
+                   "label": f"Driver: {d_brain} · Run {d_run} · "
+                            f"Lab PPO Champion"},
+        "eyes": {"brain": e_brain, "run": e_run, "champion": e_champ,
+                 "feature_set": eyes.get("feature_set", "ha10"),
+                 "n_features": e_n,
+                 "label": f"Eyes: {e_brain} {e_champ} · Run {e_run} · "
+                          f"{eyes.get('feature_set', 'ha10')} frame"},
+        "started": man.get("started"),
+        "starting_balance": man.get("starting_balance", 100000),
+        "seat_policy": man.get("seat_policy", "follows_the_crown"),
+        "paper": 1,
+    }
+
+
+def _champ_eyes_votes(run_id) -> dict | None:
+    """The sitting stacker champion's grading vote histogram,
+    read verbatim from its registry record (the same votes the
+    Training Lab serves for the sitting champion)."""
+    import sqlite3
+
+    try:
+        con = sqlite3.connect(DATA / "training.db")
+        try:
+            row = con.execute("SELECT metrics FROM runs WHERE id=?",
+                              (run_id,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        v = (json.loads(row[0]) or {}).get("votes")
+        if not v:
+            return None
+        return {"run": run_id, "n": v.get("n"), "bins": v.get("bins"),
+                "min": v.get("min"), "max": v.get("max"),
+                "med": v.get("med"), "mid": v.get("mid"),
+                "tight": v.get("tight")}
+    except Exception:
+        return None
+
+
+def _champ_crown_block(man: dict) -> dict:
+    """The crown block (Muse's design for Book #5): who holds
+    the crowns this book trades, the records they won them with,
+    the seat-era lineage, and the bar the next challengers must
+    beat at the next retrain."""
+    g = man.get("grading_record") or {}
+    eyes = man.get("eyes") or {}
+    drv = man.get("driver") or {}
+    return {
+        "driver": {
+            "run": drv.get("run_id"),
+            "brain": "PPO",
+            "title": "Lab PPO Champion",
+            "duel_score": g.get("driver_duel_score"),
+            "duel_pnl": g.get("driver_duel_pnl"),
+            "duel_windows": g.get("driver_duel_windows"),
+            "bench_pnl": g.get("driver_duel_bench_pnl"),
+            "reason": g.get("driver_reason"),
+        },
+        "eyes": {
+            "run": eyes.get("run_id"),
+            "brain": "Stacker",
+            "champion": eyes.get("champion"),
+            "title": f"Lab Stacker {eyes.get('champion') or ''}".strip(),
+            "feature_set": eyes.get("feature_set"),
+            "acc": g.get("eyes_exam_acc"),
+            "precision": g.get("eyes_precision"),
+            "wf": g.get("eyes_wf_acc"),
+            "votes": _champ_eyes_votes(eyes.get("run_id")),
+        },
+        # Feed bound (2026-11-17 size fix): the lineage grows one
+        # era per crowning (~119B/era, unbounded over years); the
+        # feed ships the newest 24 eras and the true total count.
+        "lineage": (man.get("lineage") or [])[-24:],
+        "lineage_total": len(man.get("lineage") or []),
+        "era": (man.get("lineage") or [{}])[-1].get("era"),
+        "bar": {
+            "note": "What the next challengers must beat",
+            "stacker_acc": g.get("eyes_exam_acc"),
+            "ppo": "Full gate pass: beat the champion's duel "
+                   "aggregate, win at least 2 of 3 windows, and "
+                   "clear the floor (P&L > $0 and > buy-and-hold, "
+                   "non-hold at least 10%)",
+        },
+    }
+
+
+def _champ_decisions(limit: int = 14) -> list:
+    """Book #5's own per-candle decision tail (newest last), from
+    data/decisions/book5.jsonl -- what the pair thought and did,
+    candle by candle."""
+    try:
+        lines = CHAMP_DECISIONS.read_text().strip().splitlines()
+        out = []
+        for ln in lines[-limit:]:
+            r = json.loads(ln)
+            out.append({
+                "ts": r.get("ts"), "close": r.get("close"),
+                "p_up": r.get("p_up"), "stance": r.get("stance"),
+                "action": r.get("action"), "taken": r.get("taken"),
+                "reason": r.get("reason"),
+                "pos_before": r.get("pos_before"),
+                "pos_after": r.get("pos_after"),
+                "equity": r.get("equity"), "stop": r.get("stop_level"),
+                "exposure_pct": r.get("exposure_pct"),
+            })
+        return out
+    except Exception:
+        return []
+
+
+def _champ_drift_block(fetch=None) -> dict | None:
+    """PSI drift summary for the champ seat's eyes -- the same
+    windows and shape as the shadow block (live = last 168 closed
+    hours; baseline = the 792-hour grading holdout ending at the
+    newest grading), computed over the seated champion's own
+    frame via live_champ.eyes_frame, so the frame follows the
+    crown exactly like the seat does. {"worst": [[name, psi],
+    ...], "bands": [stable, moderate, significant], "nb":
+    no-baseline count, "n": features compared, "base_end"}.
+    None on any failure -- the panel hides."""
+    try:
+        from data.market_data import fetch_klines
+        from features.drift import psi_for_samples
+        from trading.live_champ import (eyes_frame, seat_columns,
+                                        seat_feature_set)
+
+        fetch = fetch or fetch_klines
+        raw = fetch("BTC-USD", interval="1h", period="730d")
+        closed = raw.iloc[:-1]
+        fset = seat_feature_set(CHAMP_SEAT_DIR)
+        frame, _cols = eyes_frame(raw, fset)
+        frame = frame.loc[frame.index.isin(closed.index)]
+        columns = seat_columns(CHAMP_SEAT_DIR)
+        base, live = _drift_windows(frame, _grading_base_end())
+        scored: list[tuple[str, float]] = []
+        bands = [0, 0, 0]
+        nb = 0
+        for c in columns:
+            v = psi_for_samples(base[c].to_numpy(), live[c].to_numpy())
+            if v is None:
+                nb += 1
+                continue
+            scored.append((c, v))
+            if v < 0.1:
+                bands[0] += 1
+            elif v < 0.25:
+                bands[1] += 1
+            else:
+                bands[2] += 1
+        scored.sort(key=lambda kv: -kv[1])
+        return {"worst": [[c, round(v, 3)] for c, v in scored[:10]],
+                "bands": bands, "nb": nb, "n": len(columns),
+                "base_end": str(base.index[-1].date())}
+    except Exception:
+        return None
+
+
+def build_champ_compact_trading() -> dict:
+    """Book #5's snapshot: the Live Desk snapshot shape computed
+    on the champ book/state, plus the desk identity, the crown
+    block, and the decision tail."""
+    s = snapshot.build_trading_snapshot(db_path=CHAMP_DB,
+                                        state_path=CHAMP_STATE)
+    live_ok = s.get("status") == "live"
+    if not live_ok:
+        s = snapshot._fresh_account_snapshot({"as_of": s.get("as_of")})
+    curve = _downsample_curve(s["equity_curve"])
+    bench = (_benchmark(curve, db_path=CHAMP_DB) if live_ok
+             else {"bench": [], "bench_pct": None})
+    man = _champ_manifest()
+    out = {
+        "as_of": s["as_of"],
+        "status": s["status"],
+        "desk": _champ_desk_block(man),
+        "btc_price": round(s["btc_price"], 2),
+        "equity": s["equity"],
+        "cash": s["cash"],
+        "btc": s["btc"],
+        "btc_value": s["btc_value"],
+        "position": s["position"],
+        "entry_price": s["entry_price"],
+        "stop_price": s["stop_price"],
+        "stop_anchor": s["stop_anchor"],
+        "stop_trailing": s["stop_trailing"],
+        "unrealized_pct": s["unrealized_pct"],
+        "day_pnl": s["day_pnl"],
+        "day_reward": s["day_reward"],
+        "agent_stance": s["agent_stance"],
+        "stacker_p_up": round(s["stacker_p_up"], 4)
+        if s["stacker_p_up"] is not None else None,
+        "last_candle": s["last_candle"],
+        "trade_stats": s["trade_stats"],
+        "daily_calendar": _feed_calendar(s),
+        "activity": s["activity"],
+        "equity_curve": curve,
+        "bench": bench["bench"],
+        "bench_pct": bench["bench_pct"],
+        **_drawdown_stats(s),
+        "crown": _champ_crown_block(man),
+        "decisions": _champ_decisions(),
+    }
+    # Decision-mode fields (the desk labels the equity mark from
+    # these two, so the number never wears the wrong label).
+    # Open-decision mode (Kass's order, 2026-11-13, ended by his
+    # order 2026-11-17): after a decision, this snapshot's
+    # btc_price was the decision candle's OPEN (the price the
+    # book just traded at), and the last decision candle is the
+    # state's last_open_ts. In close mode (the production
+    # default again), the mark is a candle close and the last
+    # decision candle is the state's last_ts.
+    try:
+        from trading.live_champ import DECISION_MODE as _DMODE
+    except Exception:
+        _DMODE = "close"
+    try:
+        _chst = json.loads(Path(CHAMP_STATE).read_text())
+    except Exception:
+        _chst = {}
+    out["decision_mode"] = _DMODE
+    out["last_decision_ts"] = (_chst.get("last_open_ts")
+                               if _DMODE == "open"
+                               else _chst.get("last_ts"))
+    drift = _champ_drift_block()
+    if drift is not None:
+        out["drift"] = drift
+    return out
+
+
+def build_champ_ledger() -> dict:
+    return build_ledger(db_path=CHAMP_DB)
+
+
+def build_champ_market(part: int) -> dict:
+    # The chart renders the Heikin-Ashi candle stream while the
+    # seated eyes read the ha10 frame (Book #4's doctrine). If a
+    # future stacker champion's frame is not ha10, revisit: the
+    # chart should always show the candles the eyes read.
+    return build_market(part, db_path=CHAMP_DB, state_path=CHAMP_STATE,
+                        ha=True)
+
+
+def _champ_seat_stacker():
+    """(model, meta) for the champ seat stacker -- the pinned
+    copy in models/champ_seat/, never the lab champion file."""
+    from models.stacker import load as load_stacker
+
+    meta = json.loads((CHAMP_SEAT_DIR / "stacker.json").read_text())
+    return load_stacker(CHAMP_SEAT_DIR / "stacker.pkl"), meta
+
+
+def build_champ_vision(part: int, fetch=None) -> dict:
+    """What the seated stacker champion read on Book #5's OWN
+    last processed candle (pinned via _own_candle_pin, the audit
+    doctrine): the eyes' own frame values at that candle, the
+    book's recorded vote, and (part 1) the driver's production-21
+    table for the same candle."""
+    import pandas as pd
+
+    from data.market_data import fetch_klines
+    from features.technical_indicators import FEATURE_COLUMNS, add_features
+    from trading.live_champ import eyes_frame, seat_columns, seat_feature_set
+
+    fetch = fetch or fetch_klines
+    raw = fetch("BTC-USD", interval="1h", period="730d")
+    closed = raw.iloc[:-1]
+    feat = add_features(raw)
+    fset = seat_feature_set(CHAMP_SEAT_DIR)
+    frame, _cols = eyes_frame(raw, fset, feat=feat)
+    model, meta = _champ_seat_stacker()
+    columns = seat_columns(CHAMP_SEAT_DIR)
+    complete = frame.loc[frame.index.isin(closed.index), columns].dropna()
+    if complete.empty:
+        raise RuntimeError("champ eyes frame has no complete closed row")
+    own_ts, own_p = _own_candle_pin(CHAMP_STATE)
+    pinned = own_ts is not None and own_ts in complete.index
+    ts = own_ts if pinned else complete.index[-1]
+    srow = complete.loc[ts]
+    labels = HA_LABELS if fset == "ha10" else FEATURE_LABELS
+    eyes_rows = [[c, labels.get(c, c), round(float(srow[c]), 4)]
+                 for c in columns]
+    if part == 0:
+        return {
+            "part": 0,
+            "ts": pd.Timestamp(ts).isoformat(),
+            "desk": _champ_desk_block(),
+            "feature_set": fset,
+            "p_up": own_p if pinned else round(float(
+                model.predict_proba(frame.loc[[ts], columns])[0, 1]), 4),
+            "eyes_rows": eyes_rows,
+        }
+    frow = feat.loc[ts]
+    raws = None
+    if _VISION_RAWS_EMITTED:
+        try:
+            raws = _raw_frame(raw)
+        except Exception:
+            raws = None
+    rows = []
+    for c in FEATURE_COLUMNS:
+        r = [c, FEATURE_LABELS[c], round(float(frow[c]), 3)]
+        if _VISION_RAWS_EMITTED:
+            r.append(_raw_str(raws, ts, c))
+        rows.append(r)
+    return {
+        "part": 1,
+        "ts": pd.Timestamp(ts).isoformat(),
+        "eyes_rows": eyes_rows,
+        "f21": rows,
+    }
+
+
+def build_champ_indicators() -> dict:
+    """The HA stream, measured: indicator series over the same
+    96 closed hourly candles the price chart draws, computed ON
+    the Heikin-Ashi candles with the production transforms (the
+    Pick #12 suite machinery -- the same math the model family
+    uses), so the panels show the market the way this book's
+    eyes actually read it. Series are positional: value i is at
+    start + i*step (epoch seconds). rsi is in plain 0-100 units
+    (un-squeezed from ha_rsi_c); the signed series keep their
+    production [-1, 1] squeeze. boll (Bollinger position on HA
+    closes, 0 = lower band, 1 = upper band) and relvol (volume
+    vs its 24h mean) are DISPLAY-ONLY, labeled as such in the
+    feed's basis line -- they are not model inputs. "now"
+    carries each series' last value; "ts_last" is the newest
+    closed candle's timestamp."""
+    import pandas as pd
+
+    from data.market_data import fetch_klines
+    from models.ha_seq import heikin_ashi
+    from models.muse_pick12 import build_ha_suite_matrix
+
+    raw = fetch_klines("BTC-USD", interval="1h", period="730d")
+    closed = raw.iloc[:-1]
+    suite = build_ha_suite_matrix(closed)
+    ha = heikin_ashi(closed)
+    hc = ha["ha_close"]
+    vol = closed["volume"].astype(float)
+    sma20 = hc.rolling(20).mean()
+    std20 = hc.rolling(20).std()
+    boll = ((hc - (sma20 - 2.0 * std20)) / (4.0 * std20)).clip(-0.25, 1.25)
+    relvol = vol / vol.rolling(24).mean()
+    frame = pd.DataFrame({
+        "rsi": suite["ha_rsi_c"] * 50.0 + 50.0,
+        "macd": suite["ha_macd_hist_rel"],
+        "ewo": suite["ha_ewo"],
+        "obv": suite["ha_obv_slope"],
+        "adl": suite["ha_adl_slope"],
+        "netvol": suite["ha_netvol_rel"],
+        "atr": suite["ha_atr_rel"],
+        "sma50": suite["ha_dist_sma50"],
+        "boll": boll,
+        "relvol": relvol,
+    }).dropna().tail(96)
+    if len(frame) < 48:
+        raise RuntimeError("champ indicators window too short")
+    nd = {"rsi": 1, "macd": 4, "ewo": 4, "obv": 4, "adl": 4,
+          "netvol": 4, "atr": 4, "sma50": 4, "boll": 3, "relvol": 2}
+    series = {c: [round(float(v), nd[c]) for v in frame[c]]
+              for c in frame.columns}
+    now = {c: series[c][-1] for c in frame.columns}
+    return {
+        "start": int(frame.index[0].timestamp()),
+        "step": 3600,
+        "ts_last": pd.Timestamp(frame.index[-1]).isoformat(),
+        "basis": "Heikin-Ashi stream (the seated eyes' candles), "
+                 "production transforms; Bollinger position and "
+                 "Relative Volume are display-only.",
+        "series": series,
+        "now": now,
+    }
+
+
+def build_champ_race() -> dict:
+    """The 6-way head-to-head since Book #5's start: all five
+    books plus buy-and-hold. The other books are read READ-ONLY
+    from their own ledgers and rebased to their equity at Book
+    #5's start (return-vs-return over the same window); Book #5
+    races from its fresh $100k; buy-and-hold is $100k of BTC at
+    Book #5's start close."""
+    man = _champ_manifest()
+    desk = _champ_desk_block(man)
+    hadesk = _ha_desk_block()
+    g3 = _gated_desk_block()
+    sdesk = _shadow_desk_block()
+    start = man.get("started")
+    base_capital = float(man.get("starting_balance", 100000))
+
+    def _rows(db):
+        con = snapshot._paper_db(db)
+        if con is None:
+            return []
+        try:
+            return con.execute(
+                "SELECT ts, equity, price FROM equity ORDER BY ts ASC"
+            ).fetchall()
+        except Exception:
+            return []
+        finally:
+            con.close()
+
+    def _since(db):
+        return [r for r in _rows(db) if start is None or r[0] >= start]
+
+    rows5 = _rows(CHAMP_DB)
+    rows4 = _since(HA_DB)
+    rows3 = _since(HA_RACE_B3_DB)
+    rows2 = _since(HA_RACE_B2_DB)
+    rows1 = _since(HA_RACE_B1_DB)
+    timeline = sorted({r[0] for r in rows5} | {r[0] for r in rows4}
+                      | {r[0] for r in rows3} | {r[0] for r in rows2}
+                      | {r[0] for r in rows1})
+    if start is not None:
+        timeline = [t for t in timeline if t >= start]
+    curves = {}
+    for key, rows in (("b5", rows5), ("b4", rows4), ("b3", rows3),
+                      ("b2", rows2), ("b1", rows1)):
+        curves[key] = _downsample_pairs(
+            _race_series([(r[0], r[1]) for r in rows], timeline))
+    px_rows = ([(r[0], r[2]) for r in rows5]
+               or [(r[0], r[2]) for r in rows4]
+               or [(r[0], r[2]) for r in rows3]
+               or [(r[0], r[2]) for r in rows2]
+               or [(r[0], r[2]) for r in rows1])
+    p0 = None
+    for t, px in px_rows:
+        if start is None or t >= start:
+            p0 = px
+            break
+    bh_curve = []
+    if p0:
+        bh_curve = _downsample_pairs(_race_series(
+            [(t, base_capital * px / p0) for t, px in px_rows
+             if start is None or t >= start], timeline))
+
+    def _headline(curve, base):
+        eq = next((v for _t, v in reversed(curve) if v is not None), base)
+        pnl = round(eq - base, 2)
+        return {"eq": round(eq, 2), "pnl": pnl,
+                "pct": round(100.0 * pnl / base, 2) if base else None}
+
+    def _base(curve):
+        return next((v for _t, v in curve if v is not None),
+                    base_capital)
+
+    b5_h = _headline(curves["b5"], base_capital)
+    b4_h = _headline(curves["b4"], _base(curves["b4"]))
+    b3_h = _headline(curves["b3"], _base(curves["b3"]))
+    b2_h = _headline(curves["b2"], _base(curves["b2"]))
+    b1_h = _headline(curves["b1"], _base(curves["b1"]))
+    bh_h = _headline(bh_curve, base_capital)
+    return {
+        "start": start,
+        "desk": desk,
+        "b5": {"label": f"{desk['book_name']} (PPO Run "
+                        f"{desk['driver']['run']} driver · "
+                        f"{desk['eyes']['champion']} Run "
+                        f"{desk['eyes']['run']} eyes)",
+               **b5_h, "curve": curves["b5"]},
+        "b4": {"label": f"{hadesk['book_name']} (PPO Run "
+                        f"{hadesk['driver']['run']} driver · "
+                        f"{hadesk['eyes']['champion']} Run "
+                        f"{hadesk['eyes']['run']} eyes)",
+               **b4_h, "curve": curves["b4"]},
+        "b3": {"label": f"Book #3 — Run 82 Gated Shadow (PPO Run "
+                        f"{g3['driver']['run']} driver · "
+                        f"{g3['eyes']['champion']} Run "
+                        f"{g3['eyes']['run']} eyes · Meta-Label "
+                        f"Run {g3['gate']['run']} gate @ "
+                        f"{g3['gate']['threshold']})",
+               **b3_h, "curve": curves["b3"]},
+        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
+                        f"{sdesk['driver']['run']} driver · "
+                        f"{sdesk['eyes']['champion']} Run "
+                        f"{sdesk['eyes']['run']} eyes)",
+               **b2_h, "curve": curves["b2"]},
+        "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
+                        f"Stacker Run 40 prod21 eyes)",
+               **b1_h, "curve": curves["b1"]},
+        "bh": {"label": "Buy & Hold BTC ($100k at race start)",
+               **bh_h, "curve": bh_curve},
+        "delta": round(b5_h["pnl"] - b1_h["pnl"], 2),
+        "delta_pct": round((b5_h["pct"] or 0.0) - (b1_h["pct"] or 0.0), 2),
+        "delta_bh": round(b5_h["pnl"] - bh_h["pnl"], 2),
+    }
+
+
 # ------------------------------------------------------------ Master desk
 # ONE combined payload for the master live desk (2026-10-31): all
-# three paper books in a single feed, assembled by REUSING the
+# three paper books in a single feed (five since Book #5 joined
+# 2026-11-12), assembled by REUSING the
 # per-book machinery -- snapshot.build_trading_snapshot for every
 # book's state, snapshot.trade_stats / closed_trades /
 # activity_stats for the journal stats, the desk blocks for
@@ -3340,23 +4673,17 @@ def build_gated_race() -> dict:
 # no wins, avg_loss with no losses, payoff without both.
 
 
-def _master_vision_book1():
-    """(p_up, vision_ts, top_gauges) from Book #1's own vision
-    feed: the 8 of its 21 squeezed features farthest from their
-    neutral midpoint (0)."""
-    v = build_vision()
-    rows = sorted(v.get("f") or [], key=lambda r: -abs(r[2]))[:8]
-    return v.get("p_up"), v.get("ts"), [
-        {"name": r[0], "value": r[2]} for r in rows]
-
-
-def _master_vision_scored(vision_fn, frame_builder):
-    """(p_up, vision_ts, top_gauges) for a scored-eyes book (Book
-    #2 / #3): both vision parts over ONE memoized market fetch
-    and ONE scored-frame build (each part otherwise refetches
-    730d and rebuilds the frame). Gauges are the scored
-    indicators (0-100 percentile scores) farthest from their
-    neutral midpoint (50)."""
+def _master_shared_fetch():
+    """ONE memoized market fetch for a whole master build
+    (2026-11-04). A 730d fetch is 59 sequential chunk requests;
+    build_master's three vision paths used to fetch the series
+    independently (~182 requests, ~676s at the day's ~3.6s/request
+    proxy latency -- the 15-min master-feed job timed out three
+    runs in a row). Every consumer reads closed candles
+    (iloc[:-1]) and add_features copies its input, so sharing the
+    fetched frame changes no values -- at most the forming
+    candle's fetch-time skew the build already exhibits between
+    books disappears."""
     from data.market_data import fetch_klines
 
     cache: dict = {}
@@ -3367,6 +4694,32 @@ def _master_vision_scored(vision_fn, frame_builder):
             cache[key] = fetch_klines(symbol, interval=interval,
                                       period=period)
         return cache[key]
+
+    return fetch
+
+
+def _master_vision_book1(fetch=None):
+    """(p_up, vision_ts, top_gauges) from Book #1's own vision
+    feed: the 8 of its 21 squeezed features farthest from their
+    neutral midpoint (0). `fetch` is the master build's shared
+    memoized fetch; None keeps the standalone direct fetch."""
+    v = build_vision(fetch=fetch)
+    rows = sorted(v.get("f") or [], key=lambda r: -abs(r[2]))[:8]
+    return v.get("p_up"), v.get("ts"), [
+        {"name": r[0], "value": r[2]} for r in rows]
+
+
+def _master_vision_scored(vision_fn, frame_builder, fetch=None):
+    """(p_up, vision_ts, top_gauges) for a scored-eyes book (Book
+    #2 / #3): both vision parts over ONE memoized market fetch
+    and ONE scored-frame build (each part otherwise refetches
+    730d and rebuilds the frame). Gauges are the scored
+    indicators (0-100 percentile scores) farthest from their
+    neutral midpoint (50). `fetch` is the master build's shared
+    memoized fetch; None mints a per-call one (the pre-2026-11-04
+    behavior, kept for standalone callers/tests)."""
+    if fetch is None:
+        fetch = _master_shared_fetch()
 
     raw = fetch("BTC-USD", interval="1h", period="730d")
     frame_tuple = frame_builder()(raw)
@@ -3381,6 +4734,32 @@ def _master_vision_scored(vision_fn, frame_builder):
     top = sorted(gauges, key=lambda g: -abs(g[1] - 50.0))[:8]
     return p0.get("p_up"), p0.get("ts"), [
         {"name": g[0], "value": g[1]} for g in top]
+
+
+def _master_vision_ha(vision_fn, fetch=None):
+    """(p_up, vision_ts, top_gauges) for an HA-eyes book (Book
+    #4; Book #2 since Champion #11 took its seat 2026-11-09):
+    gauges are the HA readings farthest from their neutral
+    0 (the bounded HA values -- direction, streak, body share --
+    dominate honestly; the ratio readings ride along), read from
+    the book's own vision part 0 over the shared fetch."""
+    v = vision_fn(0, fetch=fetch)
+    rows = sorted(v.get("ha_rows") or [], key=lambda r: -abs(r[2]))[:8]
+    return v.get("p_up"), v.get("ts"), [
+        {"name": r[0], "value": r[2]} for r in rows]
+
+
+def _master_vision_champ(fetch=None):
+    """(p_up, vision_ts, top_gauges) for Book #5 (Champions):
+    gauges are the seated eyes' own readings (build_champ_vision
+    part 0 eyes_rows) farthest from their neutral 0. The eyes
+    frame is the seated stacker's own -- ha10 today, prod21
+    squeezes read identically -- so one path serves every era
+    of the follows-the-crown seat."""
+    v = build_champ_vision(0, fetch=fetch)
+    rows = sorted(v.get("eyes_rows") or [], key=lambda r: -abs(r[2]))[:8]
+    return v.get("p_up"), v.get("ts"), [
+        {"name": r[1], "value": r[2]} for r in rows]
 
 
 def _master_identity_book1() -> dict:
@@ -3406,18 +4785,24 @@ def _master_identity_book1() -> dict:
 DECISIONS_DIR = DATA / "decisions"
 
 
-def _decision_log_block(book_id, limit: int = 24):
+def _decision_log_block(book_id, limit: int = 8):
     """One book's per-candle decision log for the master feed:
     (decision_log, latest_thought) read from the loop-written
     data/decisions/<book_id>.jsonl (src/trading/decision_log.py).
     decision_log is the last `limit` records OLDEST to NEWEST
     with the features object stripped (it would repeat per
-    record); latest_thought is the newest record whole,
-    features included when the loop recorded them. A book with
-    no file yet (logging starts with its next processed candle;
-    history is never backfilled) gets ([], None). Reads a
-    bounded tail -- the file grows one line per candle forever,
-    and 24 records are always well inside it."""
+    record); latest_thought is the newest record whole, with
+    its features DIETED to the strongest 12 by absolute value
+    (2026-11-01 transport diet; 16 in diet round 6, 2026-11-12;
+    12 in diet round 7, 2026-11-17 -- the Master panel displays
+    the strongest 12, so the trim is invisible) when the
+    loop recorded them. A book with no file yet (logging starts
+    with its next processed candle; history is never backfilled)
+    gets ([], None). Reads a bounded tail -- the file grows one
+    line per candle forever, and 8 records are always well
+    inside it. Diet round 7 also cut the depth 12 -> 8 (Kass's
+    2026-11-17 order: stop hitting size limits for good); the
+    full log stays on disk and on each book's own desk."""
     path = DECISIONS_DIR / f"{book_id}.jsonl"
     if not path.exists():
         return [], None
@@ -3446,10 +4831,20 @@ def _decision_log_block(book_id, limit: int = 24):
         # precision): feature values round to 4dp and positions to
         # 6dp -- full float reprs of the 98 scored features alone
         # cost ~4.6KB per book in latest_thought.
+        # Diet round 3 (2026-11-05): price/money floats round to
+        # 2dp -- the precision the desk renders prices at, so every
+        # rendered value is identical, while a full float repr
+        # (stop 82132.24855655871, 17 chars) otherwise costs ~8
+        # extra bytes on each of 16 rows x 3 books plus
+        # latest_thought. Pinned by test_decision_log's
+        # price-precision test.
         out = dict(r)
         for k in ("pos_before", "pos_after"):
             if isinstance(out.get(k), float):
                 out[k] = round(out[k], 6)
+        for k in ("stop_level", "close", "equity"):
+            if isinstance(out.get(k), float):
+                out[k] = round(out[k], 2)
         feats = out.get("features")
         if isinstance(feats, dict):
             out["features"] = {
@@ -3458,9 +4853,86 @@ def _decision_log_block(book_id, limit: int = 24):
         return out
 
     latest = _feed_copy(records[-1])
-    log = [{k: v for k, v in r.items() if k != "features"}
+    # Transport diet (2026-11-01): the full master payload hit
+    # ~37.7KB and push_master rejected it in transport (a 34.3KB
+    # build had succeeded earlier the same night). The two
+    # 98-feature latest_thought blocks cost ~3.6KB each, so the
+    # feed now carries only the STRONGEST 24 features by absolute
+    # value (the Master panel displays the strongest 12 -- no
+    # visible change; diet round 6, 2026-11-12, carried the
+    # strongest 16; diet round 7, 2026-11-17, carries exactly
+    # the displayed 12) plus "features_total", the full recorded
+    # count, so the panel's "Strongest 12 of N" caption can stay
+    # truthful. The JSONL on disk keeps ALL features at full
+    # precision; this trim is feed-only, like the rounding above.
+    feats = latest.get("features")
+    if isinstance(feats, dict):
+        latest["features_total"] = len(feats)
+        if len(feats) > 12:
+            def _strength(kv):
+                v = kv[1]
+                return (0, -abs(v)) if isinstance(v, (int, float)) \
+                    else (1, 0.0)
+
+            latest["features"] = dict(
+                sorted(feats.items(), key=_strength)[:12])
+    # Diet round 2 (2026-11-02, record slimming named in
+    # test_master_feed.py's sentinel comment): feed rows also omit
+    # None-valued keys -- an ungated book's rows otherwise repeat
+    # gate_proba/gate_threshold/gate_verdict/stop_level nulls 16
+    # times per book. Non-null values (a real Book #3 veto row's
+    # gate fields) pass through verbatim, latest_thought above
+    # stays the newest record WHOLE, and the on-disk JSONL is
+    # untouched, as with every feed-only diet here.
+    log = [{k: v for k, v in r.items()
+            if k != "features" and v is not None}
            for r in (_feed_copy(r) for r in records[-int(limit):])]
     return log, latest
+
+
+# Diet round 5 (2026-11-05, Kass's 2026-11-04 standing
+# directive): the master's ROW sections ship as POSITIONAL
+# ARRAYS. Book #4 (added 2026-11-05) took the with-vision
+# payload to ~34.5KB with its sections still nearly empty;
+# filling Book #4 to the same caps as a mature book projects
+# ~40.9KB -- ~5.6KB OVER the ~35,360B push-transport truncation
+# point -- and the repeated per-row key names are the cost:
+# 64 decision rows x ~130B of keys, 48 fills, 48 decisions,
+# 10 vetoes, 32 gauges. The keys now ride ONCE in these column
+# lists, mirrored by the Master client's feed.ts (DECISION_LOG_
+# COLS / FILL_COLS / DECISION_COLS / VETO_COLS / GAUGE_COLS in
+# client/src/feed.ts, expanded back to objects at read time;
+# the client also passes object rows through unchanged, so the
+# two formats can deploy in either order). Every value is
+# carried verbatim -- expansion reproduces the dict rows
+# exactly (None where the round-2 elision dropped a null key;
+# the client already treats absent == null). Measured on the
+# 2026-11-05 17:07 ET payload: 34,502B -> 25,859B; on a
+# plateau simulation (Book #4 filled to caps): 40,929B ->
+# 30,306B, ~5.1KB under the truncation point. Pinned by
+# test_master_feed's round-5 tests (positional shape, exact
+# expansion vs _decision_log_block / snapshot / trades table /
+# gate_decisions, unknown-key fallback). Display-changing
+# levers stayed untouched: decision_log depth is still 16 and
+# latest_thought still carries the strongest 24 features.
+MASTER_DECISION_LOG_COLS = (
+    "ts", "close", "p_up", "stance", "action", "taken", "reason",
+    "gate_proba", "gate_threshold", "gate_verdict", "pos_before",
+    "pos_after", "equity", "stop_level", "exposure_pct")
+MASTER_FILL_COLS = ("ts", "action", "price", "qty", "reason")
+MASTER_DECISION_COLS = ("ts", "action", "reason", "p_up")
+MASTER_VETO_COLS = ("ts", "proba", "threshold", "verdict")
+MASTER_GAUGE_COLS = ("name", "value")
+
+
+def _master_row_array(row, cols):
+    """One master feed row as a positional array in `cols` order
+    (None for absent keys). A row carrying a key outside `cols`
+    passes through as the original dict: a future field degrades
+    that one row to the old format instead of losing data."""
+    if not isinstance(row, dict) or not set(row) <= set(cols):
+        return row
+    return [row.get(c) for c in cols]
 
 
 def _master_book(book_id, db_path, state_path, identity, *,
@@ -3531,16 +5003,27 @@ def _master_book(book_id, db_path, state_path, identity, *,
     top_gauges: list = []
     if include_vision and vision_fn is not None:
         try:
-            v_p, v_ts, v_g = vision_fn()
-            if v_p is not None:
-                p_up = v_p
-            if v_ts is not None:
-                vision_ts = v_ts
+            _v_p, _v_ts, v_g = vision_fn()
+            # p_up / vision_ts are NOT taken from the recomputed
+            # vision (2026-11-03 fix): they stay this book's OWN
+            # recorded vote -- snapshot's stacker_p_up from this
+            # book's own state file, which is the value its loop
+            # recorded in its decision log for vision_ts. The
+            # recomputation is built at master-build time on the
+            # newest closed candle and, for Books #2/#3 (identical
+            # run-73 eyes, byte-identical seat artifacts), returns
+            # the SAME value for both books; when it ran a candle
+            # ahead of Book #2's loop (whose loop processes later
+            # than Book #3's), Book #2's headline carried Book
+            # #3's recorded vote instead of its own (saved payload
+            # 2026-11-03_1307: book2 p_up 0.4875 == book3's
+            # latest_thought @17:00, book2's own @16:00 = 0.4906).
+            # The recomputed vision here supplies only top_gauges.
             top_gauges = v_g or []
         except Exception:
             top_gauges = []  # vision is garnish; the book still reports
     decisions = []
-    for ts, fside, _px, _q, _fee, reason, ctx in reversed(fills[-12:]):
+    for ts, fside, _px, _q, _fee, reason, ctx in reversed(fills[-10:]):
         p = None
         if ctx:
             try:
@@ -3549,6 +5032,8 @@ def _master_book(book_id, db_path, state_path, identity, *,
                 p = None
         decisions.append({"ts": ts, "action": fside, "reason": reason,
                           "p_up": p})
+    decisions = [_master_row_array(d, MASTER_DECISION_COLS)
+                 for d in decisions]
     last = fills[-1] if fills else None
     dec_log, latest_thought = _decision_log_block(book_id)
     book = {
@@ -3606,25 +5091,77 @@ def _master_book(book_id, db_path, state_path, identity, *,
         "equity_curve": [[p["t"], p["equity"]]
                          for p in _downsample_curve(curve_full)],
         "dd_curve": _downsample_pairs(
-            [[p["t"], p["dd_pct"]] for p in s["drawdown_curve"]],
-            cap=120),
+            _compress_flat_runs(
+                [[p["t"], p["dd_pct"]] for p in s["drawdown_curve"]]),
+            # Diet round 2 (2026-11-02): cap 120 -> 64 -- the
+            # dd-curve stride the test_master_feed sentinel named.
+            # _downsample_pairs keeps the newest 8 points full-res;
+            # 64 points over the whole book history is ~7px/point
+            # at phone width, past what the chart can resolve.
+            # Diet round 3 (2026-11-05): cap 64 -> 40, the module's
+            # own race-curve cap -- the round-2 steady state still
+            # outgrew the push transport (with-vision payload
+            # 35,360B rejected twice; see the sentinel comment in
+            # test_master_feed.py). Retained points stay
+            # verbatim points of the flat-run-compressed series
+            # (pinned by test_master_dd_curve_stride_diet_keeps_
+            # points_verbatim); at 40 points the strip is
+            # ~10px/point.
+            # Diet round 4 (2026-11-05, later the same day): cap
+            # 40 -> 32. Section-by-section measurement against the
+            # round-3 pushed payload showed the dd curve was the
+            # ONE master section whose size still depended on
+            # flat-run compression luck: as BTC dropped on
+            # 2026-11-05, Book #3's dd rode 30 -> 39 points
+            # (917B -> 1,193B) because a deepening drawdown has
+            # no flat runs to compress, and the no-vision build
+            # drifted 32,241B -> 32,507B onto the sentinel. At
+            # cap 32 the bound is deterministic -- worst case
+            # 34 points x <= 31B (19-char ts, 3dp value) no matter
+            # how volatile the series -- and the strip is
+            # ~12px/point at phone width, past chart resolution,
+            # same stride class as rounds 2-3. Pinned by
+            # test_master_dd_curve_worst_case_volatile_series_
+            # bounded (a zero-flat-run series, where compression
+            # is the identity and the cap is the only protection).
+            # Diet round 6 (2026-11-12): cap 32 -> 24 when Book
+            # #5 joined the master feed (Kass's approval) -- the
+            # five-book no-vision build measured 30,673B against
+            # the 31,000 sentinel with Book #5 still nearly
+            # empty; at cap 24 the deterministic worst case is
+            # 26 points/book and the strip is ~16px/point at
+            # phone width over a book's full history.
+            # Diet round 7 (2026-11-17, Kass: stop hitting size
+            # limits for good): cap 24 -> 20 (worst case 22
+            # points/book, ~18px/point) as part of the structural
+            # round that makes the five-book PLATEAU fit the
+            # 31,000 sentinel with margin -- see the round-7 note
+            # in test_master_feed.py.
+            cap=20),
         "recent_fills": [
-            {"ts": r["ts"], "action": r["side"], "price": r["price"],
-             "qty": r["qty"], "reason": r["reason"]}
-            for r in s["recent_trades"][:12]],
+            _master_row_array(
+                {"ts": r["ts"], "action": r["side"],
+                 "price": r["price"], "qty": r["qty"],
+                 "reason": r["reason"]}, MASTER_FILL_COLS)
+            for r in s["recent_trades"][:10]],
         "recent_decisions": decisions,
-        "decision_log": dec_log,
+        "decision_log": [
+            _master_row_array(r, MASTER_DECISION_LOG_COLS)
+            for r in dec_log],
         "latest_thought": latest_thought,
-        "top_gauges": top_gauges,
+        "top_gauges": [
+            _master_row_array(g, MASTER_GAUGE_COLS)
+            for g in top_gauges],
         "health": {"last_candle_ts": s["last_candle"],
                    "feed_as_of": s["as_of"]},
     }
     if vetoes is not None:
-        book["vetoes"] = vetoes
+        book["vetoes"] = [
+            _master_row_array(v, MASTER_VETO_COLS) for v in vetoes]
     return book
 
 
-def _master_book3_vetoes(limit: int = 10) -> list:
+def _master_book3_vetoes(limit: int = 8) -> list:
     """Book #3's newest gate decisions from the gated engine's
     own gate_decisions table (the same rows build_gated_veto
     renders, threshold carried per row as stored)."""
@@ -3648,26 +5185,39 @@ def _master_book3_vetoes(limit: int = 10) -> list:
 
 
 def build_master(include_vision: bool = True) -> dict:
-    """The master live-desk feed: Books #1/#2/#3 in one payload.
+    """The master live-desk feed: Books #1/#2/#3/#4/#5 in one
+    payload (Book #5 joined 2026-11-12 on Kass's approval).
     include_vision=False skips the (network + frame) vision
-    builders -- p_up/vision_ts then fall back to each book's
-    recorded loop state, the same values its compact trading
-    feed carries, and top_gauges is empty."""
+    builders (top_gauges is then empty). Either way, each book's
+    p_up/vision_ts are that book's OWN recorded loop state -- the
+    same values its compact trading feed and decision log carry
+    -- never the recomputed vision's vote (2026-11-03 fix in
+    _master_book: the recomputation made Book #2 carry Book
+    #3's recorded vote whenever it ran ahead of Book #2's loop).
+    With vision on, all three books' vision paths share ONE
+    memoized market fetch (_master_shared_fetch, 2026-11-04):
+    the 730d series is fetched once per build, not three times."""
     desk2 = _shadow_desk_block()
     desk3 = _gated_desk_block()
+    desk4 = _ha_desk_block()
     man2 = _shadow_manifest()
     man3 = _gated_manifest()
+    man4 = _ha_manifest()
+    desk5 = _champ_desk_block()
+    man5 = _champ_manifest()
     drift1 = None
     try:
         drift1 = build_ledger().get("friction", {}).get("drift_bps")
     except Exception:
         drift1 = None
+    shared_fetch = _master_shared_fetch() if include_vision else None
     books = [
         _master_book(
             "book1", None, None, _master_identity_book1(),
             kind="driver", label=B1_LABEL, start_equity=100000.0,
             include_vision=include_vision,
-            vision_fn=_master_vision_book1, drift_bps=drift1),
+            vision_fn=lambda: _master_vision_book1(fetch=shared_fetch),
+            drift_bps=drift1),
         _master_book(
             "book2", SHADOW_DB, SHADOW_STATE,
             {"brain_run": desk2["driver"]["run"],
@@ -3680,8 +5230,15 @@ def build_master(include_vision: bool = True) -> dict:
             kind="shadow", label=desk2["book_name"],
             start_equity=float(man2.get("starting_balance", 100000)),
             include_vision=include_vision,
-            vision_fn=lambda: _master_vision_scored(
-                build_shadow_vision, _shadow_frame_builder)),
+            # Book #2's vision follows its seat's frame: scored
+            # gauges while a scored champion held the seat, the HA
+            # gauges since Champion #11 (ha10) took it 2026-11-09.
+            vision_fn=(lambda: _master_vision_ha(
+                build_shadow_vision, fetch=shared_fetch))
+            if desk2["eyes"]["feature_set"] == "ha10" else
+            (lambda: _master_vision_scored(
+                build_shadow_vision, _shadow_frame_builder,
+                fetch=shared_fetch))),
         _master_book(
             "book3", GATED_DB, GATED_STATE,
             {"brain_run": desk3["driver"]["run"],
@@ -3696,12 +5253,51 @@ def build_master(include_vision: bool = True) -> dict:
             start_equity=float(man3.get("starting_balance", 100000)),
             include_vision=include_vision,
             vision_fn=lambda: _master_vision_scored(
-                build_gated_vision, _gated_frame_builder),
+                build_gated_vision, _gated_frame_builder,
+                fetch=shared_fetch),
             vetoes=_master_book3_vetoes()),
+        _master_book(
+            "book4", HA_DB, HA_STATE,
+            {"brain_run": desk4["driver"]["run"],
+             "brain_label": desk4["driver"]["label"],
+             "eyes_run": desk4["eyes"]["run"],
+             "eyes_label": desk4["eyes"]["label"],
+             "feature_set": desk4["eyes"]["feature_set"],
+             "indicators_n": desk4["eyes"]["n_features"],
+             "gate_run": None, "gate_threshold": None},
+            kind="ha", label=desk4["book_name"],
+            start_equity=float(man4.get("starting_balance", 100000)),
+            include_vision=include_vision,
+            vision_fn=lambda: _master_vision_ha(
+                build_ha_vision, fetch=shared_fetch)),
+        _master_book(
+            "book5", CHAMP_DB, CHAMP_STATE,
+            {"brain_run": desk5["driver"]["run"],
+             "brain_label": desk5["driver"]["label"],
+             "eyes_run": desk5["eyes"]["run"],
+             "eyes_label": desk5["eyes"]["label"],
+             "feature_set": desk5["eyes"]["feature_set"],
+             "indicators_n": desk5["eyes"]["n_features"],
+             "gate_run": None, "gate_threshold": None},
+            kind="champ", label=desk5["book_name"],
+            start_equity=float(man5.get("starting_balance", 100000)),
+            include_vision=include_vision,
+            vision_fn=lambda: _master_vision_champ(
+                fetch=shared_fetch)),
     ]
     race_bh = None
     try:
-        race_bh = build_shadow_race()["bh"]["curve"] or None
+        # Diet round 4 (2026-11-05): the master's copy of the
+        # buy-and-hold race curve is strided to cap 32 -- the
+        # same deterministic bound as the master dd curves.
+        # build_shadow_race's own cap-40 curve is untouched (it
+        # also serves the shadow desk at its own resolution);
+        # the stride keeps verbatim points of that curve only,
+        # endpoints and newest 8 at full resolution.
+        # Diet round 7 (2026-11-17): cap 32 -> 24, matching the
+        # round-7 dd-curve class so the plateau fits with margin.
+        race_bh = _downsample_pairs(
+            build_shadow_race()["bh"]["curve"], cap=24) or None
     except Exception:
         race_bh = None
     combined = {
@@ -3735,6 +5331,7 @@ if __name__ == "__main__":
         "vision": build_vision,
         "fillctx": build_fillctx,
         "training": build_compact_training,
+        "training_models": build_models_manifest,
         "gate": build_gate,
         "shadow": build_shadow_compact_trading,
         "shadow_ledger": build_shadow_ledger,
@@ -3751,9 +5348,29 @@ if __name__ == "__main__":
         "gated_vision1": lambda: build_gated_vision(1),
         "gated_race": build_gated_race,
         "gated_veto": build_gated_veto,
+        "ha": build_ha_compact_trading,
+        "ha_ledger": build_ha_ledger,
+        "ha_market0": lambda: build_ha_market(0),
+        "ha_market1": lambda: build_ha_market(1),
+        "ha_vision0": lambda: build_ha_vision(0),
+        "ha_vision1": lambda: build_ha_vision(1),
+        "ha_race": build_ha_race,
+        "champ": build_champ_compact_trading,
+        "champ_ledger": build_champ_ledger,
+        "champ_market0": lambda: build_champ_market(0),
+        "champ_market1": lambda: build_champ_market(1),
+        "champ_vision0": lambda: build_champ_vision(0),
+        "champ_vision1": lambda: build_champ_vision(1),
+        "champ_indicators": build_champ_indicators,
+        "champ_race": build_champ_race,
         "master": build_master,
     }
-    out = builders[which]()
+    if which == "training_models_page":
+        # Page index rides argv[2]: `compact.py training_models_page 0`.
+        idx = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+        out = build_models_pages()[idx]
+    else:
+        out = builders[which]()
     text = json.dumps(out, separators=(",", ":"))
     sys.stderr.write(f"bytes={len(text)}\n")
     print(text)

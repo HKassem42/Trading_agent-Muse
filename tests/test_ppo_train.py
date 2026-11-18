@@ -7,8 +7,10 @@ on this box and only completed as 12 checkpointed 25k chunks. Now:
 runs at or above CHUNK_THRESHOLD train in CHUNK_SIZE segments
 (reset_num_timesteps=False after the first) and the challenger is
 saved after EACH segment, so a kill loses at most one segment.
-Below the threshold the call is exactly the old single learn (the
-nightly 60k path is untouched).
+Below the threshold the call is exactly the old single learn
+(short / manual trains). Since 2026-11-17 the threshold sits
+below the nightly 60k train, which is therefore chunked and
+checkpointed too (tests/test_nightly_resume.py).
 
 The tests monkeypatch the chunk constants down and wrap PPO.learn /
 PPO.save with counting proxies over a tiny synthetic frame, so the
@@ -106,7 +108,7 @@ def test_large_run_trains_in_checkpointed_segments(tmp_path, counted_ppo,
 
 
 def test_small_run_is_one_learn_call(tmp_path, counted_ppo, monkeypatch):
-    """(c) Below the threshold (the nightly 60k shape): exactly one
+    """(c) Below the threshold (a short train's shape): exactly one
     learn call, exactly one save -- the pre-fix behavior, unchanged."""
     monkeypatch.setattr(ppo_train, "CHUNK_THRESHOLD", 100)
     monkeypatch.setattr(ppo_train, "CHUNK_SIZE", 100)

@@ -191,15 +191,35 @@ def test_audit_matches_registry_facts():
     # on the record -- no stacker pends, the champion IS run 73
     # at 0.5354, and best-of-the-rest is now former champion run
     # 69's 0.5265.
-    assert a["stk"][2] == 3 and a["ppo"][2] == 0
+    # RE-PINNED 2026-11-09 (the four-winner crowning + Book #2
+    # seat swap): run 78's 2026-10-29 decline had already made
+    # FOUR stacker declines (61/63/67/78); Kass crowned runs
+    # 111 + 112 on 2026-11-06 and runs 113/115/117/119 on
+    # 2026-11-09, so no run pends unresolved (runs 83/100 are
+    # resolver-superseded), the stacker champion IS run 119 at
+    # 0.5530, the PPO champion IS run 112 at -291.6, and
+    # best-of-the-rest stacker (post-fix) is run 107's recorded
+    # 0.5612 (Pick #8's control reproduction -- the audit reads
+    # records verbatim; that grade's own study verdict was FAIL).
+    # RE-PINNED 2026-11-11 (run 123 crowning): Kass crowned the
+    # 2026-11-11 midnight retrain's pending winner lab-only, so
+    # the stacker champion IS run 123 at 0.5568 and no run pends
+    # unresolved. Declines unchanged; PPO champion unchanged.
+    # RE-PINNED 2026-11-12 (run 126 crowning): Kass delegated
+    # the crowning to Muse ("always crown the best of the best
+    # only"); Muse crowned the 2026-11-12 retrain's pending
+    # winner lab-only, so the stacker champion IS run 126 at
+    # 0.5581 and no run pends unresolved. Declines unchanged;
+    # PPO champion unchanged.
+    assert a["stk"][2] == 4 and a["ppo"][2] == 0
     assert a["ppo"][3] == 0 and a["stk"][3] == 0
-    # Champions: stacker #4 is run 73 at 0.5354; PPO champion run 44
-    # dueled -615.6. Best-of-the-rest stacker (post-fix) is run
-    # 69's 0.5265 (the displaced Champion #3).
-    assert a["cs"][0] == 73 and a["cs"][1] == pytest.approx(0.5354)
-    assert a["cs"][3] == pytest.approx(0.5265)
+    # Champions: stacker #13 is run 126 at 0.5581; PPO champion
+    # run 112 dueled -291.6. Best-of-the-rest stacker (post-fix)
+    # is run 107's 0.5612.
+    assert a["cs"][0] == 126 and a["cs"][1] == pytest.approx(0.5581)
+    assert a["cs"][3] == pytest.approx(0.5612)
     assert a["cs"][2] < a["cs"][3]  # median below the luckiest draw
-    assert a["cp"][0] == 44 and a["cp"][1] == pytest.approx(-615.6)
+    assert a["cp"][0] == 112 and a["cp"][1] == pytest.approx(-291.6)
 
 
 def test_telemetry_block_reads_records_verbatim():
@@ -237,6 +257,16 @@ def test_training_feed_carries_audit_and_telemetry():
     # Updated again 2026-10-27 (Muse's Pick #3): run 75 (Pick #3
     # PPO, telemetry on per its pre-registration) joins the block,
     # so it now carries runs 75, 74, 72 and 70.
+    # Updated 2026-11-09: every nightly/deep PPO since carries
+    # telemetry, so the block (newest 4) now carries runs 120,
+    # 118, 116 and 114; "from" stays 70, the first run that ever
+    # recorded.
+    # Updated 2026-11-11: the block rolls forward with the
+    # registry -- it now carries runs 124, 122, 120 and 118
+    # (the 2026-11-10 and 2026-11-11 nightly PPO challengers).
+    # Updated 2026-11-12: the block rolls forward again -- it
+    # now carries runs 127, 124, 122 and 120 (run 127 is the
+    # 2026-11-12 nightly PPO challenger).
     keys = ("ent_start", "ent_end", "ent_min", "kl_end", "clip_end",
             "ev_end", "vl_end")
 
@@ -249,8 +279,8 @@ def test_training_feed_carries_audit_and_telemetry():
             else None for k in keys]
 
     assert feed["telemetry"] == {"from": 70,
-                                  "rows": [_row(75), _row(74), _row(72),
-                                           _row(70)]}
+                                  "rows": [_row(127), _row(124),
+                                           _row(122), _row(120)]}
     import json
     assert len(json.dumps(feed, separators=(",", ":"))) < 16384
 

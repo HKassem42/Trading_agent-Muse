@@ -17,7 +17,7 @@ from src.dashboards import compact  # noqa: E402
 def test_gate_feed_builds_from_registry_and_stays_compact():
     g = compact.build_gate()
     assert set(g) == {"parked", "park", "champ", "chall", "duel",
-                      "pending", "sacc", "sprec"}
+                      "pending", "sacc", "sprec", "schamp"}
     # Promotion lock (2026-10-25): the pending field is present and
     # either null (nobody awaiting Kass) or a well-formed record.
     assert g["pending"] is None or (
@@ -55,6 +55,27 @@ def test_gate_feed_builds_from_registry_and_stays_compact():
     assert len(payload) < 1024, f"gate feed too big: {len(payload)} bytes"
 
 
+def test_gate_carries_stacker_champion_identity():
+    """2026-11-13 dashboard review: Book #1's gate panel showed the
+    stacker champion's exam figures (sacc/sprec) with no way to name
+    WHICH champion they belong to -- the feed carried no run id or
+    crown number, so the client would have had to hard-code it.
+    schamp must be the champions roster's CURRENT stacker row
+    (status 1 or 3), derived from the registry, and its figures must
+    agree with sacc/sprec on the same feed."""
+    g = compact.build_gate()
+    champs = compact.build_champions(compact._all_runs_desc())
+    assert champs and champs.get("stk"), "roster must list stacker crowns"
+    current = [row for row in champs["stk"] if row[7] in (1, 3)]
+    assert len(current) == 1, f"exactly one current champion: {current}"
+    no, run_id, _name, _feat, acc, _wf, prec, _st = current[0]
+    assert g["schamp"] == {"i": run_id, "n": no}, (
+        f"gate schamp {g['schamp']} != roster current {(no, run_id)}")
+    # The identity must belong to the same brain as the exam figures.
+    assert g["sacc"] == round(acc, 4)
+    assert g["sprec"] == round(prec, 4)
+
+
 def test_gate_pending_why_is_complete_not_truncated_mid_clause():
     """2026-10-30 dashboard audit: run 83's gate pending.why arrived on
     BOTH dashboards cut mid-clause at exactly 100 chars --
@@ -62,29 +83,70 @@ def test_gate_pending_why_is_complete_not_truncated_mid_clause():
     reason at [:100]. The feed text must carry the COMPLETE champion
     comparison the stored reason makes, trimmed (if at all) only at a
     clause boundary, never mid-word/mid-clause. The expected text is
-    derived from training.db itself, never hard-coded."""
+    derived from training.db itself, never hard-coded.
+
+    2026-11-02: the live pending flag legitimately moved to run 96
+    (the Nov 2 midnight retrain's stacker WOULD PROMOTE) -- the old
+    pin `pend["i"] == 83` rotted the same way the cfg guard did on
+    2026-11-01. The expectations below are therefore derived from
+    the registry by _pending_promotion's own documented rule, and
+    the run-83 regression is pinned directly on _clause_bounded,
+    where it can never rot again."""
+    con = sqlite3.connect(ROOT / "data" / "training.db")
+    rows = con.execute(
+        "SELECT id, kind, metrics, promoted FROM runs "
+        "ORDER BY id DESC").fetchall()
+    con.close()
+    newest_promoted = {}
+    for rid, kind, _m, promoted in rows:
+        if promoted:
+            newest_promoted.setdefault(kind, rid)
+    expected_id = None
+    stored = ""
+    for rid, kind, mjson, _p in rows:
+        m = json.loads(mjson) if mjson else {}
+        if not m.get("pending_approval") or m.get("pending_decision"):
+            continue
+        sup = newest_promoted.get(kind)
+        if sup is not None and sup > rid:
+            continue
+        expected_id = rid
+        stored = m.get("reason") or ""
+        break
     g = compact.build_gate()
     pend = g["pending"]
-    assert pend is not None and pend["i"] == 83
-    why = pend["why"]
+    if expected_id is None:
+        # 2026-11-06: Kass crowned runs 111 + 112, so no unresolved
+        # pending exists -- run 83's PPO-kind pending is superseded by
+        # the promoted run 112 under the resolver's own documented
+        # rule (the same rule that superseded run 100 when run 110
+        # was crowned). The builder must agree: no pending anywhere.
+        assert pend is None
+    else:
+        assert pend is not None and pend["i"] == expected_id
+        why = pend["why"]
+        assert not why.rstrip().endswith("vs")
+        # Trimmed only at a clause boundary: why is a verbatim prefix
+        # of the stored reason, and the very next stored character
+        # (if any) is a clause delimiter.
+        assert stored.startswith(why)
+        if len(why) < len(stored):
+            assert stored[len(why)] in ";.", (
+                f"pending.why cut mid-clause at char {len(why)}: "
+                f"...{why[-30:]!r} | next: {stored[len(why):len(why)+30]!r}")
+    # The original run-83 regression, pinned on the trimmer itself:
+    # its 566-char stored reason must keep the champion comparison
+    # whole ("P&L +237 vs champion -305"), never "...P&L +237 vs ".
     con = sqlite3.connect(ROOT / "data" / "training.db")
     row = con.execute(
         "SELECT metrics FROM runs WHERE id = 83").fetchone()
     con.close()
-    stored = json.loads(row[0]).get("reason") or ""
-    assert stored.startswith("Meta-Label Gate")
-    # The bug: the old 100-char slice never reaches the comparison.
-    assert len(why) > 100
-    assert "P&L +237 vs champion -305" in why
-    assert not why.rstrip().endswith("vs")
-    # Trimmed only at a clause boundary: why is a verbatim prefix of
-    # the stored reason, and the very next stored character (if any)
-    # is a clause delimiter.
-    assert stored.startswith(why)
-    if len(why) < len(stored):
-        assert stored[len(why)] in ";.", (
-            f"pending.why cut mid-clause at char {len(why)}: "
-            f"...{why[-30:]!r} | next: {stored[len(why):len(why)+30]!r}")
+    stored83 = json.loads(row[0]).get("reason") or ""
+    assert stored83.startswith("Meta-Label Gate")
+    why83 = compact._clause_bounded(stored83)
+    assert len(why83) > 100
+    assert "P&L +237 vs champion -305" in why83
+    assert not why83.rstrip().endswith("vs")
     # The gate feed stays inside its documented size budget.
     payload = json.dumps(g, separators=(",", ":"))
     assert len(payload) < 1024, f"gate feed too big: {len(payload)} bytes"
@@ -122,6 +184,11 @@ def _fake_training_snapshot():
 def test_gate_duel_won_is_derived_from_its_own_windows(monkeypatch):
     monkeypatch.setattr(compact.snapshot, "build_training_snapshot",
                         _fake_training_snapshot)
+    # The duel is read from the full registry (2026-11-06: a registry
+    # fact, not a window fact -- see build_gate), so the fabricated
+    # world stubs the registry read with the same fabricated runs.
+    monkeypatch.setattr(compact, "_all_runs_desc",
+                        lambda: _fake_training_snapshot()["runs"])
     g = compact.build_gate()
     assert g["champ"]["i"] == 17 and g["chall"]["i"] == 18
     expect_won = sum(1 for a, b in zip(g["chall"]["win"], g["duel"]["cwin"])
@@ -157,23 +224,43 @@ def _db_runs():
 
 def test_training_models_index_covers_every_run_with_correct_names():
     t = compact.build_compact_training()
-    models = t["models"]
+    # Since the 2026-11-17 pagination the index ships via
+    # push_models_page pages, not inside the snapshot; assemble
+    # it exactly as the desk does (pages in order, rows joined).
+    models = [row for page in compact.build_models_pages()
+              for row in page["rows"]]
     db = _db_runs()
-    # Every registered run, newest first, promoted flags matching the DB.
-    assert [m[0] for m in models] == [r[0] for r in db][::-1]
+    # Kass's feed-trim directive (2026-11-05): the shipped index
+    # omits the FAILED runs 16-50 (never promoted, no seat/crown --
+    # run 44 kept by id as the override-installed PPO champion);
+    # runs 1-15 (pre-fix set) and everything over 50 always ship.
+    # The complete record lives in training.db / the workbook /
+    # the Model Atlas, and _models_index itself stays complete.
+    promoted = {r[0] for r in db if r[1]}
+    expect_ids = [r[0] for r in db
+                  if r[0] < 16 or r[0] > 50 or r[0] in promoted
+                  or r[0] == 44][::-1]
+    assert [m[0] for m in models] == expect_ids
+    assert t["models_omitted"] == len(db) - len(expect_ids)
     by_id = {m[0]: m for m in models}
-    for rid, promoted in db:
-        assert by_id[rid][4] == int(promoted)
-    names = {rid: by_id[rid][2] for rid, _ in db}
+    for rid, prom in db:
+        if rid in by_id:
+            assert by_id[rid][4] == int(prom)
+    names = {rid: by_id[rid][2] for rid in expect_ids}
+    # The naming layer still covers EVERY run, trimmed or not --
+    # the roster and the Atlas derive names from the full index.
+    _full_index = compact._models_index(compact._all_runs_desc())
+    full_names = {row[0]: row[2] for row in _full_index}
+    full_by_id = {row[0]: row for row in _full_index}
     # Lab families get their real names, not raw codes or kind labels.
-    assert names[20] == "HA-Seq v1"
-    assert names[21] == "GBM Focus A — Plain"
-    assert names[22] == "GBM Focus B — Class-Weighted"
-    assert names[23] == "GBM Focus C — SMOTE"
-    assert names[24] == "GBM Focus D — All-60 Features"
+    assert full_names[20] == "HA-Seq v1"
+    assert full_names[21] == "GBM Focus A — Plain"
+    assert full_names[22] == "GBM Focus B — Class-Weighted"
+    assert full_names[23] == "GBM Focus C — SMOTE"
+    assert full_names[24] == "GBM Focus D — All-60 Features"
     # Nightly lineage: explicit versions + era inheritance.
     assert names[17] == "PPO v5.1" and names[18] == "Stacker v5.1"
-    assert names[19] == "PPO v5.1" and names[16] == "Stacker v5.1"
+    assert full_names[19] == "PPO v5.1" and names[16] == "Stacker v5.1"
     assert names[15] == "PPO v5" and names[14] == "Stacker v5"
     assert names[11] == "PPO v4" and names[9] == "Stacker v4"
     assert names[13] == "PPO v4" and names[12] == "Stacker v4"
@@ -181,32 +268,39 @@ def test_training_models_index_covers_every_run_with_correct_names():
     assert names[5] == "PPO v2" and names[6] == "PPO v2"
     # Family codes: 0 ppo, 1 stacker, 2 ha_seq, 3 gbm_focus.
     assert by_id[17][3] == 0 and by_id[18][3] == 1
-    assert by_id[20][3] == 2 and by_id[21][3] == 3
+    assert full_by_id[20][3] == 2 and full_by_id[21][3] == 3
     # Headline numbers match the registry (score/P&L for PPO-family,
     # accuracy and no P&L for the stacker). Index P&L is whole dollars
     # since the 2026-10-23 size diet; exact cents stay in training.db.
-    assert by_id[24][5] == -1603.7 and by_id[24][6] == -3178
+    assert full_by_id[24][5] == -1603.7 and full_by_id[24][6] == -3178
     assert by_id[18][5] == 0.4659 and by_id[18][6] is None
     # Recorded lab verdicts ride along; nightly runs carry none.
-    assert by_id[20][7].startswith("FAIL")
-    assert by_id[21][7] == "PASS" and by_id[24][7] == "PASS"
-    assert by_id[22][7] == "FAIL" and by_id[23][7] == "FAIL"
+    assert full_by_id[20][7].startswith("FAIL")
+    assert full_by_id[21][7] == "PASS" and full_by_id[24][7] == "PASS"
+    assert full_by_id[22][7] == "FAIL" and full_by_id[23][7] == "FAIL"
     assert by_id[17][7] is None
     payload = json.dumps(t, separators=(",", ":"))
-    print(f"training feed bytes={len(payload)}")
-    # Feed budget: 16,384B = 2x the largest payload this dashboard has
-    # VERIFIABLY accepted (7,925B pushed via push_snapshot and read
-    # back intact 2026-10-23; 6,433B and 3,307B accepted before it; no
-    # push to this dashboard has ever been rejected, and the old
-    # "~2.5KB ceiling" belief was falsified by each of those pushes).
-    # The budget is a guardrail, not a measured platform limit:
-    # acceptance above 7,925B is unverified, so the feed is dieted to
-    # ~6.7KB (see the size-regression test) and the models-index growth
-    # (~90-118B/night) keeps it under budget for 60+ nights.
-    assert len(payload) < 16384, f"training feed too big: {len(payload)}"
+    print(f"training snapshot bytes={len(payload)}")
+    # Ceilings after the 2026-11-17 pagination (full basis in the
+    # structural growth tests at the bottom of this file): the
+    # snapshot carries only count-capped sections now, so its
+    # plateau is ~9.5KB even at a 300-run registry -- asserted
+    # here at 12,000 with headroom. Each models page (40 rows)
+    # must stay under 4,000B (measured ~2.3KB; the dashboard's
+    # largest verified acceptance is 7,925B, so a page keeps >2x
+    # headroom no matter how large the registry grows -- the
+    # page COUNT grows, never the page). The historical 16,384B
+    # whole-feed budget (2x the 7,925B verified acceptance) is
+    # retired with the monolith it guarded.
+    assert "models" not in t
+    assert t["models_total"] == len(models)
+    assert len(payload) < 12000, f"training snapshot too big: {len(payload)}"
+    for page in compact.build_models_pages():
+        blob = json.dumps(page, separators=(",", ":"))
+        assert len(blob) < 4000, f"models page too big: {len(blob)}"
 
 
-def test_training_feed_size_regression_at_current_registry():
+def test_training_feed_structure_at_current_registry():
     """Size sentinel for the 2026-10-23 diet, re-baselined
     2026-10-22 at the 39-run registry (6,971B measured; the 3
     size_study runs added ~97B per models-index row, inside the
@@ -272,33 +366,106 @@ def test_training_feed_size_regression_at_current_registry():
     reigning champion artifact) and the weights block (256B:
     per-layer weight stats of the live-seat PPO, fixed six
     layers); both blocks are fixed-size and do not grow with the
-    registry):
-    the feed must be <= 12,900B and
-    the detail window exactly the newest 6 runs (the models index
+    registry), and again 2026-11-03 at the 99-run registry after
+    the source-truth audit (14,495B measured; growth since the
+    90-run baseline is the models index for runs 91-99 plus one
+    deliberate, bounded addition: full text for trimmed previews
+    -- notes[].full on the newest-4 lab notes and why_full on the
+    6-run detail window, shipped ONLY when the preview was
+    actually trimmed, so the two long Kass-directive notes (the
+    1,218-char trailing-stop ruling and the 795-char run-96
+    crowning) are readable in full from the dashboard instead of
+    existing nowhere in the payload; the addition is bounded by
+    the note count and the fixed detail window, not the registry),
+    and again 2026-11-04 at the 101-run registry (14,666B measured;
+    the two runs since the 99-run baseline added ~171B -- two
+    models-index rows plus the detail window rolling to run 101's
+    muse_next_try record, inside the documented per-row band), and
+    again 2026-11-05 at the 110-run registry (16,089B measured AFTER
+    that day's diet; pre-diet the feed measured 17,776B -- over the
+    16,384B budget -- because the Pick #7-#11 study burst put five
+    long stacker records in the detail window and the run-110
+    crowning added a 1,031-char lab note. The diet cut the detail
+    window 6 -> 4 and the lab-notes window 4 -> 3; the models index
+    stays complete and every shipped note/run still carries its
+    full text when trimmed), and rebaselined again the same evening
+    after Kass's feed-trim directive (failed runs 16-50 out of the
+    shipped index -- 30 rows, ~2.1KB -- with the complete record in
+    the Model Atlas / workbook / training.db; measured 13,990B at
+    the 110-run registry), and again 2026-11-11 at the 125-run
+    registry after the Champion #12 crowning and Muse's Pick #12
+    (14,209B measured; the net +219B over the 110-run baseline is
+    the models index for runs 111-125 plus the champions roster
+    gaining its 12th crown row, partly offset by the bounded
+    detail/notes windows rolling past the long run-110 crowning
+    note -- all inside the documented bands; the 16,384B budget
+    above is unchanged, ~2.1KB of headroom), and again 2026-11-13
+    at the 128-run registry after Muse's Pick #13 (14,869B
+    measured; the +660B over the 125-run baseline is the models
+    index for runs 126-128 plus the detail window rolling to run
+    128's long Pick #13 study record -- the same above-band
+    detail-window effect as the hierarchy and scored-eyes trips;
+    the trip also forced the muse_pick13 family-code fix (code 33)
+    in compact.py, without which the feed did not generate at all.
+    The 16,384B budget above is unchanged, ~1.5KB of headroom):
+    the feed must be <= 15,100B and
+    the detail window exactly the newest 4 runs (the models index
     carries the rest). The absolute number is expected to need
     re-baselining as the index grows (~90-118B/night) -- that trip
     is the point: it forces the next diet while the feed is still
-    far under the 16,384B budget asserted above."""
+    under the 16,384B budget asserted above.
+
+    2026-11-17 SIZE FIX (Kass: stop running into size limits,
+    for good): the aging-sentinel era ends here. The models index
+    -- the feed's only registry-driven growth -- no longer rides
+    in the snapshot: it ships in fixed 40-row pages via
+    push_models_page (compact.build_models_pages), so the
+    snapshot's size is a function of its caps, not of the run
+    count. This test is now STRUCTURAL: no "models" key in the
+    snapshot, counts exact against the registry, pages assemble
+    to the full kept index, the detail window exactly the newest
+    4, the snapshot under its 12,000 plateau ceiling (basis:
+    every section count-capped -- detail window 4, notes 3,
+    reward_series 20, rcurve <= 64, gate_hist 6, reads/audit/
+    telemetry/votes/weights fixed; the champs roster is the only
+    event-driven section, ~90B per crowning), and every page
+    under 4,000B (40 rows x ~55B + envelope ~= 2.3KB measured;
+    basis: comfortably under the dashboard's largest verified
+    acceptance, 7,925B). The growth tests at the bottom of this
+    file prove the same bounds at a synthetic 300-run registry
+    and 2 years of hourly rows."""
     t = compact.build_compact_training()
     db = _db_runs()
-    assert len(t["models"]) == len(db)
-    assert [r["i"] for r in t["runs"]] == [r[0] for r in db][-6:][::-1]
+    _promoted = {r[0] for r in db if r[1]}
+    _kept = [r for r in db if r[0] < 16 or r[0] > 50
+             or r[0] in _promoted or r[0] == 44]
+    assert "models" not in t
+    assert t["models_total"] == len(_kept)
+    assert t["models_omitted"] == len(db) - len(_kept)
+    pages = compact.build_models_pages()
+    assert [row for p in pages for row in p["rows"]] == \
+        compact._models_index_feed(compact._all_runs_desc())[0]
+    assert compact.build_models_manifest()["pages"] == len(pages)
+    assert [r["i"] for r in t["runs"]] == [r[0] for r in db][-4:][::-1]
     payload = json.dumps(t, separators=(",", ":"))
-    print(f"training feed bytes (regression)={len(payload)}")
-    assert len(payload) <= 12900, (
-        f"training feed regressed past the diet target: "
+    print(f"training snapshot bytes (structural)={len(payload)}")
+    assert len(payload) <= 12000, (
+        f"training snapshot over its plateau ceiling: "
         f"{len(payload)} bytes at {len(db)} runs")
+    for p in pages:
+        blob = json.dumps(p, separators=(",", ":"))
+        assert len(blob) < 4000, f"models page too big: {len(blob)}"
 
 
-def test_training_reads_block_names_what_each_brain_reads():
+def test_training_reads_block_names_what_each_brain_reads(
+        monkeypatch, tmp_path):
     """Kass (2026-10-26): the Training Lab must show how the models
     use HIS indicators. The reads block carries (1) the prod21 roster
     every production brain reads, with Kass's five v5 features
     flagged, and (2) the reigning champion's recorded study data
     (run 64's full-indicator study until 2026-10-26; run 69's
     Muse's Pick study while it reigned as Champion #3; run 73's
-    Muse's Pick #2 study since the 2026-10-27 Champion #4
-    crowning) -- its
+    Muse's Pick #2 study while it reigned as Champion #4) -- its
     input count and the ranked top-15 feature list its registry record
     stored at grading time (names in recorded order; the registry
     stored NO numeric weights, so the feed must not invent any).
@@ -317,7 +484,22 @@ def test_training_reads_block_names_what_each_brain_reads():
     flagged = {r[0] for r in p21 if r[2] == 1}
     assert flagged == {"ha_dir", "obv_slope", "adl_slope",
                        "netvol_rel", "ewo"}
-    c2 = reads["c2"]
+    # Since Kass's 2026-11-02 LAB-ONLY crowning of run 96 (a nightly
+    # prod21 stacker with no study block on its record), the reigning
+    # champion carries no recorded study data, so c2 must be null --
+    # the panel hides rather than showing a former champion's reads
+    # (the builder's own documented contract).
+    assert reads["c2"] is None
+    # The positive path still holds against a champion whose record
+    # DOES carry study data: re-point the builder's champion meta at
+    # run 73 (Champion #4, Muse's Pick #2 study) and re-derive.
+    runs_desc = compact._all_runs_desc()
+    fake_models = tmp_path / "models"
+    fake_models.mkdir()
+    (fake_models / "stacker_champion.json").write_text(
+        json.dumps({"run_id": 73}))
+    monkeypatch.setattr(compact, "ROOT", tmp_path)
+    c2 = compact._reads_block(runs_desc)["c2"]
     assert c2 is not None  # the champion's record is on file
     assert c2["run"] == 73 and c2["n"] == 98 and c2["comp"] == 4
     assert len(c2["top"]) == 15
@@ -356,10 +538,30 @@ def test_gate_champ_and_duel_survive_snapshot_window_cap(monkeypatch):
     monkeypatch.setattr(compact.snapshot, "build_training_snapshot",
                         lambda: capped)
     g = compact.build_gate()
-    assert g["champ"] is not None and g["champ"]["i"] == 17
-    assert g["champ"]["s"] == -1789.9
-    assert g["champ"]["win"] == [-1995.5, -3827.3, 453.2]
-    assert g["champ"]["pl"] == -3408.62
+    # The expected champion is DERIVED from the registry (newest
+    # promoted PPO run's own recorded challenger block): it was
+    # run 17 at audit time; Kass's 2026-11-06 crowning of run 112
+    # superseded the hard-coded pin the same way the run-44
+    # challenger pin rotted in 2025.
+    con0 = sqlite3.connect(ROOT / "data" / "training.db")
+    exp_champ = None
+    for rid0, mjson0, prom0 in con0.execute(
+            "SELECT id, metrics, promoted FROM runs "
+            "WHERE kind = 'ppo' ORDER BY id DESC"):
+        if not prom0:
+            continue
+        c0 = (json.loads(mjson0) or {}).get("challenger") or {}
+        if isinstance(c0.get("score"), (int, float)):
+            exp_champ = (rid0, c0)
+            break
+    con0.close()
+    assert exp_champ is not None
+    exp_id, exp_c = exp_champ
+    assert g["champ"] is not None and g["champ"]["i"] == exp_id
+    assert g["champ"]["s"] == round(exp_c["score"], 1)
+    assert g["champ"]["win"] == [round(w["score"], 1)
+                                 for w in exp_c["windows"]]
+    assert g["champ"]["pl"] == round(exp_c["total_pnl"], 2)
     con = sqlite3.connect(ROOT / "data" / "training.db")
     con.row_factory = sqlite3.Row
     duel = None
@@ -423,6 +625,11 @@ def test_gate_chip_promoted_challenger_reads_promoted(monkeypatch):
     snap["runs"][0]["promoted"] = True  # the duel winner took the crown
     monkeypatch.setattr(compact.snapshot, "build_training_snapshot",
                         lambda: snap)
+    # The duel is read from the full registry (2026-11-06), so the
+    # fabricated world stubs the registry read too — the same
+    # pattern as test_gate_duel_won_is_derived_from_its_own_windows.
+    monkeypatch.setattr(compact, "_all_runs_desc",
+                        lambda: snap["runs"])
     g = compact.build_gate()
     assert g["duel"]["fpass"] == 1
     assert g["duel"]["pass"] == 1
@@ -519,15 +726,22 @@ def test_training_feed_flags_prefix_and_declined_runs():
     assert t["dec"] == expect_dec
     # Today's pinned truth: the trophy pair (Stacker v4 run 10,
     # PPO v5 run 15) is pre-fix; the migration pair, the champions,
-    # and every later run are not. Declined is exactly 61/63/67/78
-    # (78 declined 2026-10-29 on Muse's pick under Kass's delegation).
+    # and every later run are not. Declined is exactly
+    # 61/63/67/78/137 (78 declined 2026-10-29 on Muse's pick
+    # under Kass's delegation; 137 declined 2026-11-16 by Muse
+    # under the standing crowning delegation -- it won its exam
+    # by ~2 candles with materially weaker precision/WF anatomy;
+    # the pin went stale when the ruling landed and is corrected
+    # here, verified against the registry's recorded decisions
+    # by the independent derivation asserted just above).
     assert 10 in t["pfx"] and 15 in t["pfx"]
     for rid in (16, 17, 40, 44, 61, 63, 64, 67, 68):
         assert rid not in t["pfx"], f"run {rid} wrongly flagged pre-fix"
-    assert t["dec"] == [61, 63, 67, 78]
+    assert t["dec"] == [61, 63, 67, 78, 137]
     # Every flagged id is a real models-index row the artifact can
     # join the marker onto.
-    ids = {row[0] for row in t["models"]}
+    ids = {row[0] for page in compact.build_models_pages()
+           for row in page["rows"]}
     assert set(t["pfx"]) <= ids and set(t["dec"]) <= ids
 
 
@@ -535,21 +749,32 @@ def _assert_bounded_preview(feed_text, full_text, cap, label):
     """A compact-feed preview of `full_text`: either the full text, or
     a verbatim prefix that ends at a word/clause boundary -- the very
     next stored character must be a space or a clause delimiter, so
-    the preview can never end mid-word or mid-number."""
+    the preview can never end mid-word or mid-number -- PLUS a
+    trailing "…" marking the trim (2026-11-03: a bounded cut with
+    no marker still reads as a mid-clause cut, e.g. the note
+    preview ending "'Arm trailing at 2%"). A trimmed preview may
+    exceed its cap by the ellipsis alone (one character)."""
     assert feed_text, f"{label}: preview is empty"
     if feed_text == full_text:
         return
-    assert len(feed_text) <= cap, (
+    assert feed_text.endswith("…"), (
+        f"{label}: trimmed preview carries no ellipsis marker: "
+        f"...{feed_text[-25:]!r}")
+    core = feed_text[:-1]
+    assert len(core) <= cap, (
         f"{label}: preview exceeds its {cap}-char cap: "
-        f"{len(feed_text)} chars")
-    assert full_text.startswith(feed_text), (
+        f"{len(core)} chars before the ellipsis")
+    assert len(feed_text) <= cap + 1, (
+        f"{label}: preview exceeds its cap by more than the "
+        f"ellipsis: {len(feed_text)} chars vs cap {cap}")
+    assert full_text.startswith(core), (
         f"{label}: preview is not a verbatim prefix of the stored "
         f"text: {feed_text!r}")
-    nxt = full_text[len(feed_text)]
+    nxt = full_text[len(core)]
     assert nxt in " ;—", (
-        f"{label}: preview cuts mid-word at char {len(feed_text)}: "
-        f"...{feed_text[-25:]!r} | next stored: "
-        f"{full_text[len(feed_text):len(feed_text) + 25]!r}")
+        f"{label}: preview cuts mid-word at char {len(core)}: "
+        f"...{core[-25:]!r} | next stored: "
+        f"{full_text[len(core):len(core) + 25]!r}")
 
 
 def test_training_feed_text_never_truncates_mid_word():
@@ -590,14 +815,37 @@ def test_training_feed_text_never_truncates_mid_word():
         _assert_bounded_preview(note["d"], str(full["detail"]), 90,
                                 f"note {full['title']!r} detail")
         checked["notes"] += 1
-    # The current registry really exercises all three previews --
-    # a silent no-op test would be worthless.
-    assert checked["why"] >= 4 and checked["cfg"] >= 3
-    assert checked["notes"] == 4
-    # Today's pinned offenders must be gone entirely.
+    # The current registry really exercises the previews --
+    # a silent no-op test would be worthless. why/notes are always
+    # present in the detail window, so their guards stay hard. cfg
+    # only exists on lab-family runs: the 2026-11-01 detail window
+    # (runs 90-95, all plain v5.1) carries none, which tripped the
+    # old >=3 guard without any truncation present. The cfg guard is
+    # therefore data-aware: every cfg-bearing run in the window must
+    # have been checked, and a cfg-free window must emit no cfg key
+    # at all (the vacuous case becomes a real assertion).
+    cfg_in_window = 0
+    for run in t["runs"]:
+        m = registry[run["i"]].get("metrics") or {}
+        fam = m.get("family")
+        sub = (m.get(fam) or {}) if fam else {}
+        if isinstance(sub.get("design"), str) and sub["design"]:
+            cfg_in_window += 1
+    assert checked["why"] >= 4
+    assert checked["cfg"] == cfg_in_window
+    if cfg_in_window == 0:
+        assert all("cfg" not in run for run in t["runs"])
+    assert checked["notes"] == 3
+    # Today's pinned offenders must be gone entirely. The
+    # "exam acc 0.5" pin is scoped to its field-final shape (closing
+    # quote): since 2026-11-03 the feed ships complete note texts as
+    # "full", and the run-110 crowning note legitimately contains
+    # "exam acc 0.5341" -- the offender is the number sliced at a
+    # field's end, not the digits inside a complete sentence. Every
+    # preview is still guarded field-by-field above.
     blob = json.dumps(t, ensure_ascii=False)
     for frag in ("frame; BU", "sub-cha", "deterministic swi",
-                 "exam acc 0.5", "champion -\""):
+                 "exam acc 0.5\"", "champion -\""):
         assert frag not in blob, f"mid-word fragment still in feed: {frag!r}"
 
 
@@ -622,52 +870,142 @@ def test_clause_bounded_word_fallback_trims_at_word_boundary():
         "title — subtitle; the complete first clause rides whole"
 
 
+def test_training_trimmed_previews_end_with_ellipsis(monkeypatch):
+    """2026-11-03 defect: Training Lab previews cut with NO ellipsis
+    -- the trailing-stop lab note arrived as "...options tap 'Arm
+    trailing at 2%", a complete word but a sentence cut in half, so
+    it read as a mid-clause truncation. Every ACTUAL trim of a
+    training preview (notes detail cap 90, run why cap 100, run cfg
+    cap 80) must end with "…", the text before it must be a verbatim
+    prefix ending at a word/clause boundary (never mid-word), and
+    the preview may exceed its cap by the ellipsis alone. Text that
+    was NOT trimmed never gains an ellipsis. This test fails on the
+    pre-fix helper, whose bounded trims carried no marker."""
+    # Unit level, all three trim paths of the helper.
+    words = ("alpha beta gamma delta epsilon zeta eta theta iota "
+             "kappa lambda mu nu xi omicron pi rho sigma tau upsilon")
+    out = compact._clause_bounded(words, limit=40, word_fallback=True,
+                                  ellipsis=True)
+    assert out.endswith("…") and len(out) <= 41
+    assert words.startswith(out[:-1]) and words[len(out) - 1] == " "
+    gated = "title — subtitle; the complete first clause rides " \
+            "whole; a much longer second clause follows here"
+    out = compact._clause_bounded(gated, limit=60, word_fallback=True,
+                                  ellipsis=True)
+    assert out == ("title — subtitle; the complete first clause "
+                   "rides whole…")
+    # Untrimmed text is returned exactly, with no marker appended,
+    # and the gate default (no ellipsis flag) is unchanged.
+    assert compact._clause_bounded("short text", limit=40,
+                                   word_fallback=True,
+                                   ellipsis=True) == "short text"
+    assert compact._clause_bounded(words, limit=40,
+                                   word_fallback=True) == \
+        compact._clause_bounded(words, limit=40, word_fallback=True,
+                                ellipsis=True)[:-1]
+
+    # Feed level: every note the current window trims must carry
+    # the marker and verify as a bounded preview of its source.
+    # (The original anchor -- the trailing-stop note -- aged out of
+    # the newest-4 window on 2026-11-04 when the retrain and the
+    # Muse's Next Try notes landed; the invariant, not the note,
+    # is what this section pins. The trailing note itself is pinned
+    # separately below through a synthetic window.)
+    t = compact.build_compact_training()
+    trimmed_notes = 0
+    raw_by_ts = {n["ts"]: n for n in compact._lab_notes_raw()}
+    for note in t["notes"]:
+        full = str(raw_by_ts[note["t"]]["detail"])
+        if len(full) > len(note["d"]):
+            trimmed_notes += 1
+            _assert_bounded_preview(note["d"], full, 90,
+                                    f"note {note['h']!r} detail")
+            assert note["d"].endswith("…")
+    assert trimmed_notes >= 1
+
+    # The exact reported regression string, pinned permanently:
+    # rebuild the notes block with the real trailing-stop note as
+    # the newest entry and require its preview to carry the marker
+    # and its full text to ride along byte-identical.
+    raw_notes = compact._lab_notes_raw()
+    trail_raw = next(n for n in raw_notes
+                     if "trailing-stop" in (n.get("title") or ""))
+    monkeypatch.setattr(compact, "_lab_notes_raw",
+                        lambda: raw_notes[-3:] + [trail_raw])
+    pinned = compact._lab_notes()[0]
+    assert pinned["d"].endswith("…"), (
+        f"note preview lacks ellipsis: {pinned['d']!r}")
+    assert not pinned["d"].endswith("at 2%")
+    assert "options tap 'Arm trailing at 2%" in pinned["d"]
+    assert pinned["full"] == str(trail_raw["detail"])
+    monkeypatch.undo()
+
+    # Run why + cfg through their real builders, on a synthetic run
+    # whose stored reason and design both exceed their caps.
+    long_reason = ("challenger kept the crown because the duel "
+                   "aggregate stayed below the champion across all "
+                   "three windows and the floor was never reached")
+    long_design = ("gate plus direction split with deterministic "
+                   "swing labels on the full scored indicator frame "
+                   "and walk forward folds")
+    assert len(long_reason) > 100 and len(long_design) > 80
+    run = {"id": 9999, "ts": "2026-11-03T00:00:00+00:00",
+           "kind": "stacker", "promoted": False,
+           "metrics": {"challenger_acc": 0.51, "champion_acc": 0.49,
+                       "reason": long_reason, "family": "hierarchy",
+                       "hierarchy": {"design": long_design}}}
+    detail = compact._duel_run(run)
+    _assert_bounded_preview(detail["why"], long_reason, 100,
+                            "synthetic run why")
+    _assert_bounded_preview(detail["cfg"], long_design, 80,
+                            "synthetic run cfg")
+    assert detail["why"].endswith("…")
+    assert detail["cfg"].endswith("…")
+
+
 def test_training_feed_votes_block_matches_stored_champion_votes():
     """Phase 3 (2026-10-31): the votes block must be the reigning
-    stacker champion's STORED holdout votes -- the per-candle
-    probabilities scripts/run_meta_label_study.py generated from
-    models/stacker_champion.pkl (sha-pinned in the study's
-    results.json) on its 792-candle holdout frame and saved to
-    data/meta_label/votes_hold.npy. The block is a histogram +
-    summary of THAT array, recomputed here independently; it must
-    vanish (never go stale) when the champion artifact no longer
-    matches the study's pinned sha."""
-    import hashlib
+    stacker champion's STORED holdout votes, or nothing.
 
-    import numpy as np
+    While run 73 reigned (Champion #4, record predating grading-time
+    vote logging), the block came from the meta-label study array
+    (data/meta_label/votes_hold.npy, sha-pinned in its results.json).
+    Since Kass crowned run 96 as Champion #5 on 2026-11-02 (LAB
+    ONLY), the champion's own record carries a grading-time
+    histogram (nightly vote logging, 2026-10-31), and the block must
+    serve THAT verbatim with src "grading" -- while the study
+    fallback must self-invalidate, because the study's pinned sha
+    describes run 73's artifact, not the current champion's."""
+    import hashlib
+    import sqlite3
 
     t = compact.build_compact_training()
     v = t["votes"]
     assert v is not None, "votes block missing while its source is stored"
-    # Run 73's registry record predates grading-time vote logging,
-    # so its block still comes from the study array.
-    assert v["src"] == "study"
-    study = json.loads(
-        (ROOT / "data" / "meta_label" / "results.json").read_text())
     champ_meta = json.loads(
         (ROOT / "models" / "stacker_champion.json").read_text())
+    rid = champ_meta["run_id"]
+    assert v["run"] == rid
+    assert v["src"] == "grading"
     sha = hashlib.sha256(
         (ROOT / "models" / "stacker_champion.pkl").read_bytes()).hexdigest()
-    # The votes describe the CURRENT champion artifact, or nothing.
-    assert sha == study["frames"]["champion"]["stacker_sha256"]
-    assert v["run"] == champ_meta["run_id"] == \
-        study["frames"]["champion"]["stacker_run"]
     assert v["sha"] == sha[:8]
-    votes = np.load(ROOT / "data" / "meta_label" / "votes_hold.npy")
-    bins, _ = np.histogram(votes, bins=20, range=(0.0, 1.0))
-    assert v["bins"] == [int(x) for x in bins]
-    assert sum(v["bins"]) == v["n"] == len(votes)
-    assert v["min"] == round(float(votes.min()), 4)
-    assert v["max"] == round(float(votes.max()), 4)
-    assert v["med"] == round(float(np.median(votes)), 4)
-    assert v["mid"] == round(
-        100.0 * float(np.mean((votes >= 0.45) & (votes <= 0.55))), 1)
-    assert v["tight"] == round(
-        100.0 * float(np.mean((votes >= 0.48) & (votes <= 0.52))), 1)
-    frames = study["frames"]
-    assert v["n"] == frames["holdout_rows"]
-    assert v["from"] == frames["holdout_first"][:16]
-    assert v["to"] == frames["holdout_last"][:16]
+    # The block is the champion's registry-stored histogram, verbatim.
+    con = sqlite3.connect(ROOT / "data" / "training.db")
+    row = con.execute(
+        "SELECT metrics, ts FROM runs WHERE id=?", (rid,)).fetchone()
+    con.close()
+    stored = json.loads(row[0])["votes"]
+    assert v["bins"] == [int(x) for x in stored["bins"]]
+    assert sum(v["bins"]) == v["n"] == int(stored["n"])
+    for key in ("min", "max", "med"):
+        assert v[key] == round(float(stored[key]), 4)
+    for key in ("mid", "tight"):
+        assert v[key] == round(float(stored[key]), 1)
+    assert v["from"] == v["to"] == row[1][:16]
+    # The study fallback describes run 73's artifact only: with a
+    # different champion installed it must vanish, never go stale.
+    assert compact._study_votes_block() is None
 
 
 def test_training_feed_policy_weights_match_direct_sb3_load():
@@ -775,3 +1113,126 @@ def test_training_feed_votes_block_null_when_champion_has_no_votes(
     _votes_tree(tmp_path, {"challenger_acc": 0.61})
     monkeypatch.setattr(compact, "ROOT", tmp_path)
     assert compact._votes_block() is None
+
+
+# --- 2026-11-17 structural growth tests --------------------------------
+# Kass's order: stop running into size limits. Instead of a
+# sentinel that gets re-baselined every few weeks, these tests
+# prove the bounds at SYNTHETIC scale -- a ~300-run registry and
+# ~2 years of hourly rows -- because every feed section now has
+# a fixed count cap and the plateau is a constant of the caps.
+# Ceilings and bases:
+#   * models page < 4,000B: 40 rows x ~55B + envelope = ~2.3KB
+#     measured; the Training dashboard's largest verified
+#     acceptance is 7,925B, so a page keeps >2x headroom forever
+#     -- the page COUNT grows with the registry, never the page.
+#   * training snapshot <= 12,000B (asserted in the structural
+#     test above): every section count-capped; 8,248B measured
+#     at the 138-run registry.
+#   * curves: _downsample_curve <= 19 points and
+#     _downsample_pairs(cap) <= cap+1 points at ANY input length
+#     (a [19-char ts, value] point costs <= 33B, so one curve is
+#     <= ~1.4KB whether the book is a week or a decade old).
+#   * daily calendar: _feed_calendar caps at 371 entries (53
+#     weeks) -- the section previously grew ~72B/day forever.
+#   * gated veto log: 200 rows (~9.5KB) with full-table counts.
+
+def _synthetic_runs(n=300):
+    """A synthetic registry in _all_runs_desc() shape (newest
+    first): alternating stacker/PPO runs with plausible metrics,
+    a few promoted, spanning the feed-trim id band."""
+    runs = []
+    for rid in range(n, 0, -1):
+        if rid % 2:
+            runs.append({"id": rid, "ts": "2026-11-17T00:00:00",
+                         "kind": "stacker",
+                         "promoted": rid % 37 == 0,
+                         "metrics": {"challenger_acc": 0.5417,
+                                     "challenger": {}}})
+        else:
+            runs.append({"id": rid, "ts": "2026-11-17T00:00:00",
+                         "kind": "ppo",
+                         "promoted": rid % 41 == 0,
+                         "metrics": {"challenger": {
+                             "score": -775.11, "pnl": -1151.94,
+                             "mean_reward": 0.123}}})
+    return runs
+
+
+def test_models_pages_bounded_at_300_run_registry():
+    runs = _synthetic_runs(300)
+    pages = compact.build_models_pages(runs)
+    full, omitted = compact._models_index_feed(runs)
+    # The full kept index, exactly -- pagination is transport,
+    # never a trim (Kass: the full list is the point).
+    assert [row for p in pages for row in p["rows"]] == full
+    assert len(pages) == -(-len(full) // compact.MODELS_PAGE_SIZE)
+    assert len(full) > 250  # the synthetic registry really is big
+    for p in pages:
+        assert p["total"] == len(full) and p["omitted"] == omitted
+        blob = json.dumps(p, separators=(",", ":"))
+        assert len(blob) < 4000, (
+            f"models page {p['page']} too big at 300 runs: "
+            f"{len(blob)}")
+
+
+def test_curves_and_calendar_bounded_at_two_years_of_hourly_rows():
+    # 17,520 hourly points (2 years) through the same transforms
+    # the book / race / master builders apply to a book's equity.
+    pts = [{"t": f"2024-01-{(i // 24) % 28 + 1:02d}T{i % 24:02d}:00:00",
+            "equity": 100000.0 + (i * 37 % 5000) - i * 0.11}
+           for i in range(17520)]
+    curve = compact._downsample_curve(pts)
+    assert len(curve) <= 19
+    assert curve[-1]["equity"] == round(pts[-1]["equity"], 2)
+    pairs = [[p["t"], p["equity"]] for p in pts]
+    assert len(compact._downsample_pairs(pairs)) <= 41
+    assert len(compact._downsample_pairs(pairs, cap=20)) <= 21
+    assert len(compact._downsample_pairs(pairs, cap=24)) <= 25
+    # Two full years of daily-calendar entries (one per day,
+    # forever, before the fix) collapse to the 371-day window.
+    cal = [{"date": f"2024-{(i // 31) % 12 + 1:02d}-{i % 28 + 1:02d}",
+            "pnl": 1.0, "trades": 1, "win_pct": 50.0}
+           for i in range(730)]
+    out = compact._feed_calendar({"daily_calendar": cal})
+    assert len(out) == compact.CALENDAR_FEED_DAYS == 371
+    assert out[-1] == cal[-1] and out[0] == cal[-371]
+
+
+def test_gated_veto_feed_plateau_bounded(tmp_path, monkeypatch):
+    """250 recorded gate decisions (the forward test accrues
+    ~18/week, so this is ~3 months of evidence) must ship as a
+    200-row window with the FULL counts intact."""
+    db = tmp_path / "paper_gated.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE gate_decisions (id INTEGER PRIMARY"
+                " KEY, ts TEXT, side INTEGER, action INTEGER,"
+                " proba REAL, threshold REAL, verdict TEXT)")
+    for i in range(250):
+        con.execute(
+            "INSERT INTO gate_decisions VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (i + 1, "2026-11-17T13:00:00", -1, 3, 0.4681, 0.55,
+             "VETOED" if i % 3 else "TAKEN"))
+    con.commit()
+    con.close()
+    monkeypatch.setattr(compact, "GATED_DB", db)
+    v = compact.build_gated_veto()
+    assert v["total"] == 250 and v["shown"] == 200
+    assert len(v["rows"]) == 200
+    assert v["taken"] + v["vetoed"] == 250
+    blob = json.dumps(v, separators=(",", ":"))
+    assert len(blob) < 12000, f"gated veto plateau too big: {len(blob)}"
+
+
+def test_champ_lineage_feed_capped():
+    """The crown lineage grows one era per crowning (~119B/era);
+    the feed ships the newest 24 eras plus the true total."""
+    man = {"lineage": [{"era": i, "pinned_at": "2026-11-13T02:37:51Z",
+                        "driver_run": 112, "eyes_run": 126,
+                        "eyes_champion": "#13"} for i in range(1, 31)],
+           "grading_record": {}, "eyes": {}, "driver": {}}
+    block = compact._champ_crown_block(man)
+    assert len(block["lineage"]) == 24
+    assert block["lineage_total"] == 30
+    assert block["era"] == 30
+    assert block["lineage"][0]["era"] == 7

@@ -343,7 +343,7 @@ class PaperBroker:
     STOP_ATR_MULT = 2.0
     STOP_MIN_PCT = 0.025
     STOP_MAX_PCT = 0.08
-    TRAIL_ACTIVATE_PCT = 0.03
+    TRAIL_ACTIVATE_PCT = 0.02  # Kass directive 2026-11-02: arm trailing at 2% (was 3%) to lock in smaller favorable moves
     TRAIL_ATR_MULT = 1.5
     TRAIL_MIN_PCT = 0.02
     TRAIL_MAX_PCT = 0.06

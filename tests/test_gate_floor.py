@@ -151,6 +151,11 @@ def test_gate_feed_shows_not_promoted_for_floor_blocked_run(monkeypatch):
     }
     monkeypatch.setattr(compact.snapshot, "build_training_snapshot",
                         lambda: snap)
+    # The duel is read from the full registry (2026-11-06), so the
+    # fabricated world stubs the registry read too — the same
+    # pattern as the gate tests in test_compact_feeds.py.
+    monkeypatch.setattr(compact, "_all_runs_desc",
+                        lambda: snap["runs"])
     g = compact.build_gate()
     assert g["chall"]["i"] == 28
     assert g["duel"]["fpass"] == 1  # formula really did pass
