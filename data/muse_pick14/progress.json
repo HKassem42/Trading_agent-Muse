@@ -1,0 +1,9 @@
+{
+ "done": [
+  "setup",
+  "fit_seeds",
+  "committee",
+  "wf",
+  "register"
+ ]
+}

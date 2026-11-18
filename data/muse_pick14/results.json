@@ -1,0 +1,74 @@
+{
+ "pick": {
+  "acc": 0.5378787878787878,
+  "precision": 0.5297157622739018,
+  "up_calls": 387
+ },
+ "wf": {
+  "fold_accs": [
+   0.5202979515828677,
+   0.5173184357541899,
+   0.531098696461825,
+   0.536685288640596,
+   0.5195530726256983
+  ],
+  "fold_majorities": [
+   0.503538175046555,
+   0.5057728119180633,
+   0.503538175046555,
+   0.5027932960893855,
+   0.5039106145251396
+  ],
+  "wf_acc": 0.5249906890130355,
+  "wf_majority": 0.5039106145251396,
+  "wf_precision_pooled": 0.5289689034369885
+ },
+ "pending": false,
+ "meta": {
+  "guard_before": {
+   "lab_ppo": "1ecab703f0ea79834e2c70bf4222a01775acd4189d70650ca60abe9c354d80c9",
+   "lab_stacker": "a7389a277af32489e668d3cf1b1eb2411bbbc173c7dcd1fa1a9265dd442fbf7e",
+   "lab_stacker_meta": "bae2655443b4754adaa492e750e1b3ec3d7b8b9a0792aa817dfc3e4fcd9c2ad3",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "63476e31f74445959de4718e5d69a71c0dae496b5c68a3d95c2cdacde498e861",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "champ_stacker": "a7389a277af32489e668d3cf1b1eb2411bbbc173c7dcd1fa1a9265dd442fbf7e",
+   "champ_ppo": "1ecab703f0ea79834e2c70bf4222a01775acd4189d70650ca60abe9c354d80c9",
+   "run73_artifact": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  },
+  "split": 16258,
+  "exam_majority": 0.5088383838383839,
+  "holdout_start": "2026-10-03 19:00:00",
+  "rows_sup": 17050,
+  "pick11_acc": 0.5340909090909091,
+  "pick11_rescore": {
+   "acc": 0.5340909090909091,
+   "precision": 0.5260416666666666,
+   "up_calls": 384
+  },
+  "champ126_rescore": {
+   "acc": 0.5580808080808081,
+   "precision": 0.5514511873350924,
+   "up_calls": 379
+  },
+  "champ123_rescore": {
+   "acc": 0.5517676767676768,
+   "precision": 0.544973544973545,
+   "up_calls": 378
+  },
+  "champ123_rescore_source": "pick13 recorded re-score (artifact pruned by archive retention)"
+ },
+ "run_id": 141,
+ "note_appended": true,
+ "seed_accs": {
+  "42": 0.5340909090909091,
+  "7": 0.5391414141414141,
+  "123": 0.5303030303030303,
+  "2024": 0.5315656565656566,
+  "555": 0.5290404040404041,
+  "9001": 0.5252525252525253,
+  "31337": 0.5353535353535354
+ }
+}

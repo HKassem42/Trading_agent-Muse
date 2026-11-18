@@ -155,7 +155,7 @@ Row = [i, d, n, f, p, s, pl, v]:
   28=muse_pick8, 29=muse_pick9,
   30=muse_pick10,
   31=muse_pick11,
-  32=muse_pick12, 33=muse_pick13),
+  32=muse_pick12, 33=muse_pick13, 34=muse_pick14),
   p=promoted (0/1), s=headline
   (PPO-family: duel aggregate score; stacker: holdout accuracy),
   pl=duel holdout P&L in whole dollars (null for the stacker; exact
@@ -1210,7 +1210,8 @@ _FAMILY_CODES = {"ppo": 0, "stacker": 1, "ha_seq": 2, "gbm_focus": 3,
                  "muse_pick10": 30,
                  "muse_pick11": 31,
                  "muse_pick12": 32,
-                 "muse_pick13": 33}
+                 "muse_pick13": 33,
+                 "muse_pick14": 34}
 _GBM_ARM_LABELS = {"A": "Plain", "B": "Class-Weighted", "C": "SMOTE",
                    "D": "All-60 Features"}
 _GBM_LAG_ARM_LABELS = {"E": "Lag Class-Weighted", "F": "Lag SMOTE",
@@ -1345,7 +1346,7 @@ def _display_name(r: dict, version: str | None) -> str:
                "muse_pick7", "muse_pick8",
                "muse_pick9", "muse_pick10",
                "muse_pick11", "muse_pick12",
-               "muse_pick13"):
+               "muse_pick13", "muse_pick14"):
         # Kass's 2026-11-04 order ("Name the 3 models you did,
         # Muse's Pick #4 #5 #6"): three stacker challengers, each
         # labeled by its study label (e.g. "Stacker — Three
@@ -1428,7 +1429,7 @@ def _model_entry(r: dict, name: str) -> list:
                                           "muse_pick7", "muse_pick8",
                                           "muse_pick9", "muse_pick10",
                                           "muse_pick11", "muse_pick12",
-                                          "muse_pick13")
+                                          "muse_pick13", "muse_pick14")
                      else fam)
     if headline_kind == "stacker":
         acc = m.get("challenger_acc")
@@ -1493,7 +1494,7 @@ def _model_entry(r: dict, name: str) -> list:
     elif fam in ("muse_pick4", "muse_pick5", "muse_pick6",
                  "muse_pick7", "muse_pick8", "muse_pick9",
                  "muse_pick10", "muse_pick11", "muse_pick12",
-                 "muse_pick13"):
+                 "muse_pick13", "muse_pick14"):
         verdict = (m.get(fam) or {}).get("verdict")
     return [r["id"], r["ts"][5:10], name, _FAMILY_CODES[fam],
             int(r["promoted"]), headline, pnl, verdict]

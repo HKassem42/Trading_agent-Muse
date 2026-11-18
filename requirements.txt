@@ -6,6 +6,8 @@ yfinance
 joblib
 pyyaml
 sqlalchemy
+# L2 order-book collector (2026-11-18)
+websockets
 # RL (phase 2)
 torch
 gymnasium

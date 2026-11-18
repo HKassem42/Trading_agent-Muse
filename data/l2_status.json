@@ -1,0 +1,13 @@
+{
+ "connected": true,
+ "has_snapshot": true,
+ "book_live": true,
+ "last_ws_message_ts": 1794984371.243275,
+ "last_minute_written": 1794984300,
+ "bid_levels": 13857,
+ "ask_levels": 24370,
+ "reconnect_count": 0,
+ "last_error": null,
+ "started_ts": 1794983491.0940678,
+ "updated_ts": 1794984371.3286703
+}
