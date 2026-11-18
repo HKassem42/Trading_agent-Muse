@@ -1,0 +1,385 @@
+{
+ "frames": {
+  "rows_sup": 17047,
+  "split": 16255,
+  "boundary": "2026-09-27 16:00:00",
+  "frame_stats": {
+   "n_buckets_seen": 4380,
+   "n_kept": 4376,
+   "n_dropped_partial": 4,
+   "end_gap_hours": [
+    12.0
+   ],
+   "n_gaps": 2
+  },
+  "n_buckets": 4376,
+  "train_rows": 3019,
+  "fit_rows": 2995,
+  "holdout_rows": 198,
+  "train_first_end": "2025-05-12 00:00:00",
+  "train_last_end": "2026-09-27 16:00:00",
+  "label_counts_train_rows": {
+   "DOWN": 1188,
+   "CHOP": 698,
+   "UP": 1133
+  },
+  "fit_base_rate": {
+   "DOWN": 0.393322203672788,
+   "CHOP": 0.2283806343906511,
+   "UP": 0.37829716193656093
+  },
+  "pick2_evidence": {
+   "champion_p0": 4639,
+   "pick2_p0": 4639,
+   "scored_positions": 12871,
+   "raw_warmup_last_bad": {
+    "hurst_rs_100_raw": 98,
+    "ret_skew_100_raw": 99,
+    "ret_kurt_100_raw": 99,
+    "ret_acf1_100_raw": 100
+   }
+  },
+  "guard_before": {
+   "live_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "live_seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "live_seat_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "shadow_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "gated_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_gate_model": "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a",
+   "gated_seat_manifest": "be580f9fb3c08d1c9febd7b688ec2a2b33d723eaa5f870515cf483641f039829",
+   "lab_ppo_champion": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker_champion": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "live_state": "c718fb873ee1454ae0ba2d2eee91bc1582cf51dc53704c37cd19b4e148fe18c6",
+   "live_state_shadow": "46b30b63e49a6fcb95d9b93ae2de7c920b774224bbd32eb836adba8f9a42462e",
+   "live_state_gated": "1c0ce5930ff087387845636e54354233fc8058858fcbde552549d53a5a5b36b5",
+   "paper_db_info_only": "560b17b698dd0e6f4190ed08c8160d17d89d078fe71366021f56b9059f2611e5",
+   "paper_shadow_db_info_only": "ff82fc427d53ec870b09eb46bb952a55bd9236da985a4bc2f46f0c66c89f1932",
+   "paper_gated_db_info_only": "d4ab69f86b65c3e733fd0cfdf5fa7830496ccca0001fff20a2c40b6a658ece5c"
+  },
+  "seconds": 10.1
+ },
+ "oof": {
+  "table": {
+   "stacker": {
+    "balanced_accuracy": 0.3282792995533437,
+    "macro_auc": 0.47627780007918386,
+    "accuracy": 0.31636060100166946,
+    "per_class_recall": {
+     "0": 0.10243407707910751,
+     "1": 0.3530571992110454,
+     "2": 0.5293466223698782
+    },
+    "pred_counts": {
+     "0": 295,
+     "1": 779,
+     "2": 1322
+    },
+    "base_counts": {
+     "0": 986,
+     "1": 507,
+     "2": 903
+    },
+    "n_oof": 2396
+   },
+   "lgbm": {
+    "balanced_accuracy": 0.32893799565667253,
+    "macro_auc": 0.48870411512447015,
+    "accuracy": 0.36894824707846413,
+    "per_class_recall": {
+     "0": 0.3286004056795132,
+     "1": 0.08678500986193294,
+     "2": 0.5714285714285714
+    },
+    "pred_counts": {
+     "0": 797,
+     "1": 239,
+     "2": 1360
+    },
+    "base_counts": {
+     "0": 986,
+     "1": 507,
+     "2": 903
+    },
+    "n_oof": 2396
+   }
+  },
+  "selected": "lgbm"
+ },
+ "walkforward": {
+  "folds": [
+   {
+    "fold": 0,
+    "first_end": "2025-08-20 16:00:00",
+    "last_end": "2025-11-29 12:00:00",
+    "n_buckets": 604,
+    "fit_rows": 580,
+    "pred_counts": {
+     "DOWN": 73,
+     "CHOP": 42,
+     "UP": 489
+    },
+    "pnl": -15839.40994082595,
+    "max_drawdown": 21075.415792550368,
+    "score": -26377.117837101134,
+    "trades": 171,
+    "fees": 7897.783802027917,
+    "round_trips": 59,
+    "time_in_position": 0.8770695364238411,
+    "bench_pnl": -20207.787665055323,
+    "resum_diff": 1.4551915228366852e-10
+   },
+   {
+    "fold": 1,
+    "first_end": "2025-11-29 16:00:00",
+    "last_end": "2026-03-10 04:00:00",
+    "n_buckets": 604,
+    "fit_rows": 1184,
+    "pred_counts": {
+     "DOWN": 135,
+     "CHOP": 25,
+     "UP": 444
+    },
+    "pnl": -15967.646552166043,
+    "max_drawdown": 19227.532090901877,
+    "score": -25581.41259761698,
+    "trades": 203,
+    "fees": 9297.028045174115,
+    "round_trips": 71,
+    "time_in_position": 0.8795529801324503,
+    "bench_pnl": -23449.026209787226,
+    "resum_diff": 5.820766091346741e-11
+   },
+   {
+    "fold": 2,
+    "first_end": "2026-03-10 08:00:00",
+    "last_end": "2026-06-19 04:00:00",
+    "n_buckets": 604,
+    "fit_rows": 1788,
+    "pred_counts": {
+     "DOWN": 340,
+     "CHOP": 47,
+     "UP": 217
+    },
+    "pnl": -6638.511012184885,
+    "max_drawdown": 11914.6788607278,
+    "score": -12595.850442548784,
+    "trades": 216,
+    "fees": 10392.534798180952,
+    "round_trips": 75,
+    "time_in_position": 0.8456125827814569,
+    "bench_pnl": -9690.662612339207,
+    "resum_diff": 0.0
+   },
+   {
+    "fold": 3,
+    "first_end": "2026-06-19 08:00:00",
+    "last_end": "2026-09-27 16:00:00",
+    "n_buckets": 603,
+    "fit_rows": 2392,
+    "pred_counts": {
+     "DOWN": 273,
+     "CHOP": 100,
+     "UP": 230
+    },
+    "pnl": -12023.375291474396,
+    "max_drawdown": 15318.30520809062,
+    "score": -19682.527895519706,
+    "trades": 239,
+    "fees": 10544.943297351563,
+    "round_trips": 90,
+    "time_in_position": 0.7661691542288557,
+    "bench_pnl": 34683.69789327561,
+    "resum_diff": 1.1641532182693481e-10
+   }
+  ],
+  "totals": {
+   "pnl": -50468.942796651274,
+   "max_drawdown": 21075.415792550368,
+   "score": -61006.65069292646,
+   "trades": 829,
+   "fees": 38132.28994273455,
+   "round_trips": 295,
+   "time_in_position": 0.8421325051759835,
+   "bench_pnl": -18663.778593906143
+  },
+  "selected": "lgbm",
+  "burn_in_rows": 604
+ },
+ "duel": {
+  "champion": {
+   "score": -210.1721831509761,
+   "total_pnl": -305.27848778398766,
+   "mean_reward": -1.2702037316331387,
+   "max_drawdown": 266.3998000261781,
+   "mean_drawdown": 35.965103722300654,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.633,
+    "buy": 0.0,
+    "sell": 0.354,
+    "short": 0.013
+   },
+   "windows": [
+    {
+     "score": 85.4,
+     "pnl": 207.96,
+     "bench": -4086.01,
+     "dd": 245.12,
+     "mdd": 27.41,
+     "mr": -1.179,
+     "episodes": 10
+    },
+    {
+     "score": -208.44,
+     "pnl": -138.96,
+     "bench": 1174.86,
+     "dd": 138.96,
+     "mdd": 13.9,
+     "mr": -1.394,
+     "episodes": 10
+    },
+    {
+     "score": -507.48,
+     "pnl": -374.28,
+     "bench": -5548.69,
+     "dd": 266.4,
+     "mdd": 66.59,
+     "mr": -1.237,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -1510.7837644461324,
+   "total_pnl": -547.2164461038774,
+   "mean_reward": 0.0,
+   "max_drawdown": 3800.069897073932,
+   "mean_drawdown": 2656.7565648230134,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 1.0,
+   "action_mix": {
+    "hold": 0.561,
+    "buy": 0.258,
+    "sell": 0.091,
+    "short": 0.091
+   },
+   "windows": [
+    {
+     "score": 2704.76,
+     "pnl": 3279.05,
+     "bench": -4086.01,
+     "dd": 1148.6,
+     "mdd": 1148.6,
+     "mr": 0.0,
+     "episodes": 10
+    },
+    {
+     "score": -5700.1,
+     "pnl": -3800.07,
+     "bench": 1174.86,
+     "dd": 3800.07,
+     "mdd": 3800.07,
+     "mr": 0.0,
+     "episodes": 10
+    },
+    {
+     "score": -1537.0,
+     "pnl": -26.2,
+     "bench": -5548.69,
+     "dd": 3021.6,
+     "mdd": 3021.6,
+     "mr": 0.0,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "wins": 1,
+  "formula_pass": false,
+  "floor_fail": null,
+  "promotable": false,
+  "windows_detail": [
+   {
+    "score": 2704.755406332697,
+    "pnl": 3279.053332352487,
+    "max_drawdown": 1148.5958520395798,
+    "bench_pnl": -4086.011161652525,
+    "trades": 31,
+    "fees": 1466.2500980447433,
+    "round_trips": 11,
+    "time_in_position": 0.6666666666666666,
+    "action_mix": {
+     "hold": 0.5151515151515151,
+     "buy": 0.21212121212121213,
+     "sell": 0.045454545454545456,
+     "short": 0.22727272727272727
+    },
+    "resum_diff": 0.0
+   },
+   {
+    "score": -5700.104845610898,
+    "pnl": -3800.069897073932,
+    "max_drawdown": 3800.069897073932,
+    "bench_pnl": 1174.8577232832513,
+    "trades": 30,
+    "fees": 1329.2574548336577,
+    "round_trips": 11,
+    "time_in_position": 0.8257575757575758,
+    "action_mix": {
+     "hold": 0.5454545454545454,
+     "buy": 0.25757575757575757,
+     "sell": 0.10606060606060606,
+     "short": 0.09090909090909091
+    },
+    "resum_diff": 2.9103830456733704e-11
+   },
+   {
+    "score": -1537.001854060196,
+    "pnl": -26.199881382432068,
+    "max_drawdown": 3021.6039453555277,
+    "bench_pnl": -5548.686751903342,
+    "trades": 30,
+    "fees": 1359.17413523153,
+    "round_trips": 11,
+    "time_in_position": 0.7386363636363636,
+    "action_mix": {
+     "hold": 0.5606060606060606,
+     "buy": 0.25757575757575757,
+     "sell": 0.09090909090909091,
+     "short": 0.09090909090909091
+    },
+    "resum_diff": 2.9103830456733704e-11
+   }
+  ],
+  "imp_share": {
+   "block_a": 0.3436296296296296,
+   "block_b": 0.6563703703703704
+  },
+  "holdout_pred_counts": {
+   "DOWN": 85,
+   "CHOP": 31,
+   "UP": 82
+  },
+  "champ_pin": {
+   "agg": -210.17,
+   "pnl": -305.28,
+   "reproduced": true
+  },
+  "seconds": 32.6
+ },
+ "registered": {
+  "run_id": 86,
+  "verdict": "FAIL",
+  "reason": "Regime-Swing System: champion kept \u2014 walk-forward P&L -50,469 over 4 folds (B&H -18,664, 829 trades, fees $38132); holdout duel aggregate -1511 vs champion -210, won 1/3 windows, P&L -547 vs champion -305 (buy-and-hold -8,460); eyes OOF balanced acc 0.329 (lgbm arm) \u2014 failed system attempt",
+  "guard_after_ok": true
+ }
+}

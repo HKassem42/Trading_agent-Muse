@@ -1,0 +1,14 @@
+# Backup-branch ignore rules (mirror rsync-excludes.txt).
+# NOTE: this intentionally REPLACES the project's own .gitignore on this
+# branch only -- the project version excludes data/ and models/, which is
+# exactly what this backup exists to keep. main keeps the project version.
+.venv/
+__pycache__/
+.pytest_cache/
+.run_tmp/
+*.log
+data/cache/
+data/timeseries_matrix/
+*.muse-github-snapshot-sync.json
+data/train_tmp_*
+data/**/train_tmp_*

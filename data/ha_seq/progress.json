@@ -1,0 +1,12 @@
+{
+ "done": [
+  "duel",
+  "features",
+  "grade_main",
+  "register",
+  "setup",
+  "train_main",
+  "train_mid",
+  "verify"
+ ]
+}

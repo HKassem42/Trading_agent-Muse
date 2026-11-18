@@ -1,0 +1,497 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17054,
+  "split": 16262,
+  "holdout_start": "2026-09-23 23:00:00",
+  "hold_start_pos": 16718,
+  "data_first": "2024-10-26 23:00:00",
+  "data_last": "2026-10-26 22:00:00",
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "c0373d1536b20da8352ec7fc387fc97bd5da153e0c8db2de578f09e4f563a100",
+   "lab_stacker_meta": "52a93161303a9b16e32296ff5473edf8c5ef1144d69ac1b1881274e1a235f282",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "c0373d1536b20da8352ec7fc387fc97bd5da153e0c8db2de578f09e4f563a100",
+   "shadow_stacker_meta": "52a93161303a9b16e32296ff5473edf8c5ef1144d69ac1b1881274e1a235f282",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "d8614ead9adbdaf0113294c0938c3f4209a08bd1525004a8884650a64d1ebee7",
+   "paper_shadow_db_info_only": "06b3a4c88620e7c68ff5788805a3790ca782336d4892ad5f9f20459dd666c5f6"
+  },
+  "state_size": 98,
+  "n_scored": 94
+ },
+ "frames": {
+  "train_rows": 12086,
+  "dropped_warmup_train_rows": 4176,
+  "holdout_rows": 792,
+  "causality_truncation": {
+   "9000": {
+    "score_master": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4369
+    },
+    "Relative Strength Index (RSI)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4369
+    },
+    "Distance to SMA 50 (%)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4369
+    },
+    "__votes__": {
+     "max_abs_diff": 1.1102230246251565e-16,
+     "rows": 200
+    }
+   },
+   "17018": {
+    "score_master": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12387
+    },
+    "Relative Strength Index (RSI)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12387
+    },
+    "Distance to SMA 50 (%)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12387
+    },
+    "__votes__": {
+     "max_abs_diff": 1.1102230246251565e-16,
+     "rows": 200
+    }
+   }
+  },
+  "train_first": "2025-05-07 23:00:00",
+  "train_last": "2026-09-23 22:00:00"
+ },
+ "stacker": {
+  "acc": 0.5265151515151515,
+  "precision": 0.5167464114832536,
+  "up_calls": 418,
+  "p_up_max": 0.5244493675032932,
+  "p_up_mean": 0.4999877737084458,
+  "wf_acc": 0.5021847070506456,
+  "wf_precision": 0.500419523113745,
+  "folds": 5,
+  "train_rows": 12086,
+  "champion_acc": 0.49747474747474746,
+  "champion_precision": 0.48672566371681414,
+  "champion_up_calls": 339,
+  "champion_p_up_max": 0.5277155943091122,
+  "win": true,
+  "degenerate": false,
+  "base_learner_holdout_acc": {
+   "rf": 0.5176767676767676,
+   "xgb": 0.5340909090909091,
+   "lgbm": 0.523989898989899,
+   "et": 0.5265151515151515
+  },
+  "meta_coef": {
+   "rf": 0.7797368834253535,
+   "xgb": -0.1507801869794869,
+   "lgbm": -0.36213132785225505,
+   "et": 0.974863024547186
+  },
+  "top15": [
+   {
+    "feature": "Stochastic RSI (StochRSI)",
+    "importance": 0.018455532669736298
+   },
+   {
+    "feature": "Distance to $5,000 Round Number (%)",
+    "importance": 0.01564731992058181
+   },
+   {
+    "feature": "Force Index",
+    "importance": 0.015009578063863176
+   },
+   {
+    "feature": "Williams %R",
+    "importance": 0.014763033970192702
+   },
+   {
+    "feature": "Choppiness Index (CHOP)",
+    "importance": 0.0143424323638095
+   },
+   {
+    "feature": "Mass Index (MI)",
+    "importance": 0.013579257336578138
+   },
+   {
+    "feature": "Accumulative Swing Index (ASI)",
+    "importance": 0.013311374482904254
+   },
+   {
+    "feature": "Ultimate Oscillator (UO)",
+    "importance": 0.013184182974128
+   },
+   {
+    "feature": "Parabolic SAR Side (+1/-1)",
+    "importance": 0.013168199521603224
+   },
+   {
+    "feature": "Relative Volatility Index (RVI)",
+    "importance": 0.01316790813083539
+   },
+   {
+    "feature": "Fisher Transform",
+    "importance": 0.01299554391195036
+   },
+   {
+    "feature": "Connors RSI (CRSI)",
+    "importance": 0.01281611602977187
+   },
+   {
+    "feature": "Distance to Fractal Support (%)",
+    "importance": 0.012610254860932351
+   },
+   {
+    "feature": "Klinger Volume Oscillator (KVO)",
+    "importance": 0.01253803725811444
+   },
+   {
+    "feature": "Directional Movement Index (DMI)",
+    "importance": 0.012536075848592832
+   }
+  ]
+ },
+ "votes": {
+  "train_vote_mean": 0.49797375392802873,
+  "train_vote_std": 0.013020005395891049,
+  "train_vote_neutral_share": 0.20006619228859837,
+  "pick_hold_vote_mean": 0.4999877737084458,
+  "pick_hold_vote_std": 0.00908394056416411,
+  "champ_hold_vote_mean": 0.4986388566471585,
+  "champ_hold_vote_std": 0.00847515882331056
+ },
+ "arm": {
+  "challenger_path": "/home/hatch/workspace/trading-agent-muse/data/muse_pick/arm60/ppo_challenger.zip",
+  "timesteps": 60000,
+  "reward_curve": [
+   [
+    240,
+    -0.622
+   ],
+   [
+    2640,
+    -2.132
+   ],
+   [
+    5280,
+    -2.564
+   ],
+   [
+    7920,
+    -1.221
+   ],
+   [
+    10560,
+    -1.909
+   ],
+   [
+    13200,
+    -1.201
+   ],
+   [
+    15840,
+    -1.253
+   ],
+   [
+    18480,
+    -1.42
+   ],
+   [
+    20880,
+    -1.241
+   ],
+   [
+    23520,
+    -1.288
+   ],
+   [
+    26160,
+    -1.268
+   ],
+   [
+    28800,
+    -2.06
+   ],
+   [
+    31440,
+    -1.594
+   ],
+   [
+    34080,
+    -1.406
+   ],
+   [
+    36720,
+    -1.162
+   ],
+   [
+    39360,
+    -1.252
+   ],
+   [
+    41760,
+    -0.829
+   ],
+   [
+    44400,
+    -0.152
+   ],
+   [
+    47040,
+    -1.775
+   ],
+   [
+    49680,
+    -0.745
+   ],
+   [
+    52320,
+    -1.037
+   ],
+   [
+    54960,
+    -0.65
+   ],
+   [
+    57600,
+    -1.183
+   ],
+   [
+    60240,
+    -1.86
+   ]
+  ],
+  "telemetry": {
+   "rollouts": 118,
+   "kl_end": null,
+   "clip_end": 0.0646,
+   "ev_end": 0.2194,
+   "vl_end": 0.4847,
+   "ent_start": 1.3839,
+   "ent_end": 1.0516,
+   "ent_min": 0.971,
+   "ent_curve": [
+    [
+     1024,
+     1.3839
+    ],
+    [
+     3584,
+     1.3078
+    ],
+    [
+     6144,
+     1.2561
+    ],
+    [
+     8704,
+     1.2879
+    ],
+    [
+     11264,
+     1.3129
+    ],
+    [
+     13824,
+     1.242
+    ],
+    [
+     16384,
+     1.1592
+    ],
+    [
+     18944,
+     1.1751
+    ],
+    [
+     21504,
+     1.1638
+    ],
+    [
+     24064,
+     1.1296
+    ],
+    [
+     26624,
+     1.1462
+    ],
+    [
+     29184,
+     1.0952
+    ],
+    [
+     32256,
+     1.0629
+    ],
+    [
+     34816,
+     0.9843
+    ],
+    [
+     37376,
+     1.057
+    ],
+    [
+     39936,
+     1.0591
+    ],
+    [
+     42496,
+     1.0362
+    ],
+    [
+     45056,
+     1.0948
+    ],
+    [
+     47616,
+     1.068
+    ],
+    [
+     50176,
+     1.0496
+    ],
+    [
+     52736,
+     1.0879
+    ],
+    [
+     55296,
+     0.973
+    ],
+    [
+     57856,
+     1.0211
+    ],
+    [
+     60416,
+     1.0516
+    ]
+   ]
+  }
+ },
+ "duel": {
+  "champion": {
+   "score": 14.300248223905024,
+   "total_pnl": 385.4349169511115,
+   "mean_reward": -1.1672046692053824,
+   "max_drawdown": 350.63387545061414,
+   "mean_drawdown": 33.57141702135947,
+   "bench_pnl": -5139.386000051338,
+   "episodes": 30,
+   "round_trips_per_day": 0.10000000000000002,
+   "action_mix": {
+    "hold": 0.579,
+    "buy": 0.0,
+    "sell": 0.412,
+    "short": 0.008
+   },
+   "windows": [
+    {
+     "score": 238.68,
+     "pnl": 361.24,
+     "bench": 2423.24,
+     "dd": 245.12,
+     "mdd": 49.45,
+     "mr": -0.944,
+     "episodes": 10
+    },
+    {
+     "score": -114.46,
+     "pnl": -69.8,
+     "bench": -4790.46,
+     "dd": 89.32,
+     "mdd": 8.93,
+     "mr": -1.367,
+     "episodes": 10
+    },
+    {
+     "score": -81.32,
+     "pnl": 94.0,
+     "bench": -2772.17,
+     "dd": 350.63,
+     "mdd": 42.33,
+     "mr": -1.191,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -1325.9422516500417,
+   "total_pnl": -2025.2060497423372,
+   "mean_reward": -0.7342565883356595,
+   "max_drawdown": 1863.5163318456325,
+   "mean_drawdown": 275.5836868701347,
+   "bench_pnl": -5139.386000051338,
+   "episodes": 30,
+   "round_trips_per_day": 0.7000000000000001,
+   "action_mix": {
+    "hold": 0.412,
+    "buy": 0.113,
+    "sell": 0.433,
+    "short": 0.042
+   },
+   "windows": [
+    {
+     "score": 250.84,
+     "pnl": 614.11,
+     "bench": 2423.24,
+     "dd": 726.54,
+     "mdd": 154.7,
+     "mr": 0.021,
+     "episodes": 10
+    },
+    {
+     "score": -535.42,
+     "pnl": 122.17,
+     "bench": -4790.46,
+     "dd": 1315.18,
+     "mdd": 311.96,
+     "mr": -0.666,
+     "episodes": 10
+    },
+    {
+     "score": -3693.24,
+     "pnl": -2761.48,
+     "bench": -2772.17,
+     "dd": 1863.52,
+     "mdd": 360.09,
+     "mr": -1.558,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "windows_won": 1,
+  "formula_pass": false,
+  "floor_fail": null,
+  "promotable": false
+ },
+ "registered": {
+  "stacker_win": true,
+  "stacker_degenerate": false,
+  "ppo_promotable": false,
+  "guard_after": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "c0373d1536b20da8352ec7fc387fc97bd5da153e0c8db2de578f09e4f563a100",
+   "lab_stacker_meta": "52a93161303a9b16e32296ff5473edf8c5ef1144d69ac1b1881274e1a235f282",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "c0373d1536b20da8352ec7fc387fc97bd5da153e0c8db2de578f09e4f563a100",
+   "shadow_stacker_meta": "52a93161303a9b16e32296ff5473edf8c5ef1144d69ac1b1881274e1a235f282",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "77d8b3c89af46ef1e2846e937e6a6cb17080c0fcc53184797804d755fe1d3a2b",
+   "paper_shadow_db_info_only": "31fc9f61badb60b78f039573cf5f0407ea4f28b1b5f7457efc710e9e996895c7"
+  }
+ }
+}

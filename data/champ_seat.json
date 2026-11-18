@@ -1,0 +1,58 @@
+{
+ "desk": "TradingAgent Live \u2014 Champions (Book #5)",
+ "book": "Book #5",
+ "seat_policy": "follows_the_crown",
+ "driver": {
+  "brain": "PPO",
+  "run_id": 112,
+  "file": "models/champ_seat/ppo.zip",
+  "sha256": "1ecab703f0ea79834e2c70bf4222a01775acd4189d70650ca60abe9c354d80c9",
+  "source": "models/ppo_champion.zip"
+ },
+ "eyes": {
+  "brain": "Stacker",
+  "run_id": 126,
+  "name": "HA Nightly Stacker \u2014 Champion #13",
+  "champion": "Champion #13",
+  "feature_set": "ha10",
+  "n_features": 10,
+  "file": "models/champ_seat/stacker.pkl",
+  "sha256": "a7389a277af32489e668d3cf1b1eb2411bbbc173c7dcd1fa1a9265dd442fbf7e",
+  "meta_file": "models/champ_seat/stacker.json",
+  "meta_sha256": "bae2655443b4754adaa492e750e1b3ec3d7b8b9a0792aa817dfc3e4fcd9c2ad3",
+  "source": "models/stacker_champion.pkl"
+ },
+ "book_db": "data/paper_champ.db",
+ "state_file": "data/live_state_champ.json",
+ "starting_balance": 100000,
+ "started": "2026-11-13T01:00:00",
+ "seeded_by": "Book #5 Champions build (Kass's full-freedom order 2026-11-12: Muse picks everything about this book)",
+ "grading_record": {
+  "driver_run": 112,
+  "driver_duel_score": -291.6177848010072,
+  "driver_duel_pnl": 738.6887428636837,
+  "driver_duel_windows": [
+   133.44,
+   711.12,
+   -1719.42
+  ],
+  "driver_duel_bench_pnl": -10213.844843986464,
+  "driver_reason": "challenger won 3/3 windows, aggregate score -292 vs champion -516 (next-candle fills; buy-and-hold over the same windows: $-10,214) (gate pass incl. two-part floor) \u2014 WOULD PROMOTE: held as PENDING KASS APPROVAL under the promotion lock; champion kept",
+  "eyes_run": 126,
+  "eyes_exam_acc": 0.5580808080808081,
+  "eyes_precision": 0.5435356200527705,
+  "eyes_wf_acc": 0.5241226449944588,
+  "source": "Lab crowning records: the PPO champion's own crowning duel (registry) and the stacker champion's crowning exam (its champion meta). The PAIR has no joint exam; this book IS its forward test."
+ },
+ "lineage": [
+  {
+   "era": 1,
+   "pinned_at": "2026-11-13T02:37:51.524420+00:00",
+   "driver_run": 112,
+   "eyes_run": 126,
+   "eyes_champion": "Champion #13"
+  }
+ ],
+ "pinned": "FOLLOWS THE CROWN: the seat holds pinned byte copies of the sitting lab champions and is re-pinned by Muse at each crowning (Kass delegated crowning to Muse 2026-11-12), carry-over style -- an open position rides through a re-pin. Between crowns the pinned copies are the truth and are hash-verified on every run; a mismatch is a loud failure, never a silent fallback.",
+ "note": "Book #5: Muse's book. The sitting lab champions trade as a pair -- the PPO champion drives, the stacker champion's vote is its eyes -- under the production broker chassis exactly as graded. When a crown changes hands, the new champion takes this seat at the next re-pin and the lineage above grows an era."
+}

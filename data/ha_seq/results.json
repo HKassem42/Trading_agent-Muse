@@ -1,0 +1,295 @@
+{
+ "meta": {
+  "raw_rows": 17510,
+  "sup_rows": 17042,
+  "train_rows": 16250,
+  "holdout_rows": 792,
+  "raw_start": "2024-10-22 11:00:00",
+  "raw_end": "2026-10-22 10:00:00",
+  "sup_start": "2024-11-10 23:00:00",
+  "sup_end": "2026-10-22 10:00:00",
+  "holdout_start": "2026-09-19 11:00:00",
+  "holdout_up_rate": 0.5050505050505051,
+  "train_up_rate": 0.5041230769230769,
+  "checks": {
+   "train_holdout_disjoint": true,
+   "sup_subset_of_raw": true,
+   "first_sup_row_deep_history": true,
+   "holdout_target_present": true
+  },
+  "integrity_start": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075
+  }
+ },
+ "features": {
+  "warmup_nan_rows": 23,
+  "ranges": {
+   "ha_ret": {
+    "min": -0.026334373011171957,
+    "max": 0.03623608219379026
+   },
+   "body_ratio": {
+    "min": -0.903247349052616,
+    "max": 0.8978894196475284
+   },
+   "upper_wick": {
+    "min": 0.0,
+    "max": 0.7195265498299754
+   },
+   "lower_wick": {
+    "min": 0.0,
+    "max": 0.7416732499171831
+   },
+   "range_rel": {
+    "min": 0.0003316011577785281,
+    "max": 0.08334559597380872
+   },
+   "vol_log_rel": {
+    "min": -5.150290811480201,
+    "max": 2.4751823519214646
+   }
+  }
+ },
+ "train_main": {
+  "n_params": 128865,
+  "best_epoch": 3,
+  "best_val_loss": 0.6916747578940629,
+  "epochs_run": 10,
+  "history_tail": [
+   {
+    "epoch": 7,
+    "train_loss": 0.6853077025017559,
+    "val_loss": 0.6969602721902646,
+    "val_acc": 0.5162084530160033,
+    "secs": 5.5
+   },
+   {
+    "epoch": 8,
+    "train_loss": 0.6794754612379379,
+    "val_loss": 0.701211369326235,
+    "val_acc": 0.5100533442757489,
+    "secs": 5.8
+   },
+   {
+    "epoch": 9,
+    "train_loss": 0.6731344856877922,
+    "val_loss": 0.709363964061831,
+    "val_acc": 0.5203118588428396,
+    "secs": 5.7
+   }
+  ],
+  "fit_n": 13813,
+  "val_n": 2437,
+  "fit_rows": [
+   0,
+   13813
+  ],
+  "val_rows": [
+   13813,
+   16250
+  ],
+  "stats_upto": 14281
+ },
+ "grade_main": {
+  "holdout_acc": 0.5189393939393939,
+  "holdout_prec": 0.5163511187607573,
+  "holdout_n": 792,
+  "holdout_up_rate": 0.5050505050505051,
+  "majority_baseline": 0.5050505050505051,
+  "mean_prob": 0.5093106139037344,
+  "prob_std": 0.014235281894022843,
+  "prob_min": 0.4683173596858978,
+  "prob_max": 0.5465184450149536,
+  "frac_above_055": 0.0,
+  "frac_below_045": 0.0
+ },
+ "train_mid": {
+  "n_params": 128865,
+  "best_epoch": 3,
+  "best_val_loss": 0.6924502996453406,
+  "epochs_run": 10,
+  "history_tail": [
+   {
+    "epoch": 7,
+    "train_loss": 0.6883676742577413,
+    "val_loss": 0.6973356087795293,
+    "val_acc": 0.500651890482399,
+    "secs": 3.5
+   },
+   {
+    "epoch": 8,
+    "train_loss": 0.6847170893869717,
+    "val_loss": 0.6957159210215025,
+    "val_acc": 0.5110821382007823,
+    "secs": 3.4
+   },
+   {
+    "epoch": 9,
+    "train_loss": 0.6818389896555883,
+    "val_loss": 0.6967541711426776,
+    "val_acc": 0.5149934810951761,
+    "secs": 3.7
+   }
+  ],
+  "fit_n": 8691,
+  "val_n": 1534,
+  "fit_rows": [
+   0,
+   8691
+  ],
+  "val_rows": [
+   8691,
+   10225
+  ],
+  "stats_upto": 9159,
+  "eval": {
+   "acc": 0.48884976525821594,
+   "prec": 0.48578811369509045,
+   "n": 1704,
+   "up_rate": 0.48532864451408386,
+   "majority_baseline": 0.5146713256835938,
+   "rows": [
+    10225,
+    11929
+   ],
+   "mean_prob": 0.5183107852935791,
+   "prob_std": 0.012764576822519302
+  }
+ },
+ "duel": {
+  "challenger": {
+   "score": 0.0,
+   "total_pnl": 0.0,
+   "mean_reward": -1.3999999999999997,
+   "max_drawdown": 0.0,
+   "bench_pnl": 717.5366148134078,
+   "action_mix": {
+    "hold": 1.0,
+    "buy": 0.0,
+    "sell": 0.0,
+    "short": 0.0
+   },
+   "windows": [
+    {
+     "score": 0.0,
+     "pnl": 0.0,
+     "bench": 3202.97
+    },
+    {
+     "score": 0.0,
+     "pnl": 0.0,
+     "bench": -1148.69
+    },
+    {
+     "score": 0.0,
+     "pnl": 0.0,
+     "bench": -1336.74
+    }
+   ],
+   "runnable": true
+  },
+  "champion": {
+   "score": -2062.9740584568717,
+   "total_pnl": -4484.721588828135,
+   "mean_reward": -1.1504722927067697,
+   "max_drawdown": 1493.4683579237462,
+   "bench_pnl": 717.5366148134078,
+   "action_mix": {
+    "hold": 0.45,
+    "buy": 0.0,
+    "sell": 0.463,
+    "short": 0.087
+   },
+   "windows": [
+    {
+     "score": -2839.16,
+     "pnl": -2339.55,
+     "bench": 3202.97
+    },
+    {
+     "score": -1720.1,
+     "pnl": -973.37,
+     "bench": -1148.69
+    },
+    {
+     "score": -1629.66,
+     "pnl": -1171.81,
+     "bench": -1336.74
+    }
+   ],
+   "runnable": true
+  },
+  "windows_won": 3,
+  "gate_pass": false,
+  "bench_pnl_total": 717.5366148134078,
+  "agg_recomputed": 0.0,
+  "ha_action_mix_by_window": [
+   {
+    "hold": 1.0,
+    "buy": 0.0,
+    "sell": 0.0,
+    "short": 0.0
+   },
+   {
+    "hold": 1.0,
+    "buy": 0.0,
+    "sell": 0.0,
+    "short": 0.0
+   },
+   {
+    "hold": 1.0,
+    "buy": 0.0,
+    "sell": 0.0,
+    "short": 0.0
+   }
+  ],
+  "champ_action_mix_by_window": [
+   {
+    "hold": 0.496,
+    "buy": 0.004,
+    "sell": 0.471,
+    "short": 0.029
+   },
+   {
+    "hold": 0.425,
+    "buy": 0.0,
+    "sell": 0.45,
+    "short": 0.125
+   },
+   {
+    "hold": 0.45,
+    "buy": 0.0,
+    "sell": 0.463,
+    "short": 0.087
+   }
+  ],
+  "gate_pass_formal": true,
+  "vacuous": "Challenger placed ZERO trades: action mix 100% hold in all 3 windows, total P&L $0.00, score 0.0. The formal pass (0 > champion -2062.97, 3/3 windows) is an artifact of score(flat)=0 against a losing champion. Classifier holdout probs never left [0.468, 0.547] (frac >=0.55: 0.0, frac <=0.45: 0.0), so the 0.55/0.45 threshold policy never fired.",
+  "traded": false
+ },
+ "register": {
+  "run_id": 20,
+  "reason": "HA-seq challenger (family=ha_seq): GATE PASS -- won 3/3 windows, aggregate 0 vs champion -2063 (next-candle fills; buy-and-hold over the same windows: $+718); classifier holdout acc 0.5189 on n=792"
+ },
+ "verify": {
+  "mtimes_unchanged": true,
+  "start": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075
+  },
+  "end": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075
+  }
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "done": [
+  "duel_champion",
+  "duel_champion_robust",
+  "duel_gbm4",
+  "duel_rule_master",
+  "register",
+  "setup",
+  "verdicts",
+  "verify",
+  "wf_gbm4",
+  "wf_rule_master",
+  "wf_rule_momentum",
+  "wf_rule_trend",
+  "wf_rule_volume"
+ ]
+}

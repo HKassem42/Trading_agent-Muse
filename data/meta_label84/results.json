@@ -1,0 +1,358 @@
+{
+ "prep": {
+  "train_rows": 12079,
+  "holdout_rows": 792,
+  "holdout_first": "2026-09-27 16:00:00",
+  "holdout_last": "2026-10-30 15:00:00",
+  "model83_sha256": "ddbe2b4870f5464f80ea4fa2bb60386a322cfbc43743cc89b6f8cb4326c744ae",
+  "n_candidates": 640,
+  "n_stream1": 615,
+  "n_stream2": 25,
+  "run83_reference": {
+   "oof_stacker": {
+    "n_oof": 512,
+    "accuracy": 0.544921875,
+    "balanced_accuracy": 0.5275297619047619,
+    "auc": 0.5158420138888888
+   },
+   "g55": {
+    "attempted": 8,
+    "vetoed": 7,
+    "filled": 1,
+    "fills": 1,
+    "fees": 37.5
+   },
+   "g55_score": 38.121700997030224,
+   "g55_total_pnl": 236.92396203627868
+  },
+  "run82_reference": {
+   "champion_score": -210.1721831509761,
+   "champion_total_pnl": -305.27848778398766,
+   "champion_bench_pnl": -8459.840190272616,
+   "g55_score": -36.78939233467099,
+   "g55_total_pnl": 37.31346652020875
+  },
+  "guard_before": {
+   "live_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "live_seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "live_seat_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "shadow_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "gated_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_gate_model": "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a",
+   "gated_seat_manifest": "be580f9fb3c08d1c9febd7b688ec2a2b33d723eaa5f870515cf483641f039829",
+   "lab_ppo_champion": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker_champion": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "live_state": "ae2e44a8a6b82887dec2c1ed82b8b85d0439080810d461c59d278730a0f5afde",
+   "live_state_shadow": "98ea1cadd56e894d4f35f0b9bf3893cff725875ce553d9a5f7130a7ac8966b5c",
+   "live_state_gated": "2d36dd5b625604c070ece463e82843b6f37124d22a328a589a295e759d1d9203",
+   "paper_db_info_only": "f922c40a460964f704366815ae34bfaee9d5035fb1fcee6de1b2acbcfca40d09",
+   "paper_shadow_db_info_only": "a15085cee62fade4143c47fb9f37e08e34978cfd1cbbf158b1805aba4f8e11d4",
+   "paper_gated_db_info_only": "ee56e750e2dd6e531fdff12edf501d483df607a3c0c816d111b6b3c9c046bdd5"
+  }
+ },
+ "calibrate": {
+  "threshold": 0.507079251463199,
+  "quantile": 0.7,
+  "n_calibration": 500,
+  "implied_pass_rate": 0.3,
+  "oof_reproduction": {
+   "n_oof": 512,
+   "balanced_accuracy": 0.5275297619047619,
+   "auc": 0.5158420138888888,
+   "recorded_balanced_accuracy": 0.5275297619047619,
+   "recorded_auc": 0.5158420138888888
+  },
+  "seconds": 30.7
+ },
+ "duel": {
+  "champion": {
+   "score": -210.1721831509761,
+   "total_pnl": -305.27848778398766,
+   "mean_reward": -1.2702037316331387,
+   "max_drawdown": 266.3998000261781,
+   "mean_drawdown": 35.965103722300654,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.633,
+    "buy": 0.0,
+    "sell": 0.354,
+    "short": 0.013
+   },
+   "windows": [
+    {
+     "score": 85.4,
+     "pnl": 207.96,
+     "bench": -4086.01,
+     "dd": 245.12,
+     "mdd": 27.41,
+     "mr": -1.179,
+     "episodes": 10
+    },
+    {
+     "score": -208.44,
+     "pnl": -138.96,
+     "bench": 1174.86,
+     "dd": 138.96,
+     "mdd": 13.9,
+     "mr": -1.394,
+     "episodes": 10
+    },
+    {
+     "score": -507.48,
+     "pnl": -374.28,
+     "bench": -5548.69,
+     "dd": 266.4,
+     "mdd": 66.59,
+     "mr": -1.237,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "champion_gate_stats": {
+   "attempted": 6,
+   "filled": 6,
+   "fills": 7,
+   "fees": 262.3475834673691
+  },
+  "champion_time_in_position": 0.05138888888888889,
+  "repro83": {
+   "agg": {
+    "score": 38.121700997030224,
+    "total_pnl": 236.92396203627868,
+    "mean_reward": -1.3254452086753585,
+    "max_drawdown": 245.117718090376,
+    "mean_drawdown": 8.170590603012533,
+    "bench_pnl": -8459.840190272616,
+    "episodes": 30,
+    "round_trips_per_day": 0.0,
+    "action_mix": {
+     "hold": 0.65,
+     "buy": 0.0,
+     "sell": 0.35,
+     "short": 0.0
+    },
+    "windows": [
+     {
+      "score": 114.37,
+      "pnl": 236.92,
+      "bench": -4086.01,
+      "dd": 245.12,
+      "mdd": 24.51,
+      "mr": -1.176,
+      "episodes": 10
+     },
+     {
+      "score": 0.0,
+      "pnl": 0.0,
+      "bench": 1174.86,
+      "dd": 0.0,
+      "mdd": 0.0,
+      "mr": -1.4,
+      "episodes": 10
+     },
+     {
+      "score": 0.0,
+      "pnl": 0.0,
+      "bench": -5548.69,
+      "dd": 0.0,
+      "mdd": 0.0,
+      "mr": -1.4,
+      "episodes": 10
+     }
+    ],
+    "runnable": true
+   },
+   "wins": 3,
+   "attempted": 8,
+   "vetoed": 7,
+   "filled": 1,
+   "pass_rate": 0.125,
+   "veto_rate": 0.875,
+   "fills": 1,
+   "fees": 37.5,
+   "time_in_position": 0.0125,
+   "gate_by_stream": {
+    "attempts": {
+     "1": 8,
+     "0": 0
+    },
+    "vetoes": {
+     "1": 7,
+     "0": 0
+    }
+   },
+   "resum_total_pnl": 236.92396203627868,
+   "resum_diff": 0.0,
+   "resum_per_window": {
+    "0": 236.92396203627868,
+    "1": 0.0,
+    "2": 0.0
+   }
+  },
+  "primary": {
+   "agg": {
+    "score": -85.6211370136516,
+    "total_pnl": -1.1046519826777512,
+    "mean_reward": -1.266724812462389,
+    "max_drawdown": 266.3998000261781,
+    "mean_drawdown": 25.825975862256985,
+    "bench_pnl": -8459.840190272616,
+    "episodes": 30,
+    "round_trips_per_day": 0.0,
+    "action_mix": {
+     "hold": 0.637,
+     "buy": 0.0,
+     "sell": 0.354,
+     "short": 0.008
+    },
+    "windows": [
+     {
+      "score": 114.37,
+      "pnl": 236.92,
+      "bench": -4086.01,
+      "dd": 245.12,
+      "mdd": 24.51,
+      "mr": -1.176,
+      "episodes": 10
+     },
+     {
+      "score": 0.0,
+      "pnl": 0.0,
+      "bench": 1174.86,
+      "dd": 0.0,
+      "mdd": 0.0,
+      "mr": -1.4,
+      "episodes": 10
+     },
+     {
+      "score": -371.23,
+      "pnl": -238.03,
+      "bench": -5548.69,
+      "dd": 266.4,
+      "mdd": 52.97,
+      "mr": -1.224,
+      "episodes": 10
+     }
+    ],
+    "runnable": true
+   },
+   "wins": 3,
+   "attempted": 6,
+   "vetoed": 3,
+   "filled": 3,
+   "pass_rate": 0.5,
+   "veto_rate": 0.5,
+   "fills": 3,
+   "fees": 112.5,
+   "time_in_position": 0.04583333333333333,
+   "gate_by_stream": {
+    "attempts": {
+     "1": 6,
+     "0": 0
+    },
+    "vetoes": {
+     "1": 3,
+     "0": 0
+    }
+   },
+   "resum_total_pnl": -1.1046519826777512,
+   "resum_diff": 0.0,
+   "resum_per_window": {
+    "0": 236.92396203627868,
+    "1": 0.0,
+    "2": -238.02861401895643
+   }
+  },
+  "secondary": {
+   "agg": {
+    "score": -85.6211370136516,
+    "total_pnl": -1.1046519826777512,
+    "mean_reward": -1.266724812462389,
+    "max_drawdown": 266.3998000261781,
+    "mean_drawdown": 25.825975862256985,
+    "bench_pnl": -8459.840190272616,
+    "episodes": 30,
+    "round_trips_per_day": 0.0,
+    "action_mix": {
+     "hold": 0.637,
+     "buy": 0.0,
+     "sell": 0.354,
+     "short": 0.008
+    },
+    "windows": [
+     {
+      "score": 114.37,
+      "pnl": 236.92,
+      "bench": -4086.01,
+      "dd": 245.12,
+      "mdd": 24.51,
+      "mr": -1.176,
+      "episodes": 10
+     },
+     {
+      "score": 0.0,
+      "pnl": 0.0,
+      "bench": 1174.86,
+      "dd": 0.0,
+      "mdd": 0.0,
+      "mr": -1.4,
+      "episodes": 10
+     },
+     {
+      "score": -371.23,
+      "pnl": -238.03,
+      "bench": -5548.69,
+      "dd": 266.4,
+      "mdd": 52.97,
+      "mr": -1.224,
+      "episodes": 10
+     }
+    ],
+    "runnable": true
+   },
+   "wins": 3,
+   "attempted": 6,
+   "vetoed": 3,
+   "filled": 3,
+   "pass_rate": 0.5,
+   "veto_rate": 0.5,
+   "fills": 3,
+   "fees": 112.5,
+   "time_in_position": 0.04583333333333333,
+   "gate_by_stream": {
+    "attempts": {
+     "1": 6,
+     "0": 0
+    },
+    "vetoes": {
+     "1": 3,
+     "0": 0
+    }
+   },
+   "resum_total_pnl": -1.1046519826777512,
+   "resum_diff": 0.0,
+   "resum_per_window": {
+    "0": 236.92396203627868,
+    "1": 0.0,
+    "2": -238.02861401895643
+   }
+  },
+  "formula_pass": true,
+  "floor_fail": "floor: P&L -$1 \u2264 $0",
+  "promotable": false
+ },
+ "registered": {
+  "run_id": 84,
+  "verdict": "FAIL",
+  "reason": "Meta-Label Gate \u2014 Pick A-84: passed the relative gate (activity-calibrated gate (tau84 0.5071 = 70th percentile of 500 stream-1 training OOF probabilities, implied pass 30%) on run 83's frozen model: aggregate -86 vs champion -210, won 3/3 windows, P&L -1 vs champion -305 (buy-and-hold -8,460); realized activity: 6 attempts, pass 50% (3 vetoed), 3 filled, fees $112 vs champion $262, time-in-position 5%; vs run 83 @0.55 (agg 38, P&L +237, 1 filled) and run 82 @0.55 (agg -37, P&L +37); secondary both-streams arm: agg -86, P&L -1, 3 filled, time-in-position 5%) but was not promoted \u2014 floor: P&L -$1 \u2264 $0; champion kept",
+  "guard_after_ok": true
+ }
+}

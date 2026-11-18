@@ -1,0 +1,26 @@
+{
+ "accuracy": 0.553030303030303,
+ "precision": 0.5364583333333334,
+ "wf_accuracy": 0.5256741780568895,
+ "folds": 5,
+ "model_path": "models/stacker_champion.pkl",
+ "feature_set": "ha10",
+ "feature_columns": [
+  "ha_dir",
+  "ha_body_pct",
+  "ha_range_pct",
+  "ha_upper_wick",
+  "ha_lower_wick",
+  "ha_streak",
+  "ha_slope",
+  "ha_disp",
+  "raw_ret",
+  "ha_body_rel"
+ ],
+ "run_id": 119,
+ "champion_no": 11,
+ "promoted_scope": "lab champion \u2014 Champion #11",
+ "display": "HA Nightly Stacker \u2014 Champion #11",
+ "crowned_by": "Kass",
+ "crowned_at": "2026-11-10T02:45:48.325437+00:00"
+}

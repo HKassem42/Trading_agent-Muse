@@ -1,0 +1,12 @@
+{
+ "done": [
+  "setup",
+  "sup",
+  "wf:all4h",
+  "wf:focus4h",
+  "duel:all4h",
+  "duel:focus4h",
+  "register",
+  "verify"
+ ]
+}

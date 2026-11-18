@@ -1,0 +1,442 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17051,
+  "split": 16259,
+  "holdout_start": "2026-09-22 20:00:00",
+  "train_end_pos": 16718,
+  "guard_before": {
+   "ppo_champion.zip": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "stacker_champion.pkl": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "stacker_champion.json": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "paper.db": "67fa0e924b9b4fd6c3cdc9c8f547a1a8a70ab0db160149e3d4e72ef872b3da4a"
+  },
+  "champion_ppo_sha": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb"
+ },
+ "curation": {
+  "added": [
+   "az_er_10",
+   "az_adx_14",
+   "az_supertrend_dir",
+   "az_vhf_28",
+   "az_aroon_down",
+   "az_cci_20",
+   "az_dpo_20",
+   "az_stc",
+   "az_fisher_9",
+   "az_chop_14",
+   "az_mass_index",
+   "az_chaikin_vol",
+   "az_ulcer_14",
+   "az_vroc_14",
+   "az_klinger_diff",
+   "az_mfi_14"
+  ],
+  "evidence": {
+   "az_er_10": {
+    "accepted": true,
+    "max_r_train": 0.2742825711344397,
+    "argmax_train": "volatility_21",
+    "screen_max_corr_21": 0.2759350324779614,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_adx_14": {
+    "accepted": true,
+    "max_r_train": 0.49690395968073275,
+    "argmax_train": "volatility_21",
+    "screen_max_corr_21": 0.5001985229682755,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_supertrend_dir": {
+    "accepted": true,
+    "max_r_train": 0.6578302631246156,
+    "argmax_train": "ewo",
+    "screen_max_corr_21": 0.6565810236868929,
+    "screen_argmax_21": "ewo"
+   },
+   "az_vhf_28": {
+    "accepted": true,
+    "max_r_train": 0.5136578836621818,
+    "argmax_train": "az_adx_14",
+    "screen_max_corr_21": 0.4453823424132365,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_aroon_down": {
+    "accepted": true,
+    "max_r_train": 0.5850047408126074,
+    "argmax_train": "rsi_c",
+    "screen_max_corr_21": 0.5834651797323882,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_cci_20": {
+    "accepted": true,
+    "max_r_train": 0.38376138204122356,
+    "argmax_train": "volatility_21",
+    "screen_max_corr_21": 0.38327824107443864,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_dpo_20": {
+    "accepted": true,
+    "max_r_train": 0.5783223564913839,
+    "argmax_train": "dist_sma50",
+    "screen_max_corr_21": 0.5765513625408162,
+    "screen_argmax_21": "dist_sma50"
+   },
+   "az_stc": {
+    "accepted": true,
+    "max_r_train": 0.5009199666023441,
+    "argmax_train": "rsi_c",
+    "screen_max_corr_21": 0.5023893899516962,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_fisher_9": {
+    "accepted": true,
+    "max_r_train": 0.7526904987523588,
+    "argmax_train": "rsi_c",
+    "screen_max_corr_21": 0.752582725685457,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_chop_14": {
+    "accepted": true,
+    "max_r_train": 0.5799682664733528,
+    "argmax_train": "az_er_10",
+    "screen_max_corr_21": 0.48632364611998,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_mass_index": {
+    "accepted": true,
+    "max_r_train": 0.41259663026020693,
+    "argmax_train": "volatility_21",
+    "screen_max_corr_21": 0.4084571973831529,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_chaikin_vol": {
+    "accepted": true,
+    "max_r_train": 0.430293480569407,
+    "argmax_train": "range_pct",
+    "screen_max_corr_21": 0.42942961444425937,
+    "screen_argmax_21": "range_pct"
+   },
+   "az_ulcer_14": {
+    "accepted": true,
+    "max_r_train": 0.6785114197907894,
+    "argmax_train": "ewo",
+    "screen_max_corr_21": 0.6689400044983834,
+    "screen_argmax_21": "ewo"
+   },
+   "az_vroc_14": {
+    "accepted": true,
+    "max_r_train": 0.6222249766571764,
+    "argmax_train": "az_chaikin_vol",
+    "screen_max_corr_21": 0.4832372894764729,
+    "screen_argmax_21": "range_pct"
+   },
+   "az_klinger_diff": {
+    "accepted": true,
+    "max_r_train": 0.693223215136433,
+    "argmax_train": "macd_hist_rel",
+    "screen_max_corr_21": 0.6907954644673943,
+    "screen_argmax_21": "macd_hist_rel"
+   },
+   "az_mfi_14": {
+    "accepted": true,
+    "max_r_train": 0.7780269955717,
+    "argmax_train": "rsi_c",
+    "screen_max_corr_21": 0.7800061914102551,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_ret_kurt_20": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.19821140447188265,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_acf_1_50": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.2263964577807487,
+    "screen_argmax_21": "volatility_21"
+   },
+   "az_pv_corr_20": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.6194371627934886,
+    "screen_argmax_21": "ewo"
+   },
+   "az_ibs": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.6663504498459176,
+    "screen_argmax_21": "price_change"
+   },
+   "az_aroon_up": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.5907220826417869,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_dss_10": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.5272483235711181,
+    "screen_argmax_21": "ha_dir"
+   },
+   "az_vol_osc": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.5180199336367399,
+    "screen_argmax_21": "range_pct"
+   },
+   "az_bwmfi": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.26560693105323,
+    "screen_argmax_21": "atr_rel"
+   },
+   "az_nvi_ret_20": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.2932429764613759,
+    "screen_argmax_21": "dist_vwap"
+   },
+   "az_ret_skew_20": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.5069464592494953,
+    "screen_argmax_21": "rsi_c"
+   },
+   "az_eom_14": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.7593924606743845,
+    "screen_argmax_21": "dist_vwap"
+   },
+   "az_force_index": {
+    "accepted": false,
+    "reason": "addition cap reached",
+    "screen_max_corr_21": 0.7266128553822584,
+    "screen_argmax_21": "dist_vwap"
+   }
+  },
+  "n_features": 36
+ },
+ "stacker": {
+  "challenger_acc": 0.4861111111111111,
+  "champion_acc": 0.4810606060606061,
+  "challenger_wf_acc": 0.4978959025470654,
+  "challenger_wf_precision": 0.49846269892161493,
+  "precision": 0.46332046332046334,
+  "folds": 5,
+  "win": true
+ },
+ "ppo": {
+  "challenger_path": "/home/hatch/workspace/trading-agent-muse/data/features_v6/ppo_challenger.zip",
+  "reward_curve": [
+   [
+    240,
+    -0.948
+   ],
+   [
+    2640,
+    -1.437
+   ],
+   [
+    5280,
+    -1.44
+   ],
+   [
+    7920,
+    -1.041
+   ],
+   [
+    10560,
+    -0.707
+   ],
+   [
+    13200,
+    -0.343
+   ],
+   [
+    15840,
+    -1.088
+   ],
+   [
+    18480,
+    -0.991
+   ],
+   [
+    20880,
+    -1.048
+   ],
+   [
+    23520,
+    -1.468
+   ],
+   [
+    26160,
+    -0.616
+   ],
+   [
+    28800,
+    -0.893
+   ],
+   [
+    31440,
+    -1.45
+   ],
+   [
+    34080,
+    -0.449
+   ],
+   [
+    36720,
+    0.041
+   ],
+   [
+    39360,
+    -1.309
+   ],
+   [
+    41760,
+    -0.949
+   ],
+   [
+    44400,
+    -0.257
+   ],
+   [
+    47040,
+    -0.922
+   ],
+   [
+    49680,
+    -1.061
+   ],
+   [
+    52320,
+    -1.268
+   ],
+   [
+    54960,
+    -0.052
+   ],
+   [
+    57600,
+    -0.815
+   ],
+   [
+    60240,
+    0.061
+   ]
+  ]
+ },
+ "duel": {
+  "champion": {
+   "score": -52.97815212673595,
+   "total_pnl": 160.0451071857533,
+   "mean_reward": -1.1680646542042823,
+   "max_drawdown": 303.52465802374354,
+   "mean_drawdown": 33.916264654886135,
+   "bench_pnl": -6735.235025928277,
+   "episodes": 30,
+   "round_trips_per_day": 0.13333333333333333,
+   "action_mix": {
+    "hold": 0.554,
+    "buy": 0.0,
+    "sell": 0.438,
+    "short": 0.008
+   },
+   "windows": [
+    {
+     "score": 211.02,
+     "pnl": 333.58,
+     "bench": -1673.78,
+     "dd": 245.12,
+     "mdd": 55.2,
+     "mr": -0.927,
+     "episodes": 10
+    },
+    {
+     "score": -114.46,
+     "pnl": -69.8,
+     "bench": -3559.53,
+     "dd": 89.32,
+     "mdd": 8.93,
+     "mr": -1.367,
+     "episodes": 10
+    },
+    {
+     "score": -255.5,
+     "pnl": -103.74,
+     "bench": -1501.92,
+     "dd": 303.52,
+     "mdd": 37.62,
+     "mr": -1.21,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -1014.5211367952628,
+   "total_pnl": -151.14001200067287,
+   "mean_reward": -0.5967864954676833,
+   "max_drawdown": 2235.3480550794193,
+   "mean_drawdown": 772.2010613748644,
+   "bench_pnl": -6735.235025928277,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.592,
+    "buy": 0.021,
+    "sell": 0.029,
+    "short": 0.358
+   },
+   "windows": [
+    {
+     "score": -1179.72,
+     "pnl": -466.47,
+     "bench": -1673.78,
+     "dd": 1426.49,
+     "mdd": 764.09,
+     "mr": -0.827,
+     "episodes": 10
+    },
+    {
+     "score": -1428.69,
+     "pnl": -311.01,
+     "bench": -3559.53,
+     "dd": 2235.35,
+     "mdd": 811.32,
+     "mr": -0.687,
+     "episodes": 10
+    },
+    {
+     "score": -435.16,
+     "pnl": 626.35,
+     "bench": -1501.92,
+     "dd": 2123.01,
+     "mdd": 741.2,
+     "mr": -0.276,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "windows_won": 0,
+  "formula_pass": false,
+  "floor_fail": null,
+  "promotable": false
+ },
+ "registered": {
+  "stacker_win": true,
+  "ppo_promotable": false,
+  "guard_after": {
+   "ppo_champion.zip": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "stacker_champion.pkl": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "stacker_champion.json": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "paper.db": "600d257a26ccf935b92d920e9594cbb306bb2a80b40c2ab9b3b87e379ab70ba8"
+  },
+  "paper_note": "paper.db is written by the live loop on hourly candle closes throughout the study window; the study itself never opens it (hash read only). Champion files are hash-identical before/after."
+ }
+}

@@ -1,0 +1,64 @@
+{
+ "daily": {
+  "rows": 4112,
+  "first": "2015-07-20 00:00:00",
+  "last": "2026-10-21 00:00:00",
+  "duplicates": 0,
+  "n_gaps": 0,
+  "missing_candles": 0,
+  "largest_gap": null,
+  "gap_list": [],
+  "expected_if_complete": 4112
+ },
+ "hourly": {
+  "rows": 42107,
+  "first": "2022-01-01 00:00:00",
+  "last": "2026-10-21 23:00:00",
+  "duplicates": 0,
+  "n_gaps": 3,
+  "missing_candles": 13,
+  "largest_gap": "0 days 06:00:00",
+  "gap_list": [
+   [
+    "2023-03-04 21:00:00",
+    "0 days 04:00:00"
+   ],
+   [
+    "2025-10-25 21:00:00",
+    "0 days 06:00:00"
+   ],
+   [
+    "2026-05-08 07:00:00",
+    "0 days 06:00:00"
+   ]
+  ],
+  "expected_if_complete": 42120
+ },
+ "matrix_overlap": {
+  "overlap_full_days": 695,
+  "Open": {
+   "match_to_cent": 695,
+   "match_pct": 100.0,
+   "max_abs_diff": 0.0,
+   "mismatch_days": []
+  },
+  "High": {
+   "match_to_cent": 695,
+   "match_pct": 100.0,
+   "max_abs_diff": 0.0,
+   "mismatch_days": []
+  },
+  "Low": {
+   "match_to_cent": 695,
+   "match_pct": 100.0,
+   "max_abs_diff": 0.0,
+   "mismatch_days": []
+  },
+  "Close": {
+   "match_to_cent": 695,
+   "match_pct": 100.0,
+   "max_abs_diff": 0.0,
+   "mismatch_days": []
+  }
+ }
+}

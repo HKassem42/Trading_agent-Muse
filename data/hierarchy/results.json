@@ -1,0 +1,1530 @@
+{
+ "meta": {
+  "matrix_rows": 16735,
+  "pre_duel_rows": 15961,
+  "duel_start": "2026-09-19 11:00:00",
+  "robust_start": "2026-08-17 11:00:00",
+  "lgbm_binary_params": {
+   "n_estimators": 300,
+   "learning_rate": 0.05,
+   "num_leaves": 31,
+   "min_child_samples": 40,
+   "subsample": 0.9,
+   "subsample_freq": 1,
+   "colsample_bytree": 0.9,
+   "reg_lambda": 1.0,
+   "random_state": 42,
+   "n_jobs": 4,
+   "verbose": -1,
+   "objective": "binary"
+  },
+  "gate_threshold": 0.5,
+  "focus_features": [
+   "Volume",
+   "On-Balance Volume (OBV)",
+   "Force Index",
+   "Elder Force Index (EFI)",
+   "Historical Volatility (HV)",
+   "Mass Index (MI)",
+   "Bollinger BandWidth",
+   "Connors RSI (CRSI)",
+   "Accumulative Swing Index (ASI)",
+   "Ultimate Oscillator (UO)",
+   "Choppiness Index (CHOP)"
+  ],
+  "champion_file": "models/ppo_champion.zip",
+  "champion_sha256": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "champion_identity": "run 44's PPO brain, installed 2026-10-24 by Kass's manual override",
+  "checks": {
+   "matrix_rows_16735": true,
+   "focus_cols_present": true,
+   "all_feature_count_60": true,
+   "label_counts": true,
+   "pre_duel_rows_15961": true,
+   "duel_start_matches_plan": true,
+   "robust_start_matches_plan": true,
+   "features_no_nan_pre_duel": true
+  },
+  "integrity_start": {
+   "ppo_champion.zip": 1792815481.7000117,
+   "stacker_champion.pkl": 1792728200.1885026,
+   "stacker_champion.json": 1792728200.7745047,
+   "paper.db": 1792818275.5330007,
+   "live_state.json": 1792818275.5460162
+  }
+ },
+ "wf_focus": {
+  "arm": "focus",
+  "features": [
+   "Volume",
+   "On-Balance Volume (OBV)",
+   "Force Index",
+   "Elder Force Index (EFI)",
+   "Historical Volatility (HV)",
+   "Mass Index (MI)",
+   "Bollinger BandWidth",
+   "Connors RSI (CRSI)",
+   "Accumulative Swing Index (ASI)",
+   "Ultimate Oscillator (UO)",
+   "Choppiness Index (CHOP)"
+  ],
+  "folds": [
+   {
+    "n": 2660,
+    "accuracy": 0.631203007518797,
+    "balanced_accuracy": 0.3816346733271994,
+    "pred_distribution": {
+     "BUY": 0.03308270676691729,
+     "HOLD": 0.8454887218045113,
+     "SHORT": 0.12142857142857143
+    },
+    "fold": 0,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.5603535834444233,
+     "trade_base_rate": 0.33458646616541354,
+     "gate_fire_rate": 0.1545112781954887,
+     "activity_share": 0.1545112781954887,
+     "n_true_trade": 890,
+     "n_fired_true_trade": 209,
+     "stage2_acc_on_true_trade": 0.4898876404494382,
+     "stage2_acc_on_fired_true_trade": 0.5311004784688995
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.6657894736842105,
+    "balanced_accuracy": 0.3800461543815799,
+    "pred_distribution": {
+     "BUY": 0.06090225563909774,
+     "HOLD": 0.8199248120300752,
+     "SHORT": 0.11917293233082707
+    },
+    "fold": 1,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.5673587411309988,
+     "trade_base_rate": 0.2654135338345865,
+     "gate_fire_rate": 0.1800751879699248,
+     "activity_share": 0.1800751879699248,
+     "n_true_trade": 706,
+     "n_fired_true_trade": 197,
+     "stage2_acc_on_true_trade": 0.49008498583569404,
+     "stage2_acc_on_fired_true_trade": 0.5025380710659898
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.5093984962406015,
+    "balanced_accuracy": 0.43286891234719493,
+    "pred_distribution": {
+     "BUY": 0.33458646616541354,
+     "HOLD": 0.49849624060150377,
+     "SHORT": 0.16691729323308271
+    },
+    "fold": 2,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.6535976051674186,
+     "trade_base_rate": 0.3823308270676692,
+     "gate_fire_rate": 0.5015037593984962,
+     "activity_share": 0.5015037593984962,
+     "n_true_trade": 1017,
+     "n_fired_true_trade": 703,
+     "stage2_acc_on_true_trade": 0.48475909537856443,
+     "stage2_acc_on_fired_true_trade": 0.4879089615931721
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.4548872180451128,
+    "balanced_accuracy": 0.4242246753374956,
+    "pred_distribution": {
+     "BUY": 0.2894736842105263,
+     "HOLD": 0.40225563909774437,
+     "SHORT": 0.3082706766917293
+    },
+    "fold": 3,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.6229345513680025,
+     "trade_base_rate": 0.3650375939849624,
+     "gate_fire_rate": 0.5977443609022557,
+     "activity_share": 0.5977443609022557,
+     "n_true_trade": 971,
+     "n_fired_true_trade": 732,
+     "stage2_acc_on_true_trade": 0.513903192584964,
+     "stage2_acc_on_fired_true_trade": 0.51775956284153
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.5176691729323308,
+    "balanced_accuracy": 0.41808280811823456,
+    "pred_distribution": {
+     "BUY": 0.281203007518797,
+     "HOLD": 0.5402255639097744,
+     "SHORT": 0.17857142857142858
+    },
+    "fold": 4,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.6023078720111286,
+     "trade_base_rate": 0.3075187969924812,
+     "gate_fire_rate": 0.45977443609022556,
+     "activity_share": 0.45977443609022556,
+     "n_true_trade": 818,
+     "n_fired_true_trade": 492,
+     "stage2_acc_on_true_trade": 0.5293398533007335,
+     "stage2_acc_on_fired_true_trade": 0.540650406504065
+    }
+   }
+  ],
+  "pooled": {
+   "n": 13300,
+   "accuracy": 0.5557894736842105,
+   "balanced_accuracy": 0.4132558024475022,
+   "pred_distribution": {
+    "BUY": 0.1998496240601504,
+    "HOLD": 0.6212781954887218,
+    "SHORT": 0.17887218045112782
+   },
+   "majority_baseline": 0.6690225563909774,
+   "n_graded": 13300,
+   "diagnostics": {
+    "gate_balanced_accuracy": 0.6130489277795121,
+    "trade_base_rate": 0.33097744360902254,
+    "gate_fire_rate": 0.3787218045112782,
+    "activity_share": 0.3787218045112782,
+    "n_true_trade": 4402,
+    "n_fired_true_trade": 2333,
+    "stage2_acc_on_true_trade": 0.5013630168105406,
+    "stage2_acc_on_fired_true_trade": 0.5135019288469781
+   }
+  },
+  "fold_audits": [
+   {
+    "n_fed": 2661,
+    "gate_class_counts": {
+     "0": 1496,
+     "1": 1165
+    },
+    "n_trade_fed": 1165,
+    "direction_class_counts": {
+     "0": 574,
+     "1": 591
+    },
+    "fit_max_abs": 21512548.62318534,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-03-13 20:00:00",
+    "trade_fed_ts_max": "2025-03-13 20:00:00"
+   },
+   {
+    "n_fed": 5321,
+    "gate_class_counts": {
+     "0": 3266,
+     "1": 2055
+    },
+    "n_trade_fed": 2055,
+    "direction_class_counts": {
+     "0": 986,
+     "1": 1069
+    },
+    "fit_max_abs": 21512548.62318534,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-07-02 16:00:00",
+    "trade_fed_ts_max": "2025-07-02 15:00:00"
+   },
+   {
+    "n_fed": 7981,
+    "gate_class_counts": {
+     "0": 5220,
+     "1": 2761
+    },
+    "n_trade_fed": 2761,
+    "direction_class_counts": {
+     "0": 1324,
+     "1": 1437
+    },
+    "fit_max_abs": 21512548.62318534,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-10-21 12:00:00",
+    "trade_fed_ts_max": "2025-10-21 12:00:00"
+   },
+   {
+    "n_fed": 10641,
+    "gate_class_counts": {
+     "0": 6863,
+     "1": 3778
+    },
+    "n_trade_fed": 3778,
+    "direction_class_counts": {
+     "0": 1848,
+     "1": 1930
+    },
+    "fit_max_abs": 21512548.62318534,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2026-02-09 13:00:00",
+    "trade_fed_ts_max": "2026-02-09 13:00:00"
+   },
+   {
+    "n_fed": 13301,
+    "gate_class_counts": {
+     "0": 8552,
+     "1": 4749
+    },
+    "n_trade_fed": 4749,
+    "direction_class_counts": {
+     "0": 2334,
+     "1": 2415
+    },
+    "fit_max_abs": 21512548.62318534,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2026-05-31 14:00:00",
+    "trade_fed_ts_max": "2026-05-31 13:00:00"
+   }
+  ]
+ },
+ "wf_all": {
+  "arm": "all",
+  "features": [
+   "Volume",
+   "Absolute Price Oscillator (APO)",
+   "Acceleration Oscillator (AC)",
+   "Accumulation/Distribution (A/D)",
+   "Accumulative Swing Index (ASI)",
+   "Arnaud Legoux Moving Average (ALMA)",
+   "Aroon Indicator",
+   "Average Daily Range (ADR)",
+   "Average Directional Movement Index (ADX)",
+   "Awesome Oscillator (AO)",
+   "Bollinger BandWidth",
+   "Bollinger %B",
+   "Center of Gravity (COG)",
+   "Chaikin Money Flow (CMF)",
+   "Chande Momentum Oscillator (CMO)",
+   "Chandelier Exit",
+   "Choppiness Index (CHOP)",
+   "Commodity Channel Index (CCI)",
+   "Connors RSI (CRSI)",
+   "Coppock Curve",
+   "Detrended Price Oscillator (DPO)",
+   "Directional Movement Index (DMI)",
+   "Donchian Channels",
+   "Double Exponential Moving Average (DEMA)",
+   "Ease of Movement (EMV)",
+   "Elder Force Index (EFI)",
+   "Exponential Moving Average (EMA)",
+   "Fisher Transform",
+   "Force Index",
+   "Historical Volatility (HV)",
+   "Hull Moving Average (HMA)",
+   "Ichimoku Cloud (Baseline)",
+   "Kaufman Adaptive Moving Average (KAMA)",
+   "Keltner Channels",
+   "Klinger Volume Oscillator (KVO)",
+   "Know Sure Thing (KST)",
+   "MACD (Moving Average Convergence Divergence)",
+   "MACD Histogram",
+   "MACD Signal Line",
+   "Mass Index (MI)",
+   "Momentum (MOM)",
+   "Money Flow Index (MFI)",
+   "On-Balance Volume (OBV)",
+   "Parabolic SAR (PSAR)",
+   "Price Volume Trend (PVT)",
+   "Rate of Change (ROC)",
+   "Relative Strength Index (RSI)",
+   "Relative Volatility Index (RVI)",
+   "Schaff Trend Cycle (STC)",
+   "Simple Moving Average (SMA)",
+   "Standard Deviation (SD)",
+   "Stochastic Oscillator (Fast)",
+   "Stochastic RSI (StochRSI)",
+   "SuperTrend",
+   "True Strength Index (TSI)",
+   "Ultimate Oscillator (UO)",
+   "Volume Weighted Average Price (VWAP)",
+   "Vortex Indicator (VI)",
+   "Williams %R",
+   "Zero Lag Exponential Moving Average (ZLEMA)"
+  ],
+  "folds": [
+   {
+    "n": 2660,
+    "accuracy": 0.6015037593984962,
+    "balanced_accuracy": 0.3969751011102138,
+    "pred_distribution": {
+     "BUY": 0.05150375939849624,
+     "HOLD": 0.7515037593984962,
+     "SHORT": 0.19699248120300752
+    },
+    "fold": 0,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.5893575826826636,
+     "trade_base_rate": 0.33458646616541354,
+     "gate_fire_rate": 0.24849624060150377,
+     "activity_share": 0.24849624060150377,
+     "n_true_trade": 890,
+     "n_fired_true_trade": 327,
+     "stage2_acc_on_true_trade": 0.4797752808988764,
+     "stage2_acc_on_fired_true_trade": 0.5015290519877675
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.6526315789473685,
+    "balanced_accuracy": 0.3930755546684453,
+    "pred_distribution": {
+     "BUY": 0.05714285714285714,
+     "HOLD": 0.7793233082706766,
+     "SHORT": 0.16353383458646617
+    },
+    "fold": 1,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.5879281549288016,
+     "trade_base_rate": 0.2654135338345865,
+     "gate_fire_rate": 0.2206766917293233,
+     "activity_share": 0.2206766917293233,
+     "n_true_trade": 706,
+     "n_fired_true_trade": 247,
+     "stage2_acc_on_true_trade": 0.4745042492917847,
+     "stage2_acc_on_fired_true_trade": 0.4939271255060729
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.5172932330827068,
+    "balanced_accuracy": 0.42805712539330343,
+    "pred_distribution": {
+     "BUY": 0.21353383458646616,
+     "HOLD": 0.5180451127819549,
+     "SHORT": 0.26842105263157895
+    },
+    "fold": 2,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.6550949739995249,
+     "trade_base_rate": 0.3823308270676692,
+     "gate_fire_rate": 0.48195488721804514,
+     "activity_share": 0.48195488721804514,
+     "n_true_trade": 1017,
+     "n_fired_true_trade": 685,
+     "stage2_acc_on_true_trade": 0.48770894788593905,
+     "stage2_acc_on_fired_true_trade": 0.48175182481751827
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.4274436090225564,
+    "balanced_accuracy": 0.42449440950597617,
+    "pred_distribution": {
+     "BUY": 0.3154135338345865,
+     "HOLD": 0.3473684210526316,
+     "SHORT": 0.337218045112782
+    },
+    "fold": 3,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.61458525785372,
+     "trade_base_rate": 0.3650375939849624,
+     "gate_fire_rate": 0.6526315789473685,
+     "activity_share": 0.6526315789473685,
+     "n_true_trade": 971,
+     "n_fired_true_trade": 775,
+     "stage2_acc_on_true_trade": 0.5324407826982492,
+     "stage2_acc_on_fired_true_trade": 0.5277419354838709
+    }
+   },
+   {
+    "n": 2660,
+    "accuracy": 0.5665413533834587,
+    "balanced_accuracy": 0.4038358079942521,
+    "pred_distribution": {
+     "BUY": 0.27030075187969926,
+     "HOLD": 0.6469924812030076,
+     "SHORT": 0.08270676691729323
+    },
+    "fold": 4,
+    "diagnostics": {
+     "gate_balanced_accuracy": 0.5964250349758023,
+     "trade_base_rate": 0.3075187969924812,
+     "gate_fire_rate": 0.3530075187969925,
+     "activity_share": 0.3530075187969925,
+     "n_true_trade": 818,
+     "n_fired_true_trade": 398,
+     "stage2_acc_on_true_trade": 0.49511002444987773,
+     "stage2_acc_on_fired_true_trade": 0.5175879396984925
+    }
+   }
+  ],
+  "pooled": {
+   "n": 13300,
+   "accuracy": 0.5530827067669173,
+   "balanced_accuracy": 0.41592768666550306,
+   "pred_distribution": {
+    "BUY": 0.18157894736842106,
+    "HOLD": 0.6086466165413534,
+    "SHORT": 0.20977443609022556
+   },
+   "majority_baseline": 0.6690225563909774,
+   "n_graded": 13300,
+   "diagnostics": {
+    "gate_balanced_accuracy": 0.6204165406741597,
+    "trade_base_rate": 0.33097744360902254,
+    "gate_fire_rate": 0.3913533834586466,
+    "activity_share": 0.3913533834586466,
+    "n_true_trade": 4402,
+    "n_fired_true_trade": 2432,
+    "stage2_acc_on_true_trade": 0.4952294411631077,
+    "stage2_acc_on_fired_true_trade": 0.5061677631578947
+   }
+  },
+  "fold_audits": [
+   {
+    "n_fed": 2661,
+    "gate_class_counts": {
+     "0": 1496,
+     "1": 1165
+    },
+    "n_trade_fed": 1165,
+    "direction_class_counts": {
+     "0": 574,
+     "1": 591
+    },
+    "fit_max_abs": 107582713480.03365,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-03-13 20:00:00",
+    "trade_fed_ts_max": "2025-03-13 20:00:00"
+   },
+   {
+    "n_fed": 5321,
+    "gate_class_counts": {
+     "0": 3266,
+     "1": 2055
+    },
+    "n_trade_fed": 2055,
+    "direction_class_counts": {
+     "0": 986,
+     "1": 1069
+    },
+    "fit_max_abs": 107582713480.03365,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-07-02 16:00:00",
+    "trade_fed_ts_max": "2025-07-02 15:00:00"
+   },
+   {
+    "n_fed": 7981,
+    "gate_class_counts": {
+     "0": 5220,
+     "1": 2761
+    },
+    "n_trade_fed": 2761,
+    "direction_class_counts": {
+     "0": 1324,
+     "1": 1437
+    },
+    "fit_max_abs": 127448734671.29518,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2025-10-21 12:00:00",
+    "trade_fed_ts_max": "2025-10-21 12:00:00"
+   },
+   {
+    "n_fed": 10641,
+    "gate_class_counts": {
+     "0": 6863,
+     "1": 3778
+    },
+    "n_trade_fed": 3778,
+    "direction_class_counts": {
+     "0": 1848,
+     "1": 1930
+    },
+    "fit_max_abs": 127448734671.29518,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2026-02-09 13:00:00",
+    "trade_fed_ts_max": "2026-02-09 13:00:00"
+   },
+   {
+    "n_fed": 13301,
+    "gate_class_counts": {
+     "0": 8552,
+     "1": 4749
+    },
+    "n_trade_fed": 4749,
+    "direction_class_counts": {
+     "0": 2334,
+     "1": 2415
+    },
+    "fit_max_abs": 127448734671.29518,
+    "fed_ts_min": "2024-11-23 00:00:00",
+    "fed_ts_max": "2026-05-31 14:00:00",
+    "trade_fed_ts_max": "2026-05-31 13:00:00"
+   }
+  ]
+ },
+ "duel_champion": {
+  "champion": {
+   "score": -662.431654107153,
+   "total_pnl": -994.4867414917389,
+   "mean_reward": -1.2069517624730368,
+   "max_drawdown": 1797.0827930208907,
+   "bench_pnl": 717.5366148134076,
+   "action_mix": {
+    "hold": 0.549,
+    "buy": 0.006,
+    "sell": 0.435,
+    "short": 0.011
+   },
+   "windows": [
+    {
+     "score": -2361.15,
+     "pnl": -1462.61,
+     "bench": 3202.97
+    },
+    {
+     "score": 312.22,
+     "pnl": 377.97,
+     "bench": -1148.69
+    },
+    {
+     "score": 61.63,
+     "pnl": 90.15,
+     "bench": -1336.74
+    }
+   ],
+   "runnable": true
+  },
+  "detail": {
+   "windows": [
+    {
+     "mean_reward": -1.3074859141697999,
+     "total_pnl": -1462.6065868056903,
+     "gross_pnl": -1049.448149645778,
+     "fees": 413.1584371599123,
+     "max_drawdown": 1797.0827930208907,
+     "score": -2361.1479833161357,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 2,
+     "action_counts": {
+      "hold": 134,
+      "buy": 2,
+      "sell": 100,
+      "short": 4
+     },
+     "action_mix": {
+      "hold": 0.558,
+      "buy": 0.008,
+      "sell": 0.417,
+      "short": 0.017
+     },
+     "pnl_long": 85.95168238932092,
+     "pnl_short": -1548.5582691950112,
+     "open_left": 1
+    },
+    {
+     "mean_reward": -1.1223803638271534,
+     "total_pnl": 377.9693283626111,
+     "gross_pnl": 602.9638493813832,
+     "fees": 224.994521018772,
+     "max_drawdown": 131.5020915683126,
+     "score": 312.2182825784548,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 2,
+     "action_counts": {
+      "hold": 117,
+      "buy": 2,
+      "sell": 118,
+      "short": 3
+     },
+     "action_mix": {
+      "hold": 0.487,
+      "buy": 0.008,
+      "sell": 0.492,
+      "short": 0.013
+     },
+     "pnl_long": -18.013488241093,
+     "pnl_short": 395.9828166037041,
+     "open_left": 2
+    },
+    {
+     "mean_reward": -1.1909890094221574,
+     "total_pnl": 90.15051695134025,
+     "gross_pnl": 127.65051695134025,
+     "fees": 37.5,
+     "max_drawdown": 57.031557070236886,
+     "score": 61.63473841622181,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 0,
+     "action_counts": {
+      "hold": 144,
+      "buy": 0,
+      "sell": 95,
+      "short": 1
+     },
+     "action_mix": {
+      "hold": 0.6,
+      "buy": 0.0,
+      "sell": 0.396,
+      "short": 0.004
+     },
+     "pnl_long": 0.0,
+     "pnl_short": 90.15051695134025,
+     "open_left": 1
+    }
+   ],
+   "agg_score": -662.431654107153,
+   "total_pnl": -994.4867414917389,
+   "gross_pnl": -318.8337833130547,
+   "fees_total": 675.6529581786842,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1797.0827930208907,
+   "total_round_trips": 4,
+   "closed_trips": 5,
+   "wins": 1,
+   "losses": 4,
+   "avg_win": 151.96692223125137,
+   "avg_loss": -483.2270822138671,
+   "pnl_long": 67.93819414822792,
+   "pnl_short": -1062.4249356399669,
+   "open_left": 4,
+   "action_counts": {
+    "hold": 395,
+    "buy": 4,
+    "sell": 313,
+    "short": 8
+   },
+   "action_mix": {
+    "hold": 0.549,
+    "buy": 0.006,
+    "sell": 0.435,
+    "short": 0.011
+   },
+   "non_hold_share": 0.45138888888888884
+  },
+  "crosscheck": {
+   "my_agg": -662.431654107153,
+   "nightly_agg": -662.431654107153,
+   "my_pnl": -994.4867414917389,
+   "nightly_pnl": -994.4867414917389,
+   "my_bench": 717.5366148134076,
+   "nightly_bench": 717.5366148134078,
+   "agg_diff": 0.0,
+   "pnl_diff": 0.0
+  }
+ },
+ "duel_champion_robust": {
+  "champion": {
+   "score": -4805.585979769717,
+   "total_pnl": -10750.149467902651,
+   "mean_reward": -1.2927534698036305,
+   "max_drawdown": 6266.312627705149,
+   "bench_pnl": 27401.661429042622,
+   "action_mix": {
+    "hold": 0.525,
+    "buy": 0.01,
+    "sell": 0.433,
+    "short": 0.032
+   },
+   "windows": [
+    {
+     "score": -13825.64,
+     "pnl": -10692.49,
+     "bench": 25192.44
+    },
+    {
+     "score": -701.58,
+     "pnl": -422.24,
+     "bench": -1346.46
+    },
+    {
+     "score": 110.47,
+     "pnl": 364.58,
+     "bench": 3555.68
+    }
+   ],
+   "runnable": true
+  },
+  "detail": {
+   "windows": [
+    {
+     "mean_reward": -1.752082285435031,
+     "total_pnl": -10692.487214130553,
+     "gross_pnl": -9564.654779415734,
+     "fees": 1127.8324347148189,
+     "max_drawdown": 6266.312627705149,
+     "score": -13825.643527983128,
+     "bench_pnl": 25192.437345660303,
+     "round_trips_env": 1,
+     "action_counts": {
+      "hold": 119,
+      "buy": 1,
+      "sell": 102,
+      "short": 18
+     },
+     "action_mix": {
+      "hold": 0.496,
+      "buy": 0.004,
+      "sell": 0.425,
+      "short": 0.075
+     },
+     "pnl_long": 80.42280984517129,
+     "pnl_short": -10772.910023975724,
+     "open_left": 3
+    },
+    {
+     "mean_reward": -1.1823600405617718,
+     "total_pnl": -422.23915623633366,
+     "gross_pnl": 26.49829390913925,
+     "fees": 448.7374501454729,
+     "max_drawdown": 558.6876567227155,
+     "score": -701.5829845976914,
+     "bench_pnl": -1346.4559589840053,
+     "round_trips_env": 5,
+     "action_counts": {
+      "hold": 135,
+      "buy": 5,
+      "sell": 98,
+      "short": 2
+     },
+     "action_mix": {
+      "hold": 0.562,
+      "buy": 0.021,
+      "sell": 0.408,
+      "short": 0.008
+     },
+     "pnl_long": -406.41353230953973,
+     "pnl_short": -15.825623926793924,
+     "open_left": 1
+    },
+    {
+     "mean_reward": -0.9438180834140889,
+     "total_pnl": 364.5769024642359,
+     "gross_pnl": 552.0840823828287,
+     "fees": 187.50717991859275,
+     "max_drawdown": 508.2166583851358,
+     "score": 110.46857327166799,
+     "bench_pnl": 3555.680042366327,
+     "round_trips_env": 1,
+     "action_counts": {
+      "hold": 124,
+      "buy": 1,
+      "sell": 112,
+      "short": 3
+     },
+     "action_mix": {
+      "hold": 0.517,
+      "buy": 0.004,
+      "sell": 0.467,
+      "short": 0.013
+     },
+     "pnl_long": -32.720567523429054,
+     "pnl_short": 397.29746998766495,
+     "open_left": 3
+    }
+   ],
+   "agg_score": -4805.585979769717,
+   "total_pnl": -10750.149467902651,
+   "gross_pnl": -8986.072403123766,
+   "fees_total": 1764.0770647788845,
+   "bench_pnl": 27401.661429042622,
+   "max_drawdown": 6266.312627705149,
+   "total_round_trips": 7,
+   "closed_trips": 11,
+   "wins": 3,
+   "losses": 8,
+   "avg_win": 77.56564475278235,
+   "avg_loss": -1532.3496170796589,
+   "pnl_long": -358.7112899877975,
+   "pnl_short": -10391.438177914853,
+   "open_left": 7,
+   "action_counts": {
+    "hold": 378,
+    "buy": 7,
+    "sell": 312,
+    "short": 23
+   },
+   "action_mix": {
+    "hold": 0.525,
+    "buy": 0.01,
+    "sell": 0.433,
+    "short": 0.032
+   },
+   "non_hold_share": 0.475
+  }
+ },
+ "duel_focus": {
+  "arm": {
+   "score": -1429.7210765222626,
+   "total_pnl": -3054.796147667308,
+   "mean_reward": -0.8869106938954213,
+   "max_drawdown": 1195.7646796498448,
+   "bench_pnl": 717.5366148134076,
+   "action_mix": {
+    "hold": 0.708,
+    "buy": 0.153,
+    "sell": 0.022,
+    "short": 0.117
+   },
+   "windows": [
+    {
+     "score": -3553.96,
+     "pnl": -2956.08,
+     "bench": 3202.97
+    },
+    {
+     "score": 55.13,
+     "pnl": 313.78,
+     "bench": -1148.69
+    },
+    {
+     "score": -790.33,
+     "pnl": -412.5,
+     "bench": -1336.74
+    }
+   ],
+   "runnable": true
+  },
+  "detail": {
+   "windows": [
+    {
+     "mean_reward": -1.396458201769143,
+     "total_pnl": -2956.077395830711,
+     "gross_pnl": -185.37763606074714,
+     "fees": 2770.6997597699637,
+     "max_drawdown": 1195.7646796498448,
+     "score": -3553.9597356556333,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 23,
+     "action_counts": {
+      "hold": 150,
+      "buy": 43,
+      "sell": 5,
+      "short": 42
+     },
+     "action_mix": {
+      "hold": 0.625,
+      "buy": 0.179,
+      "sell": 0.021,
+      "short": 0.175
+     },
+     "pnl_long": -524.0240012354625,
+     "pnl_short": -2432.0533945952484,
+     "open_left": 0
+    },
+    {
+     "mean_reward": -0.5219357491592073,
+     "total_pnl": 313.7778688572871,
+     "gross_pnl": 2484.2104875824857,
+     "fees": 2170.4326187251986,
+     "max_drawdown": 517.3001844271203,
+     "score": 55.127776643726975,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 20,
+     "action_counts": {
+      "hold": 180,
+      "buy": 31,
+      "sell": 7,
+      "short": 22
+     },
+     "action_mix": {
+      "hold": 0.75,
+      "buy": 0.129,
+      "sell": 0.029,
+      "short": 0.092
+     },
+     "pnl_long": -671.9899011065136,
+     "pnl_short": 985.7677699638007,
+     "open_left": 0
+    },
+    {
+     "mean_reward": -0.7423381307579136,
+     "total_pnl": -412.4966206938843,
+     "gross_pnl": 1687.4709380761424,
+     "fees": 2099.9675587700267,
+     "max_drawdown": 755.6692997219943,
+     "score": -790.3312705548815,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 20,
+     "action_counts": {
+      "hold": 180,
+      "buy": 36,
+      "sell": 4,
+      "short": 20
+     },
+     "action_mix": {
+      "hold": 0.75,
+      "buy": 0.15,
+      "sell": 0.017,
+      "short": 0.083
+     },
+     "pnl_long": 406.51700484564935,
+     "pnl_short": -819.0136255395337,
+     "open_left": 0
+    }
+   ],
+   "agg_score": -1429.7210765222626,
+   "total_pnl": -3054.796147667308,
+   "gross_pnl": 3986.3037895978805,
+   "fees_total": 7041.099937265189,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1195.7646796498448,
+   "total_round_trips": 63,
+   "closed_trips": 63,
+   "wins": 16,
+   "losses": 47,
+   "avg_win": 223.3497331976978,
+   "avg_loss": -141.02961444320155,
+   "pnl_long": -789.4968974963267,
+   "pnl_short": -2265.2992501709814,
+   "open_left": 0,
+   "action_counts": {
+    "hold": 510,
+    "buy": 110,
+    "sell": 16,
+    "short": 84
+   },
+   "action_mix": {
+    "hold": 0.708,
+    "buy": 0.153,
+    "sell": 0.022,
+    "short": 0.117
+   },
+   "non_hold_share": 0.29166666666666663
+  },
+  "windows_won": 0,
+  "robust": {
+   "arm": {
+    "score": -7724.894285658421,
+    "total_pnl": -18969.19791702363,
+    "mean_reward": -1.51676238390589,
+    "max_drawdown": 5415.192859864095,
+    "bench_pnl": 27401.661429042622,
+    "action_mix": {
+     "hold": 0.608,
+     "buy": 0.215,
+     "sell": 0.026,
+     "short": 0.15
+    },
+    "windows": [
+     {
+      "score": -14272.77,
+      "pnl": -11565.17,
+      "bench": 25192.44
+     },
+     {
+      "score": -5572.35,
+      "pnl": -4494.96,
+      "bench": -1346.46
+     },
+     {
+      "score": -3329.57,
+      "pnl": -2909.07,
+      "bench": 3555.68
+     }
+    ],
+    "runnable": true
+   },
+   "detail": {
+    "windows": [
+     {
+      "mean_reward": -1.82072432072661,
+      "total_pnl": -11565.168600616074,
+      "gross_pnl": -7176.863021536579,
+      "fees": 4388.305579079495,
+      "max_drawdown": 5415.192859864095,
+      "score": -14272.765030548122,
+      "bench_pnl": 25192.437345660303,
+      "round_trips_env": 22,
+      "action_counts": {
+       "hold": 109,
+       "buy": 67,
+       "sell": 6,
+       "short": 58
+      },
+      "action_mix": {
+       "hold": 0.454,
+       "buy": 0.279,
+       "sell": 0.025,
+       "short": 0.242
+      },
+      "pnl_long": -886.7202706822427,
+      "pnl_short": -10678.448329933832,
+      "open_left": 4
+     },
+     {
+      "mean_reward": -1.5579486886333336,
+      "total_pnl": -4494.961458456295,
+      "gross_pnl": -1950.8148140341004,
+      "fees": 2544.1466444221946,
+      "max_drawdown": 2154.7814152353676,
+      "score": -5572.352166073979,
+      "bench_pnl": -1346.4559589840053,
+      "round_trips_env": 24,
+      "action_counts": {
+       "hold": 167,
+       "buy": 41,
+       "sell": 5,
+       "short": 27
+      },
+      "action_mix": {
+       "hold": 0.696,
+       "buy": 0.171,
+       "sell": 0.021,
+       "short": 0.113
+      },
+      "pnl_long": -1082.7483871815057,
+      "pnl_short": -3412.2130712747894,
+      "open_left": 0
+     },
+     {
+      "mean_reward": -1.1716141423577262,
+      "total_pnl": -2909.0678579512605,
+      "gross_pnl": -139.2056116286235,
+      "fees": 2769.862246322637,
+      "max_drawdown": 840.9956048038002,
+      "score": -3329.5656603531606,
+      "bench_pnl": 3555.680042366327,
+      "round_trips_env": 21,
+      "action_counts": {
+       "hold": 162,
+       "buy": 47,
+       "sell": 8,
+       "short": 23
+      },
+      "action_mix": {
+       "hold": 0.675,
+       "buy": 0.196,
+       "sell": 0.033,
+       "short": 0.096
+      },
+      "pnl_long": -797.3772392672399,
+      "pnl_short": -2111.6906186840206,
+      "open_left": 0
+     }
+    ],
+    "agg_score": -7724.894285658421,
+    "total_pnl": -18969.19791702363,
+    "gross_pnl": -9266.883447199303,
+    "fees_total": 9702.314469824327,
+    "bench_pnl": 27401.661429042622,
+    "max_drawdown": 5415.192859864095,
+    "total_round_trips": 67,
+    "closed_trips": 73,
+    "wins": 14,
+    "losses": 59,
+    "avg_win": 84.75814694138224,
+    "avg_loss": -350.53883886077415,
+    "pnl_long": -2766.8458971309883,
+    "pnl_short": -16202.352019892642,
+    "open_left": 4,
+    "action_counts": {
+     "hold": 438,
+     "buy": 155,
+     "sell": 19,
+     "short": 108
+    },
+    "action_mix": {
+     "hold": 0.608,
+     "buy": 0.215,
+     "sell": 0.026,
+     "short": 0.15
+    },
+    "non_hold_share": 0.3916666666666667
+   }
+  },
+  "fit_audit": {
+   "n_fed": 15961,
+   "gate_class_counts": {
+    "0": 10394,
+    "1": 5567
+   },
+   "n_trade_fed": 5567,
+   "direction_class_counts": {
+    "0": 2745,
+    "1": 2822
+   },
+   "fit_max_abs": 21512548.62318534,
+   "fed_ts_min": "2024-11-23 00:00:00",
+   "fed_ts_max": "2026-09-19 10:00:00",
+   "trade_fed_ts_max": "2026-09-19 00:00:00"
+  },
+  "robust_fit_audit": {
+   "n_fed": 15169,
+   "gate_class_counts": {
+    "0": 9844,
+    "1": 5325
+   },
+   "n_trade_fed": 5325,
+   "direction_class_counts": {
+    "0": 2635,
+    "1": 2690
+   },
+   "fit_max_abs": 21512548.62318534,
+   "fed_ts_min": "2024-11-23 00:00:00",
+   "fed_ts_max": "2026-08-17 10:00:00",
+   "trade_fed_ts_max": "2026-08-17 09:00:00"
+  },
+  "missing_conviction_rows": 18,
+  "missing_conviction_rows_robust": 0
+ },
+ "duel_all": {
+  "arm": {
+   "score": -2320.7012114018653,
+   "total_pnl": -5644.462669208049,
+   "mean_reward": -1.0422553634004774,
+   "max_drawdown": 1195.7646796498448,
+   "bench_pnl": 717.5366148134076,
+   "action_mix": {
+    "hold": 0.731,
+    "buy": 0.149,
+    "sell": 0.018,
+    "short": 0.103
+   },
+   "windows": [
+    {
+     "score": -2730.32,
+     "pnl": -2132.44,
+     "bench": 3202.97
+    },
+    {
+     "score": -1072.21,
+     "pnl": -801.63,
+     "bench": -1148.69
+    },
+    {
+     "score": -3159.57,
+     "pnl": -2710.4,
+     "bench": -1336.74
+    }
+   ],
+   "runnable": true
+  },
+  "detail": {
+   "windows": [
+    {
+     "mean_reward": -1.313636392565236,
+     "total_pnl": -2132.43736656243,
+     "gross_pnl": 189.30392810305239,
+     "fees": 2321.741294665482,
+     "max_drawdown": 1195.7646796498448,
+     "score": -2730.319706387352,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 20,
+     "action_counts": {
+      "hold": 167,
+      "buy": 39,
+      "sell": 5,
+      "short": 29
+     },
+     "action_mix": {
+      "hold": 0.696,
+      "buy": 0.163,
+      "sell": 0.021,
+      "short": 0.121
+     },
+     "pnl_long": 43.294864857336506,
+     "pnl_short": -2175.7322314197663,
+     "open_left": 0
+    },
+    {
+     "mean_reward": -0.5803873023104287,
+     "total_pnl": -801.6295696173329,
+     "gross_pnl": 1296.601196760253,
+     "fees": 2098.230766377586,
+     "max_drawdown": 541.1681438090018,
+     "score": -1072.2136415218338,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 20,
+     "action_counts": {
+      "hold": 179,
+      "buy": 33,
+      "sell": 4,
+      "short": 24
+     },
+     "action_mix": {
+      "hold": 0.746,
+      "buy": 0.138,
+      "sell": 0.017,
+      "short": 0.1
+     },
+     "pnl_long": -104.09986181688146,
+     "pnl_short": -697.5297078004514,
+     "open_left": 0
+    },
+    {
+     "mean_reward": -1.2327423953257677,
+     "total_pnl": -2710.3957330282865,
+     "gross_pnl": -348.39598663976676,
+     "fees": 2361.9997463885197,
+     "max_drawdown": 898.3491065362468,
+     "score": -3159.57028629641,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 14,
+     "action_counts": {
+      "hold": 180,
+      "buy": 35,
+      "sell": 4,
+      "short": 21
+     },
+     "action_mix": {
+      "hold": 0.75,
+      "buy": 0.146,
+      "sell": 0.017,
+      "short": 0.087
+     },
+     "pnl_long": -529.2398078703991,
+     "pnl_short": -2181.1559251578874,
+     "open_left": 2
+    }
+   ],
+   "agg_score": -2320.7012114018653,
+   "total_pnl": -5644.462669208049,
+   "gross_pnl": 1137.5091382235387,
+   "fees_total": 6781.971807431588,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1195.7646796498448,
+   "total_round_trips": 54,
+   "closed_trips": 54,
+   "wins": 13,
+   "losses": 41,
+   "avg_win": 189.97639154505697,
+   "avg_loss": -199.08859781526908,
+   "pnl_long": -590.044804829944,
+   "pnl_short": -5054.417864378105,
+   "open_left": 2,
+   "action_counts": {
+    "hold": 526,
+    "buy": 107,
+    "sell": 13,
+    "short": 74
+   },
+   "action_mix": {
+    "hold": 0.731,
+    "buy": 0.149,
+    "sell": 0.018,
+    "short": 0.103
+   },
+   "non_hold_share": 0.2694444444444445
+  },
+  "windows_won": 0,
+  "robust": {
+   "arm": {
+    "score": -7105.331619947766,
+    "total_pnl": -17208.409377111457,
+    "mean_reward": -1.482183763861115,
+    "max_drawdown": 3720.5586061171925,
+    "bench_pnl": 27401.661429042622,
+    "action_mix": {
+     "hold": 0.568,
+     "buy": 0.196,
+     "sell": 0.022,
+     "short": 0.214
+    },
+    "windows": [
+     {
+      "score": -10698.32,
+      "pnl": -8838.04,
+      "bench": 25192.44
+     },
+     {
+      "score": -5691.07,
+      "pnl": -4360.46,
+      "bench": -1346.46
+     },
+     {
+      "score": -4926.61,
+      "pnl": -4009.91,
+      "bench": 3555.68
+     }
+    ],
+    "runnable": true
+   },
+   "detail": {
+    "windows": [
+     {
+      "mean_reward": -1.9438021450211942,
+      "total_pnl": -8838.043306665742,
+      "gross_pnl": -5226.839241859194,
+      "fees": 3611.204064806548,
+      "max_drawdown": 3720.5586061171925,
+      "score": -10698.322609724339,
+      "bench_pnl": 25192.437345660303,
+      "round_trips_env": 19,
+      "action_counts": {
+       "hold": 131,
+       "buy": 53,
+       "sell": 9,
+       "short": 47
+      },
+      "action_mix": {
+       "hold": 0.546,
+       "buy": 0.221,
+       "sell": 0.037,
+       "short": 0.196
+      },
+      "pnl_long": -1781.0307002490008,
+      "pnl_short": -7057.012606416742,
+      "open_left": 4
+     },
+     {
+      "mean_reward": -0.9875550445362687,
+      "total_pnl": -4360.455924230104,
+      "gross_pnl": -628.3336015201453,
+      "fees": 3732.1223227099586,
+      "max_drawdown": 2661.219448685617,
+      "score": -5691.065648572912,
+      "bench_pnl": -1346.4559589840053,
+      "round_trips_env": 16,
+      "action_counts": {
+       "hold": 101,
+       "buy": 50,
+       "sell": 2,
+       "short": 87
+      },
+      "action_mix": {
+       "hold": 0.421,
+       "buy": 0.208,
+       "sell": 0.008,
+       "short": 0.362
+      },
+      "pnl_long": 27.95222467475105,
+      "pnl_short": -4388.408148904855,
+      "open_left": 4
+     },
+     {
+      "mean_reward": -1.5151941020258821,
+      "total_pnl": -4009.9101462156104,
+      "gross_pnl": -1841.5322404727922,
+      "fees": 2168.3779057428183,
+      "max_drawdown": 1833.3929106608703,
+      "score": -4926.606601546046,
+      "bench_pnl": 3555.680042366327,
+      "round_trips_env": 15,
+      "action_counts": {
+       "hold": 177,
+       "buy": 38,
+       "sell": 5,
+       "short": 20
+      },
+      "action_mix": {
+       "hold": 0.738,
+       "buy": 0.158,
+       "sell": 0.021,
+       "short": 0.083
+      },
+      "pnl_long": -2390.726991349409,
+      "pnl_short": -1619.1831548662012,
+      "open_left": 0
+     }
+    ],
+    "agg_score": -7105.331619947766,
+    "total_pnl": -17208.409377111457,
+    "gross_pnl": -7696.705083852132,
+    "fees_total": 9511.704293259325,
+    "bench_pnl": 27401.661429042622,
+    "max_drawdown": 3720.5586061171925,
+    "total_round_trips": 50,
+    "closed_trips": 53,
+    "wins": 13,
+    "losses": 40,
+    "avg_win": 192.82752935020724,
+    "avg_loss": -468.932998939633,
+    "pnl_long": -4143.805466923659,
+    "pnl_short": -13064.603910187798,
+    "open_left": 8,
+    "action_counts": {
+     "hold": 409,
+     "buy": 141,
+     "sell": 16,
+     "short": 154
+    },
+    "action_mix": {
+     "hold": 0.568,
+     "buy": 0.196,
+     "sell": 0.022,
+     "short": 0.214
+    },
+    "non_hold_share": 0.43194444444444446
+   }
+  },
+  "fit_audit": {
+   "n_fed": 15961,
+   "gate_class_counts": {
+    "0": 10394,
+    "1": 5567
+   },
+   "n_trade_fed": 5567,
+   "direction_class_counts": {
+    "0": 2745,
+    "1": 2822
+   },
+   "fit_max_abs": 127448734671.29518,
+   "fed_ts_min": "2024-11-23 00:00:00",
+   "fed_ts_max": "2026-09-19 10:00:00",
+   "trade_fed_ts_max": "2026-09-19 00:00:00"
+  },
+  "robust_fit_audit": {
+   "n_fed": 15169,
+   "gate_class_counts": {
+    "0": 9844,
+    "1": 5325
+   },
+   "n_trade_fed": 5325,
+   "direction_class_counts": {
+    "0": 2635,
+    "1": 2690
+   },
+   "fit_max_abs": 127448734671.29518,
+   "fed_ts_min": "2024-11-23 00:00:00",
+   "fed_ts_max": "2026-08-17 10:00:00",
+   "trade_fed_ts_max": "2026-08-17 09:00:00"
+  },
+  "missing_conviction_rows": 18,
+  "missing_conviction_rows_robust": 0
+ },
+ "verdicts": {
+  "focus": {
+   "verdict": "FAIL",
+   "rule1_walk_forward": false,
+   "rule2_duel": false,
+   "rule3_robustness": false,
+   "fold_balanced_accuracies": [
+    0.3816346733271994,
+    0.3800461543815799,
+    0.43286891234719493,
+    0.4242246753374956,
+    0.41808280811823456
+   ]
+  },
+  "all": {
+   "verdict": "FAIL",
+   "rule1_walk_forward": false,
+   "rule2_duel": false,
+   "rule3_robustness": false,
+   "fold_balanced_accuracies": [
+    0.3969751011102138,
+    0.3930755546684453,
+    0.42805712539330343,
+    0.42449440950597617,
+    0.4038358079942521
+   ]
+  }
+ },
+ "registered": {
+  "focus": 55,
+  "all": 56
+ },
+ "lab_note_done": true,
+ "verify": {
+  "champion_mtimes_unchanged": true,
+  "start": {
+   "ppo_champion.zip": 1792815481.7000117,
+   "stacker_champion.pkl": 1792728200.1885026,
+   "stacker_champion.json": 1792728200.7745047,
+   "paper.db": 1792818275.5330007,
+   "live_state.json": 1792818275.5460162
+  },
+  "end": {
+   "ppo_champion.zip": 1792815481.7000117,
+   "stacker_champion.pkl": 1792728200.1885026,
+   "stacker_champion.json": 1792728200.7745047,
+   "paper.db": 1792818275.5330007,
+   "live_state.json": 1792818275.5460162
+  },
+  "note": "paper.db / live_state.json are written by the LIVE loop (bot un-parked 2026-10-24); this lab study never opened them for writing -- all duel brokers used scratch DBs in /tmp."
+ }
+}

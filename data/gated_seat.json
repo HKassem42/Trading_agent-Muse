@@ -1,0 +1,71 @@
+{
+ "desk": "TradingAgent Live \u2014 Gated (Book #3 \u00b7 Run 82 Gate)",
+ "book": "Book #3",
+ "driver": {
+  "brain": "PPO",
+  "run_id": 99,
+  "file": "models/gated_seat/ppo.zip",
+  "sha256": "fa2c1677980bf97fd9cf885669981d90d42b8b1942b8a0fc5a3a22f4ce10fe0b",
+  "source": "models/ppo_run99.zip",
+  "seated_by": "Kass's direct order, main chat 2026-11-03 ~19:14 ET ('switch out book three to 99 I wanna see how it does') -- a driver pick by the seat's owner, NOT a promotion",
+  "recorded_verdict": "NOT PROMOTED -- 2026-11-03 nightly duel: won 1/3 windows, aggregate -760.78 vs champion +23.07, P&L +$697.65 vs champion +$531.86 (lost on the score formula's drawdown penalty)"
+ },
+ "eyes": {
+  "brain": "Stacker",
+  "run_id": 73,
+  "name": "Muse's Pick #2 Stacker",
+  "champion": "Champion #4",
+  "feature_set": "pick2_98",
+  "n_features": 98,
+  "file": "models/gated_seat/stacker.pkl",
+  "sha256": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+  "meta_file": "models/gated_seat/stacker.json",
+  "meta_sha256": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+  "source": "models/stacker_champion.pkl"
+ },
+ "gate": {
+  "brain": "Meta-Label (LightGBM)",
+  "run_id": 82,
+  "family": "meta_label",
+  "file": "models/gated_seat/gate_model.pkl",
+  "sha256": "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a",
+  "source": "data/meta_label/meta_model.pkl",
+  "threshold": 0.55,
+  "feature_vector": "104 = 98 pick2_98 scored values (champion's recorded column order) + [p_up, |p_up-0.5|, atr_rel, volatility_21, atr_pct_raw, side], built by src/training/meta_label.py feature_row",
+  "study": "refs/meta-label-study-2026-10-30.md",
+  "forward_test": "refs/forward-test-gated-book3-2026-10-30.md"
+ },
+ "book_db": "data/paper_gated.db",
+ "state_file": "data/live_state_gated.json",
+ "starting_balance": 100000,
+ "started": "2026-10-30T16:00:00",
+ "seeded_by": "Book #3 gated forward test build (Kass approved the forward test 2026-10-30)",
+ "pinned": "Driver pinned to PPO run 99 (seated by Kass's direct order 2026-11-03; recorded duel verdict NOT PROMOTED), eyes pinned to Stacker run 73 (Champion #4), gate MODEL pinned to run 82's frozen meta-model BY HASH (never retrained or refit), gate threshold 0.55 (restored by Kass's order 2026-11-04; Segment 1 ran at 0.55, Segment 2 at 0.50). This seat does NOT follow future lab crownings. Configuration history is in swap_history; the forward test's segment record is the amendment in refs/forward-test-gated-book3-2026-10-30.md.",
+ "note": "Book #3: the gated shadow book. Segment 1 (2026-10-30 to 2026-11-03T23:00Z): Book #2's exact twin (run 44 driver, run 73 eyes) plus run 82's entry veto at 0.55 -- 7 attempts, 0 taken, 7 vetoed. Segment 2 (2026-11-04T00:00Z to 2026-11-04T21:00Z): run 99 driver, same eyes, same frozen gate model, veto threshold 0.50 -- 14 attempts, 9 taken, 5 vetoed. Segment 3 (from Kass's 2026-11-04 order): run 99 driver, same eyes, same frozen gate model, veto threshold back to 0.55. Primary evidence: the gate_decisions table in data/paper_gated.db (each row records the threshold it was judged at).",
+ "swap_history": [
+  {
+   "ts": "2026-11-04T00:17:21Z",
+   "by": "Kass (direct order, main chat)",
+   "changes": [
+    "driver: PPO run 44 -> run 99 (sha256 e610ddf3... -> fa2c1677...)",
+    "gate threshold: 0.55 -> 0.50 (gate model file unchanged, sha256 cf7630c0...)",
+    "eyes unchanged: Stacker run 73"
+   ],
+   "book_state_at_swap": "FLAT, $100,000, 0 trades, 7 gate decisions (all VETOED at 0.55)",
+   "segment_boundary": "Segment 1 closes at the last candle processed under the old seat, 2026-11-03T23:00:00Z; Segment 2 begins with the first candle processed under this seat",
+   "pre_swap_backup": "models/archive/20261104T0016_pre_book3_driver99_gate050/"
+  },
+  {
+   "ts": "2026-11-04T22:39:12Z",
+   "by": "Kass (direct order, main chat 2026-11-04 17:37 ET: 'Tighten book three back to .55')",
+   "changes": [
+    "gate threshold: 0.50 -> 0.55 (gate model file unchanged, sha256 cf7630c0...)",
+    "driver unchanged: PPO run 99",
+    "eyes unchanged: Stacker run 73"
+   ],
+   "book_state_at_swap": "SHORT -0.912837 BTC @ entry $80,280.14 (stop $82,219.59), equity $97,779.37, 10 trades, 21 gate decisions (9 taken / 12 vetoed; Segment 2 at 0.50 closed 14 attempts / 9 taken / 5 vetoed)",
+   "segment_boundary": "Segment 2 closes at the last candle processed under the old seat, 2026-11-04T21:00:00Z; Segment 3 begins with the first candle processed under this seat (the 2026-11-04T22:00:00Z candle)",
+   "pre_swap_backup": "models/archive/20261104T2239_pre_book3_gate055_segment3/"
+  }
+ ]
+}

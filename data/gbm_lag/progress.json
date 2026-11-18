@@ -1,0 +1,15 @@
+{
+ "done": [
+  "duel_E",
+  "duel_F",
+  "duel_G",
+  "duel_champion",
+  "importance",
+  "register",
+  "setup",
+  "verify",
+  "wf_E",
+  "wf_F",
+  "wf_G"
+ ]
+}

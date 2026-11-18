@@ -1,0 +1,14 @@
+{
+ "done": [
+  "duel_all",
+  "duel_champion",
+  "duel_champion_robust",
+  "duel_focus",
+  "register",
+  "setup",
+  "verdicts",
+  "verify",
+  "wf_all",
+  "wf_focus"
+ ]
+}

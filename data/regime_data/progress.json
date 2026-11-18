@@ -1,0 +1,15 @@
+{
+ "done": [
+  "duel_base_check",
+  "duel_champion",
+  "duel_champion_robust",
+  "duel_filter",
+  "duel_focus_regime",
+  "register",
+  "setup",
+  "verdicts",
+  "verify",
+  "wf_focus_regime",
+  "wf_regime_only"
+ ]
+}

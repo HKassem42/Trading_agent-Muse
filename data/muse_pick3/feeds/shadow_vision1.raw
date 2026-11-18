@@ -1,0 +1,61 @@
+market_data: SOURCE=coinbase symbol=BTC-USD period=730d rows=17510 coverage=99.9%
+  Absolute Price Oscillator (APO): 0.0s
+  Acceleration Oscillator (AC): 0.8s
+  Accumulation/Distribution (A/D): 0.0s
+  Accumulative Swing Index (ASI): 0.0s
+  Arnaud Legoux Moving Average (ALMA): 0.0s
+  Aroon Indicator: 0.2s
+  Average Daily Range (ADR): 0.0s
+  Average Directional Movement Index (ADX): 0.0s
+  Awesome Oscillator (AO): 0.0s
+  Bollinger BandWidth: 0.0s
+  Bollinger %B: 0.0s
+  Center of Gravity (COG): 0.1s
+  Chaikin Money Flow (CMF): 0.0s
+  Chande Momentum Oscillator (CMO): 0.0s
+  Chandelier Exit: 0.0s
+  Choppiness Index (CHOP): 0.0s
+  Commodity Channel Index (CCI): 0.3s
+  Connors RSI (CRSI): 0.0s
+  Coppock Curve: 0.0s
+  Detrended Price Oscillator (DPO): 0.0s
+  Directional Movement Index (DMI): 0.1s
+  Donchian Channels: 0.0s
+  Double Exponential Moving Average (DEMA): 0.0s
+  Ease of Movement (EMV): 0.0s
+  Elder Force Index (EFI): 0.0s
+  Exponential Moving Average (EMA): 0.0s
+  Fisher Transform: 0.1s
+  Force Index: 0.0s
+  Historical Volatility (HV): 0.0s
+  Hull Moving Average (HMA): 0.0s
+  Ichimoku Cloud (Baseline): 0.0s
+  Kaufman Adaptive Moving Average (KAMA): 0.1s
+  Keltner Channels: 0.0s
+  Klinger Volume Oscillator (KVO): 0.0s
+  Know Sure Thing (KST): 0.0s
+  MACD (Moving Average Convergence Divergence): 0.0s
+  MACD Histogram: 0.0s
+  MACD Signal Line: 0.0s
+  Mass Index (MI): 0.0s
+  Momentum (MOM): 0.0s
+  Money Flow Index (MFI): 0.0s
+  On-Balance Volume (OBV): 0.0s
+  Parabolic SAR (PSAR): 0.0s
+  Price Volume Trend (PVT): 0.0s
+  Rate of Change (ROC): 0.0s
+  Relative Strength Index (RSI): 0.0s
+  Relative Volatility Index (RVI): 0.0s
+  Schaff Trend Cycle (STC): 0.8s
+  Simple Moving Average (SMA): 0.0s
+  Standard Deviation (SD): 0.0s
+  Stochastic Oscillator (Fast): 0.0s
+  Stochastic RSI (StochRSI): 0.0s
+  SuperTrend: 0.7s
+  True Strength Index (TSI): 0.0s
+  Ultimate Oscillator (UO): 0.0s
+  Volume Weighted Average Price (VWAP): 0.0s
+  Vortex Indicator (VI): 0.0s
+  Williams %R: 0.0s
+  Zero Lag Exponential Moving Average (ZLEMA): 0.0s
+{"part":1,"ts":"2026-10-27T18:00:00","groups":{"volume":[["Accumulation/Distribution (A/D)",67.0],["Chaikin Money Flow (CMF)",83.9],["Elder Force Index (EFI)",80.9],["Force Index",67.8],["Klinger Volume Oscillator (KVO)",87.4],["On-Balance Volume (OBV)",80.8],["Price Volume Trend (PVT)",70.4]],"other":[["Average Daily Range (ADR)",47.9],["Average Directional Movement Index (ADX)",40.0],["Bollinger BandWidth",39.6],["Choppiness Index (CHOP)",64.4],["Directional Movement Index (DMI)",39.4],["Ease of Movement (EMV)",88.6],["Historical Volatility (HV)",32.9],["Mass Index (MI)",29.6],["Money Flow Index (MFI)",96.9],["Relative Volatility Index (RVI)",61.2],["Standard Deviation (SD)",46.7],["ATR Band Half-Width (14) (%)",42.8],["Distance to $5,000 Round Number (%)",66.7],["Rolling Hurst Exponent (100)",22.6],["Return Skewness (100)",46.1],["Return Kurtosis (100)",8.1],["Return Autocorrelation Lag-1 (100)",1.3]]},"f21":[["body_pct","Candle body: close vs open this hour",0.067,"+0.14%"],["upper_wick","Upper wick: sellers pushed price down from the high",0.15,"0.13%"],["lower_wick","Lower wick: buyers pushed price up from the low",0.072,"0.07%"],["range_pct","Candle range: high-to-low size this hour",0.126,"0.35%"],["rsi_c","RSI momentum: -1 oversold, +1 overbought",0.185,"59"],["macd_hist_rel","MACD histogram: trend momentum",0.189,"+0.12%"],["dist_vwap","Distance from VWAP (average traded price)",0.15,"+0.63%"],["dist_sma50","Distance from the 50-hour average price",0.086,"+0.60%"],["atr_rel","ATR: typical hourly move size (volatility)",0.314,"0.49%"],["price_change","Last hour's price change",0.067,"+0.14%"],["volatility_21","Volatility over the last 21 hours",0.129,"0.40%"],["volume_change","Trading volume change vs previous hour",-0.38,"-38%"],["h4_rsi_c","4-hour RSI momentum: -1 oversold, +1 overbought",-0.015,"49"],["h4_dist_sma","Distance from the 4-hour 20-period average price",0.036,"+0.32%"],["d1_dist_sma","Distance from the daily 20-day average price (big trend)",-0.131,"-2.46%"],["h4_atr_rel","4-hour ATR: typical 4-hour move size (volatility)",0.336,"0.95%"],["ha_dir","Heikin-Ashi direction: smoothed trend, + up / - down (ATR units)",0.055,"+0.13 ATR"],["obv_slope","On-Balance Volume slope: volume flowing in (+) or out (-) over 24h",0.314,"+31%"],["adl_slope","Accumulation/Distribution slope: buying (+) vs selling (-) pressure over 24h",0.09,"+9%"],["netvol_rel","Net volume: signed share of the last 24h of volume",0.314,"+31%"],["ewo","Elliott Wave Oscillator: fast vs slow momentum, + bullish / - bearish",0.094,"+0.39%"]]}

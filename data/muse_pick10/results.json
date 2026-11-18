@@ -1,0 +1,47 @@
+{
+ "pick": {
+  "acc": 0.5151515151515151,
+  "precision": 0.5063613231552163,
+  "up_calls": 393
+ },
+ "wf": {
+  "fold_accs": [
+   0.5236851920925027,
+   0.5236851920925027,
+   0.5095113763521074,
+   0.5389779932860873,
+   0.5311450951137635
+  ],
+  "fold_majorities": [
+   0.5039164490861618,
+   0.5061544199925401,
+   0.5035434539350989,
+   0.5027974636329728,
+   0.5035434539350988
+  ],
+  "wf_acc": 0.5254009697873927,
+  "wf_majority": 0.5039910481163745,
+  "wf_precision_pooled": 0.5283107895564643
+ },
+ "pending": false,
+ "beat_bar": false,
+ "meta": {
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+   "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "run73_artifact": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  },
+  "split": 16258,
+  "exam_majority": 0.5088383838383839,
+  "holdout_start": "2026-10-03 19:00:00",
+  "champ96_acc": 0.5214646464646465,
+  "champ73_acc": 0.5189393939393939,
+  "rows_sup": 17050
+ }
+}

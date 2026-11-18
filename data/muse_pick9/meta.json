@@ -1,0 +1,20 @@
+{
+ "guard_before": {
+  "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+  "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+  "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+  "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+  "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+  "run73_artifact": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+ },
+ "rows_raw": 17510,
+ "rows_sup": 17050,
+ "split": 16258,
+ "holdout_start": "2026-10-03 19:00:00",
+ "data_first": "2024-11-05 19:00:00",
+ "data_last": "2026-11-05 18:00:00",
+ "exam_majority": 0.5088383838383839
+}

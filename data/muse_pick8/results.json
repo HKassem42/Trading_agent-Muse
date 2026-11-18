@@ -1,0 +1,131 @@
+{
+ "pick": {
+  "acc": 0.5611979166666666,
+  "precision": 0.5448430493273543,
+  "up_calls": 446
+ },
+ "wf": {
+  "fold_accs": [
+   0.5189533713518953,
+   0.5280107346528011,
+   0.487420328748742
+  ],
+  "fold_majorities": [
+   0.5028513921502851,
+   0.5172760818517277,
+   0.5340489768534049
+  ],
+  "wf_acc": 0.5114614782511462,
+  "wf_majority": 0.5180588169518059,
+  "wf_precision_pooled": 0.5145102781136639
+ },
+ "pending": false,
+ "beat_bar": false,
+ "window_accs": [
+  0.71484375,
+  0.421875,
+  0.546875
+ ],
+ "nonoverlap": {
+  "acc": 0.46875,
+  "precision": 0.3684210526315789,
+  "up_calls": 19
+ },
+ "meta": {
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+   "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  },
+  "n_supervised": 17037,
+  "holdout_pos": 16245,
+  "n_train": 12021,
+  "n_exam": 768,
+  "exam_majority": 0.5091145833333333,
+  "prod_cols": [
+   "body_pct",
+   "upper_wick",
+   "lower_wick",
+   "range_pct",
+   "rsi_c",
+   "macd_hist_rel",
+   "dist_vwap",
+   "dist_sma50",
+   "atr_rel",
+   "price_change",
+   "volatility_21",
+   "volume_change",
+   "h4_rsi_c",
+   "h4_dist_sma",
+   "d1_dist_sma",
+   "h4_atr_rel",
+   "ha_dir",
+   "obv_slope",
+   "adl_slope",
+   "netvol_rel",
+   "ewo"
+  ],
+  "train_first": "2025-05-17 23:00:00",
+  "train_last": "2026-10-01 05:00:00",
+  "exam_first": "2026-10-02 06:00:00",
+  "exam_last": "2026-11-03 05:00:00"
+ },
+ "refs": {
+  "meta": {
+   "guard_before": {
+    "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+    "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+    "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+    "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+    "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+    "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+    "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+    "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+   },
+   "n_supervised": 17037,
+   "holdout_pos": 16245,
+   "holdout_start": "2026-10-02 06:00:00",
+   "n_train": 12021,
+   "n_exam": 768,
+   "exam_majority": 0.5091145833333333,
+   "exam_up_rate": 0.4908854166666667,
+   "prod_cols": [
+    "body_pct",
+    "upper_wick",
+    "lower_wick",
+    "range_pct",
+    "rsi_c",
+    "macd_hist_rel",
+    "dist_vwap",
+    "dist_sma50",
+    "atr_rel",
+    "price_change",
+    "volatility_21",
+    "volume_change",
+    "h4_rsi_c",
+    "h4_dist_sma",
+    "d1_dist_sma",
+    "h4_atr_rel",
+    "ha_dir",
+    "obv_slope",
+    "adl_slope",
+    "netvol_rel",
+    "ewo"
+   ],
+   "train_first": "2025-05-17 23:00:00",
+   "train_last": "2026-10-01 05:00:00",
+   "exam_first": "2026-10-02 06:00:00",
+   "exam_last": "2026-11-03 05:00:00",
+   "index_gaps_over_1h": 2,
+   "index_gap_hours_total": 12.0
+  },
+  "c1_acc": 0.5611979166666666,
+  "pick7_acc": 0.5403645833333334,
+  "pick7_run_majority": 0.5091145833333333
+ }
+}

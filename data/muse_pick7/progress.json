@@ -1,0 +1,11 @@
+{
+ "done": [
+  "setup",
+  "fit_control_prod21",
+  "fit_control_eyes98",
+  "fit_ablation_info22",
+  "fit_pick7",
+  "wf",
+  "register"
+ ]
+}

@@ -1,0 +1,383 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17050,
+  "split": 16258,
+  "holdout_start": "2026-09-24 19:00:00",
+  "hold_start_pos": 16718,
+  "data_first": "2024-10-27 19:00:00",
+  "data_last": "2026-10-27 18:00:00",
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "3154bc3ceb6369b3843a56ddc66d50d4737b6d524e10258c066c47d968b7f68b",
+   "paper_shadow_db_info_only": "fb3a49d66b057b153c0429560360fb968e52b000f12678fd5d22375b301b5aae"
+  },
+  "state_size": 102,
+  "n_features": 98,
+  "eyes_run": 73,
+  "design": {
+   "ppo": "Muse's Pick #3 PPO (exposure manager): SB3 PPO, 102-wide scored state + run 73 votes; direction = sign(vote - 0.5) only; actions STAND ASIDE / HALF 37.5% / FULL 75% / HOLD; challenger exits stop 1.5xATR [2%,6%], trail +2% / 1.25xATR [1.5%,5%], 72h time-stop; no shaping, no activity penalty; 264-candle training episodes",
+   "episode_candles": 264,
+   "actions": {
+    "0": "stand_aside",
+    "1": "half",
+    "2": "full",
+    "3": "hold"
+   },
+   "half_pct": 0.375,
+   "full_pct": 0.75,
+   "time_stop_candles": 72,
+   "challenger_exits": {
+    "stop_atr_mult": 1.5,
+    "stop_min_pct": 0.02,
+    "stop_max_pct": 0.06,
+    "trail_activate_pct": 0.02,
+    "trail_atr_mult": 1.25,
+    "trail_min_pct": 0.015,
+    "trail_max_pct": 0.05
+   }
+  }
+ },
+ "frames": {
+  "train_rows": 12082,
+  "dropped_warmup_train_rows": 4176,
+  "holdout_rows": 792,
+  "train_first": "2025-05-08 23:00:00",
+  "train_last": "2026-09-24 18:00:00"
+ },
+ "votes": {
+  "train_vote_mean": 0.4982050787422777,
+  "train_vote_std": 0.009209610191694877,
+  "train_vote_neutral_share": 0.20013242840589307,
+  "hold_vote_mean": 0.501732849660169,
+  "hold_vote_std": 0.012582349491195115,
+  "hold_vote_min": 0.46150255226607195,
+  "hold_vote_max": 0.5420505387748838
+ },
+ "arm": {
+  "challenger_path": "/home/hatch/workspace/trading-agent-muse/data/muse_pick3/arm60/ppo_challenger.zip",
+  "timesteps": 60000,
+  "episode_candles": 264,
+  "reward_curve": [
+   [
+    2640,
+    -12.129
+   ],
+   [
+    5280,
+    -11.938
+   ],
+   [
+    7920,
+    -13.826
+   ],
+   [
+    10560,
+    -9.683
+   ],
+   [
+    13200,
+    -9.907
+   ],
+   [
+    15840,
+    -6.485
+   ],
+   [
+    18480,
+    -8.56
+   ],
+   [
+    21120,
+    -8.358
+   ],
+   [
+    23760,
+    -7.406
+   ],
+   [
+    26400,
+    -8.935
+   ],
+   [
+    29040,
+    -9.725
+   ],
+   [
+    31680,
+    -6.01
+   ],
+   [
+    34320,
+    -4.643
+   ],
+   [
+    36960,
+    -4.817
+   ],
+   [
+    39600,
+    -5.788
+   ],
+   [
+    42240,
+    -5.774
+   ],
+   [
+    44880,
+    -5.547
+   ],
+   [
+    47520,
+    -4.805
+   ],
+   [
+    50160,
+    -5.64
+   ],
+   [
+    52800,
+    -4.696
+   ],
+   [
+    55440,
+    -3.754
+   ],
+   [
+    58080,
+    -2.137
+   ]
+  ],
+  "telemetry": {
+   "rollouts": 118,
+   "kl_end": null,
+   "clip_end": 0.066,
+   "ev_end": 0.299,
+   "vl_end": 0.1215,
+   "ent_start": 1.3766,
+   "ent_end": 0.7345,
+   "ent_min": 0.7345,
+   "ent_curve": [
+    [
+     1024,
+     1.3766
+    ],
+    [
+     3584,
+     1.3209
+    ],
+    [
+     6144,
+     1.2763
+    ],
+    [
+     8704,
+     1.3017
+    ],
+    [
+     11264,
+     1.2562
+    ],
+    [
+     13824,
+     1.2461
+    ],
+    [
+     16384,
+     1.1502
+    ],
+    [
+     18944,
+     1.1607
+    ],
+    [
+     21504,
+     1.1401
+    ],
+    [
+     24064,
+     1.1305
+    ],
+    [
+     26624,
+     1.1
+    ],
+    [
+     29184,
+     1.0221
+    ],
+    [
+     32256,
+     1.0377
+    ],
+    [
+     34816,
+     0.9628
+    ],
+    [
+     37376,
+     0.9932
+    ],
+    [
+     39936,
+     0.9352
+    ],
+    [
+     42496,
+     0.9257
+    ],
+    [
+     45056,
+     1.021
+    ],
+    [
+     47616,
+     0.9823
+    ],
+    [
+     50176,
+     0.9613
+    ],
+    [
+     52736,
+     0.9907
+    ],
+    [
+     55296,
+     0.8508
+    ],
+    [
+     57856,
+     0.7819
+    ],
+    [
+     60416,
+     0.7345
+    ]
+   ]
+  }
+ },
+ "duel": {
+  "champion": {
+   "score": -35.58898264405676,
+   "total_pnl": 212.21261563379085,
+   "mean_reward": -1.2463253288650051,
+   "max_drawdown": 303.52465802374354,
+   "mean_drawdown": 30.506704434721907,
+   "bench_pnl": -5152.496750262259,
+   "episodes": 30,
+   "round_trips_per_day": 0.06666666666666667,
+   "action_mix": {
+    "hold": 0.571,
+    "buy": 0.0,
+    "sell": 0.421,
+    "short": 0.008
+   },
+   "windows": [
+    {
+     "score": 168.52,
+     "pnl": 291.08,
+     "bench": 1496.35,
+     "dd": 245.12,
+     "mdd": 44.97,
+     "mr": -1.171,
+     "episodes": 10
+    },
+    {
+     "score": -114.46,
+     "pnl": -69.8,
+     "bench": -5483.93,
+     "dd": 89.32,
+     "mdd": 8.93,
+     "mr": -1.367,
+     "episodes": 10
+    },
+    {
+     "score": -160.82,
+     "pnl": -9.06,
+     "bench": -1164.91,
+     "dd": 303.52,
+     "mdd": 37.62,
+     "mr": -1.201,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -415.8922784399862,
+   "total_pnl": -453.2251917791291,
+   "mean_reward": -0.6820089785992134,
+   "max_drawdown": 675.8015097433381,
+   "mean_drawdown": 121.82786397749298,
+   "bench_pnl": -5152.496750262259,
+   "episodes": 30,
+   "round_trips_per_day": 0.26666666666666666,
+   "action_mix": {
+    "stand_aside": 0.196,
+    "half": 0.05,
+    "full": 0.008,
+    "hold": 0.746
+   },
+   "windows": [
+    {
+     "score": 363.41,
+     "pnl": 550.33,
+     "bench": 1496.35,
+     "dd": 373.85,
+     "mdd": 123.01,
+     "mr": -0.345,
+     "episodes": 10
+    },
+    {
+     "score": -510.34,
+     "pnl": -172.44,
+     "bench": -5483.93,
+     "dd": 675.8,
+     "mdd": 117.9,
+     "mr": -0.817,
+     "episodes": 10
+    },
+    {
+     "score": -1100.74,
+     "pnl": -831.12,
+     "bench": -1164.91,
+     "dd": 539.25,
+     "mdd": 124.58,
+     "mr": -0.883,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "windows_won": 1,
+  "formula_pass": false,
+  "floor_fail": null,
+  "promotable": false
+ },
+ "registered": {
+  "ppo_promotable": false,
+  "crowned_run_id": null,
+  "guard_after": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "fb4f00bf3b0258cc9b5864f3bfaf9f0d7b9c124a855bffd53d861c85be1ac9e4",
+   "paper_shadow_db_info_only": "b019893551b7a99b3402066b3dd353d6fd1381e3ec4dc52b353c88f3bfd1e699"
+  }
+ }
+}

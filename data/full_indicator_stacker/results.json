@@ -1,0 +1,706 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17054,
+  "split": 16262,
+  "holdout_start": "2026-09-22 23:00:00",
+  "hold_start_pos": 16718,
+  "data_first": "2024-10-25 23:00:00",
+  "data_last": "2026-10-25 22:00:00",
+  "guard_before": {
+   "ppo_champion.zip": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "stacker_champion.pkl": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "stacker_champion.json": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "paper.db": "84d237ff64741a54375b3515710699e6de9b8e5235b9db40f62762f1f3295b19"
+  },
+  "champion_ppo_sha": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb"
+ },
+ "build": {
+  "cols90": [
+   "Absolute Price Oscillator (APO)",
+   "Acceleration Oscillator (AC)",
+   "Accumulation/Distribution (A/D)",
+   "Accumulative Swing Index (ASI)",
+   "Arnaud Legoux Moving Average (ALMA)",
+   "Aroon Indicator",
+   "Average Daily Range (ADR)",
+   "Average Directional Movement Index (ADX)",
+   "Awesome Oscillator (AO)",
+   "Bollinger BandWidth",
+   "Bollinger %B",
+   "Center of Gravity (COG)",
+   "Chaikin Money Flow (CMF)",
+   "Chande Momentum Oscillator (CMO)",
+   "Chandelier Exit",
+   "Choppiness Index (CHOP)",
+   "Commodity Channel Index (CCI)",
+   "Connors RSI (CRSI)",
+   "Coppock Curve",
+   "Detrended Price Oscillator (DPO)",
+   "Directional Movement Index (DMI)",
+   "Donchian Channels",
+   "Double Exponential Moving Average (DEMA)",
+   "Ease of Movement (EMV)",
+   "Elder Force Index (EFI)",
+   "Exponential Moving Average (EMA)",
+   "Fisher Transform",
+   "Force Index",
+   "Historical Volatility (HV)",
+   "Hull Moving Average (HMA)",
+   "Ichimoku Cloud (Baseline)",
+   "Kaufman Adaptive Moving Average (KAMA)",
+   "Keltner Channels",
+   "Klinger Volume Oscillator (KVO)",
+   "Know Sure Thing (KST)",
+   "MACD (Moving Average Convergence Divergence)",
+   "MACD Histogram",
+   "MACD Signal Line",
+   "Mass Index (MI)",
+   "Momentum (MOM)",
+   "Money Flow Index (MFI)",
+   "On-Balance Volume (OBV)",
+   "Parabolic SAR (PSAR)",
+   "Price Volume Trend (PVT)",
+   "Rate of Change (ROC)",
+   "Relative Strength Index (RSI)",
+   "Relative Volatility Index (RVI)",
+   "Schaff Trend Cycle (STC)",
+   "Simple Moving Average (SMA)",
+   "Standard Deviation (SD)",
+   "Stochastic Oscillator (Fast)",
+   "Stochastic RSI (StochRSI)",
+   "SuperTrend",
+   "True Strength Index (TSI)",
+   "Ultimate Oscillator (UO)",
+   "Volume Weighted Average Price (VWAP)",
+   "Vortex Indicator (VI)",
+   "Williams %R",
+   "Zero Lag Exponential Moving Average (ZLEMA)",
+   "Distance to SMA 50 (%)",
+   "Distance to SMA 100 (%)",
+   "Distance to SMA 200 (%)",
+   "Distance to EMA 21 (%)",
+   "Distance to EMA 55 (%)",
+   "Distance to EMA 200 (%)",
+   "Distance to Bollinger Upper Band (20, 2.0) (%)",
+   "Distance to Bollinger Lower Band (20, 2.0) (%)",
+   "Distance to Donchian Upper (20) (%)",
+   "Distance to Donchian Lower (20) (%)",
+   "Distance to Donchian Upper (55) (%)",
+   "Distance to Donchian Lower (55) (%)",
+   "Distance to Keltner Upper (20, 2.0) (%)",
+   "Distance to Keltner Lower (20, 2.0) (%)",
+   "ATR Band Half-Width (14) (%)",
+   "Ichimoku Tenkan-sen Distance (%)",
+   "Ichimoku Senkou Span A Distance (%)",
+   "Ichimoku Senkou Span B Distance (%)",
+   "Ichimoku Chikou Distance (%)",
+   "Parabolic SAR Distance (%)",
+   "Parabolic SAR Side (+1/-1)",
+   "SuperTrend Distance (%)",
+   "SuperTrend Side (+1/-1)",
+   "Distance to Prior-Day Pivot Point (%)",
+   "Distance to Prior-Day Pivot R1 (%)",
+   "Distance to Prior-Day Pivot S1 (%)",
+   "Distance to Prior-Day High (%)",
+   "Distance to Prior-Day Low (%)",
+   "Distance to Fractal Resistance (%)",
+   "Distance to Fractal Support (%)",
+   "Distance to $5,000 Round Number (%)"
+  ],
+  "arm_b_cols": [
+   "score_master",
+   "score_trend",
+   "score_momentum",
+   "score_volume",
+   "Absolute Price Oscillator (APO)",
+   "Acceleration Oscillator (AC)",
+   "Accumulation/Distribution (A/D)",
+   "Accumulative Swing Index (ASI)",
+   "Arnaud Legoux Moving Average (ALMA)",
+   "Aroon Indicator",
+   "Average Daily Range (ADR)",
+   "Average Directional Movement Index (ADX)",
+   "Awesome Oscillator (AO)",
+   "Bollinger BandWidth",
+   "Bollinger %B",
+   "Center of Gravity (COG)",
+   "Chaikin Money Flow (CMF)",
+   "Chande Momentum Oscillator (CMO)",
+   "Chandelier Exit",
+   "Choppiness Index (CHOP)",
+   "Commodity Channel Index (CCI)",
+   "Connors RSI (CRSI)",
+   "Coppock Curve",
+   "Detrended Price Oscillator (DPO)",
+   "Directional Movement Index (DMI)",
+   "Donchian Channels",
+   "Double Exponential Moving Average (DEMA)",
+   "Ease of Movement (EMV)",
+   "Elder Force Index (EFI)",
+   "Exponential Moving Average (EMA)",
+   "Fisher Transform",
+   "Force Index",
+   "Historical Volatility (HV)",
+   "Hull Moving Average (HMA)",
+   "Ichimoku Cloud (Baseline)",
+   "Kaufman Adaptive Moving Average (KAMA)",
+   "Keltner Channels",
+   "Klinger Volume Oscillator (KVO)",
+   "Know Sure Thing (KST)",
+   "MACD (Moving Average Convergence Divergence)",
+   "MACD Histogram",
+   "MACD Signal Line",
+   "Mass Index (MI)",
+   "Momentum (MOM)",
+   "Money Flow Index (MFI)",
+   "On-Balance Volume (OBV)",
+   "Parabolic SAR (PSAR)",
+   "Price Volume Trend (PVT)",
+   "Rate of Change (ROC)",
+   "Relative Strength Index (RSI)",
+   "Relative Volatility Index (RVI)",
+   "Schaff Trend Cycle (STC)",
+   "Simple Moving Average (SMA)",
+   "Standard Deviation (SD)",
+   "Stochastic Oscillator (Fast)",
+   "Stochastic RSI (StochRSI)",
+   "SuperTrend",
+   "True Strength Index (TSI)",
+   "Ultimate Oscillator (UO)",
+   "Volume Weighted Average Price (VWAP)",
+   "Vortex Indicator (VI)",
+   "Williams %R",
+   "Zero Lag Exponential Moving Average (ZLEMA)",
+   "Distance to SMA 50 (%)",
+   "Distance to SMA 100 (%)",
+   "Distance to SMA 200 (%)",
+   "Distance to EMA 21 (%)",
+   "Distance to EMA 55 (%)",
+   "Distance to EMA 200 (%)",
+   "Distance to Bollinger Upper Band (20, 2.0) (%)",
+   "Distance to Bollinger Lower Band (20, 2.0) (%)",
+   "Distance to Donchian Upper (20) (%)",
+   "Distance to Donchian Lower (20) (%)",
+   "Distance to Donchian Upper (55) (%)",
+   "Distance to Donchian Lower (55) (%)",
+   "Distance to Keltner Upper (20, 2.0) (%)",
+   "Distance to Keltner Lower (20, 2.0) (%)",
+   "ATR Band Half-Width (14) (%)",
+   "Ichimoku Tenkan-sen Distance (%)",
+   "Ichimoku Senkou Span A Distance (%)",
+   "Ichimoku Senkou Span B Distance (%)",
+   "Ichimoku Chikou Distance (%)",
+   "Parabolic SAR Distance (%)",
+   "Parabolic SAR Side (+1/-1)",
+   "SuperTrend Distance (%)",
+   "SuperTrend Side (+1/-1)",
+   "Distance to Prior-Day Pivot Point (%)",
+   "Distance to Prior-Day Pivot R1 (%)",
+   "Distance to Prior-Day Pivot S1 (%)",
+   "Distance to Prior-Day High (%)",
+   "Distance to Prior-Day Low (%)",
+   "Distance to Fractal Resistance (%)",
+   "Distance to Fractal Support (%)",
+   "Distance to $5,000 Round Number (%)"
+  ],
+  "score_p0": 4632,
+  "score_p0_ts": "2025-05-06 23:00:00",
+  "scored_rows": 12878,
+  "composite_members": {
+   "trend": [
+    "Accumulative Swing Index (ASI)",
+    "Arnaud Legoux Moving Average (ALMA)",
+    "Aroon Indicator",
+    "Chandelier Exit",
+    "Donchian Channels",
+    "Double Exponential Moving Average (DEMA)",
+    "Exponential Moving Average (EMA)",
+    "Hull Moving Average (HMA)",
+    "Ichimoku Cloud (Baseline)",
+    "Kaufman Adaptive Moving Average (KAMA)",
+    "Keltner Channels",
+    "Parabolic SAR (PSAR)",
+    "Simple Moving Average (SMA)",
+    "SuperTrend",
+    "Volume Weighted Average Price (VWAP)",
+    "Vortex Indicator (VI)",
+    "Zero Lag Exponential Moving Average (ZLEMA)",
+    "Distance to SMA 50 (%)",
+    "Distance to SMA 100 (%)",
+    "Distance to SMA 200 (%)",
+    "Distance to EMA 21 (%)",
+    "Distance to EMA 55 (%)",
+    "Distance to EMA 200 (%)",
+    "Distance to Bollinger Upper Band (20, 2.0) (%)",
+    "Distance to Bollinger Lower Band (20, 2.0) (%)",
+    "Distance to Donchian Upper (20) (%)",
+    "Distance to Donchian Lower (20) (%)",
+    "Distance to Donchian Upper (55) (%)",
+    "Distance to Donchian Lower (55) (%)",
+    "Distance to Keltner Upper (20, 2.0) (%)",
+    "Distance to Keltner Lower (20, 2.0) (%)",
+    "Ichimoku Tenkan-sen Distance (%)",
+    "Ichimoku Senkou Span A Distance (%)",
+    "Ichimoku Senkou Span B Distance (%)",
+    "Parabolic SAR Distance (%)",
+    "Parabolic SAR Side (+1/-1)",
+    "SuperTrend Distance (%)",
+    "SuperTrend Side (+1/-1)",
+    "Distance to Prior-Day Pivot Point (%)",
+    "Distance to Prior-Day Pivot R1 (%)",
+    "Distance to Prior-Day Pivot S1 (%)",
+    "Distance to Prior-Day High (%)",
+    "Distance to Prior-Day Low (%)",
+    "Distance to Fractal Resistance (%)",
+    "Distance to Fractal Support (%)"
+   ],
+   "momentum": [
+    "Absolute Price Oscillator (APO)",
+    "Acceleration Oscillator (AC)",
+    "Awesome Oscillator (AO)",
+    "Bollinger %B",
+    "Center of Gravity (COG)",
+    "Chande Momentum Oscillator (CMO)",
+    "Commodity Channel Index (CCI)",
+    "Connors RSI (CRSI)",
+    "Coppock Curve",
+    "Detrended Price Oscillator (DPO)",
+    "Fisher Transform",
+    "Know Sure Thing (KST)",
+    "MACD (Moving Average Convergence Divergence)",
+    "MACD Histogram",
+    "MACD Signal Line",
+    "Momentum (MOM)",
+    "Rate of Change (ROC)",
+    "Relative Strength Index (RSI)",
+    "Schaff Trend Cycle (STC)",
+    "Stochastic Oscillator (Fast)",
+    "Stochastic RSI (StochRSI)",
+    "True Strength Index (TSI)",
+    "Ultimate Oscillator (UO)",
+    "Williams %R",
+    "Ichimoku Chikou Distance (%)"
+   ],
+   "volume": [
+    "Accumulation/Distribution (A/D)",
+    "Chaikin Money Flow (CMF)",
+    "Elder Force Index (EFI)",
+    "Force Index",
+    "Klinger Volume Oscillator (KVO)",
+    "On-Balance Volume (OBV)",
+    "Price Volume Trend (PVT)"
+   ]
+  },
+  "warmup_last_bad_max": 312,
+  "causality": {
+   "raw_truncation": {
+    "9000": {
+     "Relative Strength Index (RSI)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Connors RSI (CRSI)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "On-Balance Volume (OBV)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Distance to SMA 200 (%)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "SuperTrend Side (+1/-1)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Distance to Fractal Resistance (%)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     }
+    },
+    "17018": {
+     "Relative Strength Index (RSI)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Connors RSI (CRSI)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "On-Balance Volume (OBV)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Distance to SMA 200 (%)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "SuperTrend Side (+1/-1)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     },
+     "Distance to Fractal Resistance (%)": {
+      "max_abs_diff": 0.0,
+      "pass": true
+     }
+    }
+   },
+   "scored_brute_rsi": {
+    "4632": {
+     "brute": 96.78166242185691,
+     "rolling": 96.78166242185691
+    },
+    "11071": {
+     "brute": 16.786293123408196,
+     "rolling": 16.786293123408196
+    },
+    "17509": {
+     "brute": 38.527436906691364,
+     "rolling": 38.527436906691364
+    }
+   },
+   "scored_truncation_max_abs_diff": {
+    "Relative Strength Index (RSI)": 0.0,
+    "Connors RSI (CRSI)": 0.0,
+    "SuperTrend Side (+1/-1)": 0.0
+   }
+  },
+  "dropped_columns": [],
+  "arms": {
+   "A": {
+    "train_rows": 16262,
+    "dropped_warmup_train_rows": 0
+   },
+   "B": {
+    "train_rows": 12086,
+    "dropped_warmup_train_rows": 4176
+   }
+  }
+ },
+ "train": {
+  "champion": {
+   "acc": 0.4823232323232323,
+   "precision": 0.4719387755102041,
+   "features": [
+    "body_pct",
+    "upper_wick",
+    "lower_wick",
+    "range_pct",
+    "rsi_c",
+    "macd_hist_rel",
+    "dist_vwap",
+    "dist_sma50",
+    "atr_rel",
+    "price_change",
+    "volatility_21",
+    "volume_change",
+    "h4_rsi_c",
+    "h4_dist_sma",
+    "d1_dist_sma",
+    "h4_atr_rel",
+    "ha_dir",
+    "obv_slope",
+    "adl_slope",
+    "netvol_rel",
+    "ewo"
+   ]
+  },
+  "A": {
+   "acc": 0.51010101010101,
+   "precision": 0.0,
+   "wf_acc": 0.4933579335793358,
+   "wf_precision": 0.5099231131718441,
+   "folds": 5,
+   "win": true,
+   "train_rows": 16262,
+   "base_learner_holdout_acc": {
+    "rf": 0.5315656565656566,
+    "xgb": 0.5176767676767676,
+    "lgbm": 0.49747474747474746
+   },
+   "meta_coef": {
+    "rf": -0.06487190377879286,
+    "xgb": -0.46638576860860126,
+    "lgbm": -0.11479335557938661
+   },
+   "top15": [
+    {
+     "feature": "Williams %R",
+     "importance": 0.01942508253636908,
+     "rf": 0.023344709294453342,
+     "xgb": 0.014202652077006274,
+     "lgbm": 0.020727886237647625
+    },
+    {
+     "feature": "Stochastic RSI (StochRSI)",
+     "importance": 0.01880777841719448,
+     "rf": 0.020192089308954952,
+     "xgb": 0.011647008777046426,
+     "lgbm": 0.024584237165582067
+    },
+    {
+     "feature": "Ultimate Oscillator (UO)",
+     "importance": 0.018768842247757583,
+     "rf": 0.01909906471763888,
+     "xgb": 0.012623224860051793,
+     "lgbm": 0.024584237165582067
+    },
+    {
+     "feature": "Connors RSI (CRSI)",
+     "importance": 0.018502713429223185,
+     "rf": 0.02037614429445863,
+     "xgb": 0.011752868492608365,
+     "lgbm": 0.023379127500602555
+    },
+    {
+     "feature": "Acceleration Oscillator (AC)",
+     "importance": 0.0159265032137495,
+     "rf": 0.01192398065911078,
+     "xgb": 0.011271291816555649,
+     "lgbm": 0.024584237165582067
+    },
+    {
+     "feature": "Accumulative Swing Index (ASI)",
+     "importance": 0.0157960921441386,
+     "rf": 0.017029368197774068,
+     "xgb": 0.011318175527965425,
+     "lgbm": 0.01904073270667631
+    },
+    {
+     "feature": "Chaikin Money Flow (CMF)",
+     "importance": 0.015685327560286427,
+     "rf": 0.01479304132420761,
+     "xgb": 0.011776077051999947,
+     "lgbm": 0.020486864304651724
+    },
+    {
+     "feature": "Historical Volatility (HV)",
+     "importance": 0.015577305871166333,
+     "rf": 0.011410555495745388,
+     "xgb": 0.011701212684155152,
+     "lgbm": 0.023620149433598456
+    },
+    {
+     "feature": "Force Index",
+     "importance": 0.015434370850159395,
+     "rf": 0.01851294779219511,
+     "xgb": 0.011159651381565796,
+     "lgbm": 0.016630513376717282
+    },
+    {
+     "feature": "Distance to Fractal Resistance (%)",
+     "importance": 0.0152661615746755,
+     "rf": 0.01305706590501312,
+     "xgb": 0.01056740098339034,
+     "lgbm": 0.02217401783562304
+    },
+    {
+     "feature": "Distance to $5,000 Round Number (%)",
+     "importance": 0.015157247208412385,
+     "rf": 0.014609856257051192,
+     "xgb": 0.009892977197542435,
+     "lgbm": 0.02096890817064353
+    },
+    {
+     "feature": "Mass Index (MI)",
+     "importance": 0.01510927679454018,
+     "rf": 0.01336474171314398,
+     "xgb": 0.01099418049983303,
+     "lgbm": 0.02096890817064353
+    },
+    {
+     "feature": "Bollinger %B",
+     "importance": 0.014898711859674868,
+     "rf": 0.01823501870173952,
+     "xgb": 0.011517757031539125,
+     "lgbm": 0.014943359845745963
+    },
+    {
+     "feature": "Distance to Fractal Support (%)",
+     "importance": 0.014884970004961187,
+     "rf": 0.012349987763040806,
+     "xgb": 0.011336014081199226,
+     "lgbm": 0.02096890817064353
+    },
+    {
+     "feature": "Choppiness Index (CHOP)",
+     "importance": 0.014777757116535116,
+     "rf": 0.012732769220825484,
+     "xgb": 0.010872615891132236,
+     "lgbm": 0.020727886237647625
+    }
+   ],
+   "redundancy": {
+    "n_features": 90,
+    "pairs_gt_0.90": 145,
+    "pairs_gt_0.95": 103,
+    "clusters_gt_0.90": 10,
+    "largest_cluster": 15,
+    "cols_with_max_r_gt_0.90": 45
+   }
+  },
+  "B": {
+   "acc": 0.49747474747474746,
+   "precision": 0.4853801169590643,
+   "wf_acc": 0.5121151936444887,
+   "wf_precision": 0.510288926748488,
+   "folds": 5,
+   "win": true,
+   "train_rows": 12086,
+   "base_learner_holdout_acc": {
+    "rf": 0.5025252525252525,
+    "xgb": 0.5176767676767676,
+    "lgbm": 0.5252525252525253
+   },
+   "meta_coef": {
+    "rf": 1.2901827000825972,
+    "xgb": -0.09497620423144174,
+    "lgbm": -0.535736936670029
+   },
+   "top15": [
+    {
+     "feature": "Stochastic RSI (StochRSI)",
+     "importance": 0.018772870228876203,
+     "rf": 0.02006583330454176,
+     "xgb": 0.011862533479647828,
+     "lgbm": 0.024390243902439025
+    },
+    {
+     "feature": "Connors RSI (CRSI)",
+     "importance": 0.016297734394143046,
+     "rf": 0.015257138909233659,
+     "xgb": 0.010987980649502094,
+     "lgbm": 0.02264808362369338
+    },
+    {
+     "feature": "Distance to $5,000 Round Number (%)",
+     "importance": 0.016071081548025033,
+     "rf": 0.01430770807702938,
+     "xgb": 0.01026193278406911,
+     "lgbm": 0.023643603782976606
+    },
+    {
+     "feature": "Force Index",
+     "importance": 0.015419825959234024,
+     "rf": 0.013926605691837363,
+     "xgb": 0.00993366860199213,
+     "lgbm": 0.022399203583872575
+    },
+    {
+     "feature": "Williams %R",
+     "importance": 0.015027224114657808,
+     "rf": 0.018657258517449263,
+     "xgb": 0.012984891676200615,
+     "lgbm": 0.013439522150323544
+    },
+    {
+     "feature": "Mass Index (MI)",
+     "importance": 0.014906014305141194,
+     "rf": 0.012581281962272775,
+     "xgb": 0.010235317448919846,
+     "lgbm": 0.021901443504230962
+    },
+    {
+     "feature": "Choppiness Index (CHOP)",
+     "importance": 0.014893215594106717,
+     "rf": 0.013278703122337913,
+     "xgb": 0.009997260235392887,
+     "lgbm": 0.02140368342458935
+    },
+    {
+     "feature": "Relative Volatility Index (RVI)",
+     "importance": 0.014775112338504674,
+     "rf": 0.01260653354480925,
+     "xgb": 0.011559520245219456,
+     "lgbm": 0.020159283225485315
+    },
+    {
+     "feature": "Average Daily Range (ADR)",
+     "importance": 0.013803298129353428,
+     "rf": 0.010902396003080583,
+     "xgb": 0.010348215159494384,
+     "lgbm": 0.020159283225485315
+    },
+    {
+     "feature": "Accumulative Swing Index (ASI)",
+     "importance": 0.013778556310988685,
+     "rf": 0.012544473588118943,
+     "xgb": 0.010374072398107448,
+     "lgbm": 0.01841712294673967
+    },
+    {
+     "feature": "Acceleration Oscillator (AC)",
+     "importance": 0.013433231961331305,
+     "rf": 0.011779030815386629,
+     "xgb": 0.011099062281150847,
+     "lgbm": 0.017421602787456445
+    },
+    {
+     "feature": "Chaikin Money Flow (CMF)",
+     "importance": 0.013168163999697174,
+     "rf": 0.012812798081215233,
+     "xgb": 0.009518971170240654,
+     "lgbm": 0.01717272274763564
+    },
+    {
+     "feature": "Detrended Price Oscillator (DPO)",
+     "importance": 0.013102075854892939,
+     "rf": 0.01233037202460241,
+     "xgb": 0.010549772911903186,
+     "lgbm": 0.01642608262817322
+    },
+    {
+     "feature": "Average Directional Movement Index (ADX)",
+     "importance": 0.013088159987375864,
+     "rf": 0.011177416382686697,
+     "xgb": 0.010416580752163639,
+     "lgbm": 0.01767048282727725
+    },
+    {
+     "feature": "Klinger Volume Oscillator (KVO)",
+     "importance": 0.013001427286881043,
+     "rf": 0.012879583746607836,
+     "xgb": 0.011689655804428527,
+     "lgbm": 0.01443504230960677
+    }
+   ],
+   "redundancy": {
+    "n_features": 94,
+    "pairs_gt_0.90": 128,
+    "pairs_gt_0.95": 44,
+    "clusters_gt_0.90": 13,
+    "largest_cluster": 33,
+    "cols_with_max_r_gt_0.90": 57
+   }
+  },
+  "redundancy_production21": {
+   "n_features": 21,
+   "pairs_gt_0.90": 5,
+   "pairs_gt_0.95": 3,
+   "clusters_gt_0.90": 3,
+   "largest_cluster": 4,
+   "cols_with_max_r_gt_0.90": 8
+  }
+ },
+ "registered": {
+  "arm_a_win": true,
+  "arm_b_win": true,
+  "guard_after": {
+   "ppo_champion.zip": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "stacker_champion.pkl": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "stacker_champion.json": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "paper.db": "84d237ff64741a54375b3515710699e6de9b8e5235b9db40f62762f1f3295b19"
+  },
+  "paper_note": "paper.db is written by the live loop on hourly candle closes throughout the study window; the study itself never opens it (hash read only). Champion files are hash-identical before/after."
+ },
+ "posthoc_anatomy": {
+  "holdout_up_rate": 0.4899,
+  "majority_class_baseline_acc": 0.5101,
+  "champion_pred_up": "392/792",
+  "arm_a_pred_up": "0/792 \u2014 stack P(up) max 0.483, never crosses 0.5; holdout acc 0.5101 EQUALS the always-not-up majority rate exactly. Meta-LR coefficients are all negative (rf -0.065, xgb -0.466, lgbm -0.115): the meta layer inverts the base learners into a constant not-up call. Base learners individually: rf 0.5316 (253 ups), xgb 0.5177 (654 ups), lgbm 0.4975 (692 ups). Registered win is by the letter of the strict-> rule; mechanism is majority-class collapse at the meta layer.",
+  "arm_b_pred_up": "342/792 \u2014 a genuine classifier: precision 0.4854, acc 0.4975 (+0.0152 vs champion), WF 0.5121 (best in study); base learners 0.5025/0.5177/0.5253 all above the champion."
+ }
+}

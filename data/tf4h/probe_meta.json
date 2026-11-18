@@ -1,0 +1,53 @@
+{
+ "hourly_rows": 42107,
+ "bins_total": 10530,
+ "bins_incomplete_dropped": 6,
+ "incomplete_bins": [
+  [
+   "2023-03-04 16:00:00",
+   2
+  ],
+  [
+   "2023-03-04 20:00:00",
+   3
+  ],
+  [
+   "2025-10-25 16:00:00",
+   0
+  ],
+  [
+   "2025-10-25 20:00:00",
+   3
+  ],
+  [
+   "2026-05-08 00:00:00",
+   2
+  ],
+  [
+   "2026-05-08 04:00:00",
+   1
+  ]
+ ],
+ "bars_complete": 10524,
+ "bars_first": "2022-01-01 00:00:00",
+ "bars_last": "2026-10-21 20:00:00",
+ "slice_bars": 4183,
+ "slice_first": "2024-11-23 00:00:00",
+ "slice_last": "2026-10-21 16:00:00",
+ "nan_columns_in_slice": {},
+ "slice_label_nan": 0,
+ "class_split_slice": {
+  "BUY": 1302,
+  "HOLD": 1656,
+  "SHORT": 1225
+ },
+ "class_split_pre_duel": {
+  "BUY": 1249,
+  "HOLD": 1559,
+  "SHORT": 1177
+ },
+ "pre_duel_rows": 3985,
+ "standard_start": "2026-09-18 20:00:00",
+ "robust_start": "2026-08-16 20:00:00",
+ "label_second_path_agree": true
+}

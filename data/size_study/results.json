@@ -1,0 +1,1157 @@
+{
+ "meta": {
+  "integrity_start": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075,
+   "broker.py": 1792714750.1845446,
+   "trading_env.py": 1792554687.1970763,
+   "nightly.py": 1792711597.8485544
+  },
+  "tranches": [
+   0.25,
+   0.05
+  ],
+  "baselines_25": {
+   "lagf|standard": [
+    -1871.1787,
+    -4416.9757,
+    40
+   ],
+   "lagf|robustness": [
+    -8587.8592,
+    -21288.1523,
+    75
+   ],
+   "ppo|standard": [
+    -2037.2361,
+    -4420.6411,
+    null
+   ],
+   "focusb|standard": [
+    -3329.8011,
+    -8138.372,
+    66
+   ]
+  }
+ },
+ "cells": {
+  "lagf|standard|0.25": {
+   "windows": [
+    {
+     "mean_reward": -1.428653277293702,
+     "total_pnl": -2678.166464055088,
+     "max_drawdown": 1174.3445266886265,
+     "score": -3265.3387273994013,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 15,
+     "action_mix": {
+      "hold": 0.758,
+      "buy": 0.129,
+      "sell": 0.008,
+      "short": 0.104
+     },
+     "pnl_long": -23.01265188814432,
+     "pnl_short": -2655.1538121669437,
+     "open_left": 0,
+     "fees": 1871.8294727836167,
+     "tele": {
+      "add_attempts": 11,
+      "adds_filled": 10,
+      "cap_limited": 3,
+      "cap_blocked": 1
+     },
+     "segments": 16
+    },
+    {
+     "mean_reward": -1.0677615570666363,
+     "total_pnl": -1275.056735305072,
+     "max_drawdown": 616.773247152465,
+     "score": -1583.4433588813044,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 14,
+     "action_mix": {
+      "hold": 0.833,
+      "buy": 0.096,
+      "sell": 0.021,
+      "short": 0.05
+     },
+     "pnl_long": -756.9480499930505,
+     "pnl_short": -518.1086853120214,
+     "open_left": 0,
+     "fees": 1423.2358024568518,
+     "tele": {
+      "add_attempts": 5,
+      "adds_filled": 5,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 14
+    },
+    {
+     "mean_reward": -1.0671701741031154,
+     "total_pnl": -463.75245067516516,
+     "max_drawdown": 602.003191527896,
+     "score": -764.7540464391132,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 11,
+     "action_mix": {
+      "hold": 0.858,
+      "buy": 0.087,
+      "sell": 0.013,
+      "short": 0.042
+     },
+     "pnl_long": 503.6240885628358,
+     "pnl_short": -967.376539238001,
+     "open_left": 1,
+     "fees": 1125.6543251464368,
+     "tele": {
+      "add_attempts": 3,
+      "adds_filled": 3,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 12
+    }
+   ],
+   "agg_score": -1871.1787109066063,
+   "total_pnl": -4416.975650035325,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1174.3445266886265,
+   "total_round_trips": 40,
+   "closed_trips": 41,
+   "wins": 7,
+   "losses": 34,
+   "avg_win": 196.80592735585898,
+   "avg_loss": -167.6143439069261,
+   "pnl_long": -276.336613318359,
+   "pnl_short": -4140.639036716966,
+   "open_left": 1,
+   "action_mix": {
+    "hold": 0.858,
+    "buy": 0.087,
+    "sell": 0.013,
+    "short": 0.042
+   },
+   "fees_total": 4420.719600386905,
+   "segments": 42,
+   "adds_mean": 0.42857142857142855,
+   "adds_median": 0.0,
+   "adds_max": 4,
+   "adds_hist": {
+    "0": 29,
+    "1": 10,
+    "2": 2,
+    "3": 0,
+    "4": 1,
+    "5+": 0
+   },
+   "tele": {
+    "add_attempts": 19,
+    "adds_filled": 18,
+    "cap_limited": 3,
+    "cap_blocked": 1
+   },
+   "avg_deployed_all": 3196.989997801293,
+   "avg_deployed_inpos": 25294.865916669572,
+   "pnl_pct_deployed_all": -138.160446328361,
+   "pnl_pct_deployed_inpos": -17.461945299834515
+  },
+  "lagf|standard|0.05": {
+   "windows": [
+    {
+     "mean_reward": -1.2199775769492454,
+     "total_pnl": -599.333627860673,
+     "max_drawdown": 310.2937297747412,
+     "score": -754.4804927480436,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 15,
+     "action_mix": {
+      "hold": 0.746,
+      "buy": 0.142,
+      "sell": 0.008,
+      "short": 0.104
+     },
+     "pnl_long": -4.26110945075925,
+     "pnl_short": -595.0725184099138,
+     "open_left": 0,
+     "fees": 405.20352829709634,
+     "tele": {
+      "add_attempts": 11,
+      "adds_filled": 11,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 16
+    },
+    {
+     "mean_reward": -0.9655177795928193,
+     "total_pnl": -255.07559721407597,
+     "max_drawdown": 123.43975594268704,
+     "score": -316.7954751854195,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 14,
+     "action_mix": {
+      "hold": 0.838,
+      "buy": 0.092,
+      "sell": 0.021,
+      "short": 0.05
+     },
+     "pnl_long": -151.45357294214773,
+     "pnl_short": -103.62202427192824,
+     "open_left": 0,
+     "fees": 284.7459354387267,
+     "tele": {
+      "add_attempts": 5,
+      "adds_filled": 5,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 14
+    },
+    {
+     "mean_reward": -1.0292803930069228,
+     "total_pnl": -92.6138286760397,
+     "max_drawdown": 120.3016650089412,
+     "score": -152.7646611805103,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 11,
+     "action_mix": {
+      "hold": 0.858,
+      "buy": 0.087,
+      "sell": 0.013,
+      "short": 0.042
+     },
+     "pnl_long": 100.96476707248075,
+     "pnl_short": -193.57859574852046,
+     "open_left": 1,
+     "fees": 225.2399088446375,
+     "tele": {
+      "add_attempts": 3,
+      "adds_filled": 3,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 12
+    }
+   ],
+   "agg_score": -408.01354303799116,
+   "total_pnl": -947.0230537507887,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 310.2937297747412,
+   "total_round_trips": 40,
+   "closed_trips": 41,
+   "wins": 7,
+   "losses": 34,
+   "avg_win": 39.43679680793347,
+   "avg_loss": -35.40915550951853,
+   "pnl_long": -54.749915320426226,
+   "pnl_short": -892.2731384303625,
+   "open_left": 1,
+   "action_mix": {
+    "hold": 0.858,
+    "buy": 0.087,
+    "sell": 0.013,
+    "short": 0.042
+   },
+   "fees_total": 915.1893725804605,
+   "segments": 42,
+   "adds_mean": 0.4523809523809524,
+   "adds_median": 0.0,
+   "adds_max": 5,
+   "adds_hist": {
+    "0": 29,
+    "1": 10,
+    "2": 2,
+    "3": 0,
+    "4": 0,
+    "5+": 1
+   },
+   "tele": {
+    "add_attempts": 19,
+    "adds_filled": 19,
+    "cap_limited": 0,
+    "cap_blocked": 0
+   },
+   "avg_deployed_all": 738.3584271005284,
+   "avg_deployed_inpos": 5716.323306584736,
+   "pnl_pct_deployed_all": -128.26061422088304,
+   "pnl_pct_deployed_inpos": -16.566996003530726
+  },
+  "lagf|robustness|0.25": {
+   "windows": [
+    {
+     "mean_reward": -1.7211231810352252,
+     "total_pnl": -11776.422533386358,
+     "max_drawdown": 4957.210164389951,
+     "score": -14255.027615581334,
+     "bench_pnl": 25192.437345660303,
+     "round_trips_env": 33,
+     "action_mix": {
+      "hold": 0.371,
+      "buy": 0.292,
+      "sell": 0.042,
+      "short": 0.296
+     },
+     "pnl_long": -1990.7311234481895,
+     "pnl_short": -9785.691409938168,
+     "open_left": 5,
+     "fees": 5375.21579784816,
+     "tele": {
+      "add_attempts": 44,
+      "adds_filled": 36,
+      "cap_limited": 10,
+      "cap_blocked": 8
+     },
+     "segments": 43
+    },
+    {
+     "mean_reward": -1.5671808254370654,
+     "total_pnl": -4837.122271998844,
+     "max_drawdown": 2879.774219014944,
+     "score": -6277.009381506316,
+     "bench_pnl": -1346.4559589840053,
+     "round_trips_env": 17,
+     "action_mix": {
+      "hold": 0.671,
+      "buy": 0.163,
+      "sell": 0.008,
+      "short": 0.158
+     },
+     "pnl_long": -400.08292678587895,
+     "pnl_short": -4437.039345212965,
+     "open_left": 1,
+     "fees": 2649.0859172550663,
+     "tele": {
+      "add_attempts": 22,
+      "adds_filled": 18,
+      "cap_limited": 4,
+      "cap_blocked": 4
+     },
+     "segments": 19
+    },
+    {
+     "mean_reward": -1.5290009020950888,
+     "total_pnl": -4674.607467685826,
+     "max_drawdown": 1113.8660035416979,
+     "score": -5231.540469456675,
+     "bench_pnl": 3555.680042366327,
+     "round_trips_env": 25,
+     "action_mix": {
+      "hold": 0.629,
+      "buy": 0.217,
+      "sell": 0.021,
+      "short": 0.133
+     },
+     "pnl_long": -691.0473992280022,
+     "pnl_short": -3983.560068457824,
+     "open_left": 2,
+     "fees": 2733.448946957508,
+     "tele": {
+      "add_attempts": 12,
+      "adds_filled": 11,
+      "cap_limited": 3,
+      "cap_blocked": 1
+     },
+     "segments": 28
+    }
+   ],
+   "agg_score": -8587.859155514774,
+   "total_pnl": -21288.152273071028,
+   "bench_pnl": 27401.661429042622,
+   "max_drawdown": 4957.210164389951,
+   "total_round_trips": 75,
+   "closed_trips": 82,
+   "wins": 15,
+   "losses": 67,
+   "avg_win": 101.28657775444832,
+   "avg_loss": -302.82628935446536,
+   "pnl_long": -3081.8614494620706,
+   "pnl_short": -18206.290823608957,
+   "open_left": 8,
+   "action_mix": {
+    "hold": 0.629,
+    "buy": 0.217,
+    "sell": 0.021,
+    "short": 0.133
+   },
+   "fees_total": 10757.750662060735,
+   "segments": 90,
+   "adds_mean": 0.7222222222222222,
+   "adds_median": 0.0,
+   "adds_max": 5,
+   "adds_hist": {
+    "0": 60,
+    "1": 14,
+    "2": 8,
+    "3": 2,
+    "4": 1,
+    "5+": 5
+   },
+   "tele": {
+    "add_attempts": 78,
+    "adds_filled": 65,
+    "cap_limited": 17,
+    "cap_blocked": 13
+   },
+   "avg_deployed_all": 10439.595079731243,
+   "avg_deployed_inpos": 31715.225558677193,
+   "pnl_pct_deployed_all": -203.91741356331482,
+   "pnl_pct_deployed_inpos": -67.12281529792448
+  },
+  "lagf|robustness|0.05": {
+   "windows": [
+    {
+     "mean_reward": -1.0405265754996322,
+     "total_pnl": -3392.147443910071,
+     "max_drawdown": 1114.8492295974283,
+     "score": -3949.5720587087853,
+     "bench_pnl": 25192.437345660303,
+     "round_trips_env": 29,
+     "action_mix": {
+      "hold": 0.371,
+      "buy": 0.292,
+      "sell": 0.042,
+      "short": 0.296
+     },
+     "pnl_long": -407.48980386745825,
+     "pnl_short": -2984.657640042613,
+     "open_left": 5,
+     "fees": 1231.0399261729028,
+     "tele": {
+      "add_attempts": 47,
+      "adds_filled": 47,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 40
+    },
+    {
+     "mean_reward": -1.2737177707366707,
+     "total_pnl": -1134.910608643855,
+     "max_drawdown": 581.9179032379616,
+     "score": -1425.8695602628359,
+     "bench_pnl": -1346.4559589840053,
+     "round_trips_env": 17,
+     "action_mix": {
+      "hold": 0.654,
+      "buy": 0.179,
+      "sell": 0.008,
+      "short": 0.158
+     },
+     "pnl_long": -80.39156861799711,
+     "pnl_short": -1054.519040025858,
+     "open_left": 1,
+     "fees": 592.5809941387068,
+     "tele": {
+      "add_attempts": 22,
+      "adds_filled": 22,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 19
+    },
+    {
+     "mean_reward": -1.1579411739691574,
+     "total_pnl": -978.711466007604,
+     "max_drawdown": 249.10052207144327,
+     "score": -1103.2617270433257,
+     "bench_pnl": 3555.680042366327,
+     "round_trips_env": 25,
+     "action_mix": {
+      "hold": 0.625,
+      "buy": 0.221,
+      "sell": 0.021,
+      "short": 0.133
+     },
+     "pnl_long": -154.92638267598522,
+     "pnl_short": -823.7850833316188,
+     "open_left": 2,
+     "fees": 577.5920609009415,
+     "tele": {
+      "add_attempts": 12,
+      "adds_filled": 12,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 28
+    }
+   ],
+   "agg_score": -2159.5677820049823,
+   "total_pnl": -5505.76951856153,
+   "bench_pnl": 27401.661429042622,
+   "max_drawdown": 1114.8492295974283,
+   "total_round_trips": 71,
+   "closed_trips": 79,
+   "wins": 15,
+   "losses": 64,
+   "avg_win": 20.31571409094031,
+   "avg_loss": -81.0447423886003,
+   "pnl_long": -642.8077551614406,
+   "pnl_short": -4862.96176340009,
+   "open_left": 8,
+   "action_mix": {
+    "hold": 0.625,
+    "buy": 0.221,
+    "sell": 0.021,
+    "short": 0.133
+   },
+   "fees_total": 2401.2129812125513,
+   "segments": 87,
+   "adds_mean": 0.9310344827586207,
+   "adds_median": 0.0,
+   "adds_max": 13,
+   "adds_hist": {
+    "0": 57,
+    "1": 14,
+    "2": 7,
+    "3": 2,
+    "4": 1,
+    "5+": 6
+   },
+   "tele": {
+    "add_attempts": 81,
+    "adds_filled": 81,
+    "cap_limited": 0,
+    "cap_blocked": 0
+   },
+   "avg_deployed_all": 3181.637161839341,
+   "avg_deployed_inpos": 9274.407921151114,
+   "pnl_pct_deployed_all": -173.0483156469854,
+   "pnl_pct_deployed_inpos": -59.365186062229725
+  },
+  "ppo|standard|0.25": {
+   "windows": [
+    {
+     "mean_reward": -1.628407679141969,
+     "total_pnl": -2275.4645528392284,
+     "max_drawdown": 972.9596884063503,
+     "score": -2761.9443970424036,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.496,
+      "buy": 0.004,
+      "sell": 0.471,
+      "short": 0.029
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -2275.4645528392284,
+     "open_left": 3,
+     "fees": 337.4202609018008,
+     "tele": {
+      "add_attempts": 3,
+      "adds_filled": 3,
+      "cap_limited": 1,
+      "cap_blocked": 0
+     },
+     "segments": 4
+    },
+    {
+     "mean_reward": -0.6989711190738029,
+     "total_pnl": -973.3675396648905,
+     "max_drawdown": 1493.4683579237462,
+     "score": -1720.1017186267636,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.425,
+      "buy": 0.0,
+      "sell": 0.45,
+      "short": 0.125
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -973.3675396648905,
+     "open_left": 7,
+     "fees": 600.5545122752328,
+     "tele": {
+      "add_attempts": 23,
+      "adds_filled": 12,
+      "cap_limited": 6,
+      "cap_blocked": 11
+     },
+     "segments": 7
+    },
+    {
+     "mean_reward": -1.1175674502289257,
+     "total_pnl": -1171.8090323160432,
+     "max_drawdown": 915.7061674695287,
+     "score": -1629.6621160508075,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.45,
+      "buy": 0.0,
+      "sell": 0.463,
+      "short": 0.087
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -1171.8090323160432,
+     "open_left": 7,
+     "fees": 598.022455381443,
+     "tele": {
+      "add_attempts": 14,
+      "adds_filled": 9,
+      "cap_limited": 3,
+      "cap_blocked": 5
+     },
+     "segments": 7
+    }
+   ],
+   "agg_score": -2037.2360772399916,
+   "total_pnl": -4420.641124820162,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1493.4683579237462,
+   "total_round_trips": 0,
+   "closed_trips": 1,
+   "wins": 0,
+   "losses": 1,
+   "avg_win": 0.0,
+   "avg_loss": -935.1461836837116,
+   "pnl_long": 0.0,
+   "pnl_short": -4420.641124820162,
+   "open_left": 17,
+   "action_mix": {
+    "hold": 0.45,
+    "buy": 0.0,
+    "sell": 0.463,
+    "short": 0.087
+   },
+   "fees_total": 1535.9972285584768,
+   "segments": 18,
+   "adds_mean": 1.3333333333333333,
+   "adds_median": 1.0,
+   "adds_max": 4,
+   "adds_hist": {
+    "0": 5,
+    "1": 5,
+    "2": 6,
+    "3": 1,
+    "4": 1,
+    "5+": 0
+   },
+   "tele": {
+    "add_attempts": 40,
+    "adds_filled": 24,
+    "cap_limited": 10,
+    "cap_blocked": 16
+   },
+   "avg_deployed_all": 20214.615301136953,
+   "avg_deployed_inpos": 50536.53825284238,
+   "pnl_pct_deployed_all": -21.86853946496586,
+   "pnl_pct_deployed_inpos": -8.747415785986345
+  },
+  "ppo|standard|0.05": {
+   "windows": [
+    {
+     "mean_reward": -1.4550170351137888,
+     "total_pnl": -549.6296149763366,
+     "max_drawdown": 278.3656112130702,
+     "score": -688.8124205828717,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.537,
+      "buy": 0.0,
+      "sell": 0.429,
+      "short": 0.033
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -549.6296149763366,
+     "open_left": 3,
+     "fees": 75.31430676948114,
+     "tele": {
+      "add_attempts": 4,
+      "adds_filled": 4,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 4
+    },
+    {
+     "mean_reward": -0.6368384914606817,
+     "total_pnl": -365.03890740261704,
+     "max_drawdown": 688.8040104653628,
+     "score": -709.4409126352984,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.483,
+      "buy": 0.0,
+      "sell": 0.392,
+      "short": 0.125
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -365.03890740261704,
+     "open_left": 7,
+     "fees": 224.8681023536517,
+     "tele": {
+      "add_attempts": 23,
+      "adds_filled": 23,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 7
+    },
+    {
+     "mean_reward": -1.0290196091840835,
+     "total_pnl": -289.92531393993704,
+     "max_drawdown": 244.1646327347553,
+     "score": -412.0076303073147,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 0,
+     "action_mix": {
+      "hold": 0.508,
+      "buy": 0.0,
+      "sell": 0.383,
+      "short": 0.108
+     },
+     "pnl_long": 0.0,
+     "pnl_short": -289.92531393993704,
+     "open_left": 7,
+     "fees": 194.93552184407437,
+     "tele": {
+      "add_attempts": 19,
+      "adds_filled": 19,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 7
+    }
+   ],
+   "agg_score": -603.4203211751616,
+   "total_pnl": -1204.5938363188907,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 688.8040104653628,
+   "total_round_trips": 0,
+   "closed_trips": 1,
+   "wins": 0,
+   "losses": 1,
+   "avg_win": 0.0,
+   "avg_loss": -254.99216278421227,
+   "pnl_long": 0.0,
+   "pnl_short": -1204.5938363188907,
+   "open_left": 17,
+   "action_mix": {
+    "hold": 0.508,
+    "buy": 0.0,
+    "sell": 0.383,
+    "short": 0.108
+   },
+   "fees_total": 495.11793096720726,
+   "segments": 18,
+   "adds_mean": 2.5555555555555554,
+   "adds_median": 1.5,
+   "adds_max": 9,
+   "adds_hist": {
+    "0": 5,
+    "1": 4,
+    "2": 1,
+    "3": 5,
+    "4": 0,
+    "5+": 3
+   },
+   "tele": {
+    "add_attempts": 46,
+    "adds_filled": 46,
+    "cap_limited": 0,
+    "cap_blocked": 0
+   },
+   "avg_deployed_all": 5483.137249025365,
+   "avg_deployed_inpos": 13707.843122563414,
+   "pnl_pct_deployed_all": -21.969062265093015,
+   "pnl_pct_deployed_inpos": -8.787624906037205
+  },
+  "focusb|standard|0.25": {
+   "windows": [
+    {
+     "mean_reward": -1.249526732499982,
+     "total_pnl": -3476.4573603455647,
+     "max_drawdown": 1797.0827930208907,
+     "score": -4374.99875685601,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 22,
+     "action_mix": {
+      "hold": 0.554,
+      "buy": 0.208,
+      "sell": 0.021,
+      "short": 0.217
+     },
+     "pnl_long": -594.4124825802573,
+     "pnl_short": -2882.0448777653073,
+     "open_left": 0,
+     "fees": 3514.8878328271394,
+     "tele": {
+      "add_attempts": 34,
+      "adds_filled": 24,
+      "cap_limited": 5,
+      "cap_blocked": 10
+     },
+     "segments": 24
+    },
+    {
+     "mean_reward": -1.1542308099701972,
+     "total_pnl": -2930.9517192218773,
+     "max_drawdown": 1219.276237641141,
+     "score": -3540.589838042448,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 23,
+     "action_mix": {
+      "hold": 0.692,
+      "buy": 0.171,
+      "sell": 0.025,
+      "short": 0.113
+     },
+     "pnl_long": -1766.2435448826,
+     "pnl_short": -1164.7081743392773,
+     "open_left": 3,
+     "fees": 2657.0069500569193,
+     "tele": {
+      "add_attempts": 13,
+      "adds_filled": 13,
+      "cap_limited": 4,
+      "cap_blocked": 0
+     },
+     "segments": 26
+    },
+    {
+     "mean_reward": -0.6338442411403354,
+     "total_pnl": -1730.9629225983954,
+     "max_drawdown": 685.7033663023176,
+     "score": -2073.814605749554,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 21,
+     "action_mix": {
+      "hold": 0.675,
+      "buy": 0.179,
+      "sell": 0.013,
+      "short": 0.133
+     },
+     "pnl_long": -140.36647376860492,
+     "pnl_short": -1590.5964488297905,
+     "open_left": 2,
+     "fees": 2845.8089184248975,
+     "tele": {
+      "add_attempts": 16,
+      "adds_filled": 16,
+      "cap_limited": 1,
+      "cap_blocked": 0
+     },
+     "segments": 23
+    }
+   ],
+   "agg_score": -3329.8010668826705,
+   "total_pnl": -8138.372002165837,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 1797.0827930208907,
+   "total_round_trips": 66,
+   "closed_trips": 68,
+   "wins": 17,
+   "losses": 51,
+   "avg_win": 144.0875818442377,
+   "avg_loss": -189.87787565293405,
+   "pnl_long": -2501.0225012314622,
+   "pnl_short": -5637.349500934375,
+   "open_left": 5,
+   "action_mix": {
+    "hold": 0.675,
+    "buy": 0.179,
+    "sell": 0.013,
+    "short": 0.133
+   },
+   "fees_total": 9017.703701308958,
+   "segments": 73,
+   "adds_mean": 0.726027397260274,
+   "adds_median": 0.0,
+   "adds_max": 5,
+   "adds_hist": {
+    "0": 42,
+    "1": 19,
+    "2": 6,
+    "3": 3,
+    "4": 2,
+    "5+": 1
+   },
+   "tele": {
+    "add_attempts": 63,
+    "adds_filled": 53,
+    "cap_limited": 10,
+    "cap_blocked": 10
+   },
+   "avg_deployed_all": 8769.70392346638,
+   "avg_deployed_inpos": 33058.56976385233,
+   "pnl_pct_deployed_all": -92.80098932859983,
+   "pnl_pct_deployed_inpos": -24.61804022467023
+  },
+  "focusb|standard|0.05": {
+   "windows": [
+    {
+     "mean_reward": -1.2400185702922342,
+     "total_pnl": -1196.9898492956418,
+     "max_drawdown": 788.118120198953,
+     "score": -1591.0489093951182,
+     "bench_pnl": 3202.9650590551073,
+     "round_trips_env": 21,
+     "action_mix": {
+      "hold": 0.537,
+      "buy": 0.225,
+      "sell": 0.021,
+      "short": 0.217
+     },
+     "pnl_long": -119.00384437246248,
+     "pnl_short": -1077.9860049231793,
+     "open_left": 0,
+     "fees": 869.498343184687,
+     "tele": {
+      "add_attempts": 35,
+      "adds_filled": 35,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 23
+    },
+    {
+     "mean_reward": -0.9241866686534953,
+     "total_pnl": -641.2693682953541,
+     "max_drawdown": 298.3649240698287,
+     "score": -790.4518303302684,
+     "bench_pnl": -1148.6880473423832,
+     "round_trips_env": 23,
+     "action_mix": {
+      "hold": 0.696,
+      "buy": 0.167,
+      "sell": 0.025,
+      "short": 0.113
+     },
+     "pnl_long": -407.77009370783344,
+     "pnl_short": -233.49927458752063,
+     "open_left": 3,
+     "fees": 561.6412443198984,
+     "tele": {
+      "add_attempts": 13,
+      "adds_filled": 13,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 26
+    },
+    {
+     "mean_reward": -0.4947101869707902,
+     "total_pnl": -346.8021130474808,
+     "max_drawdown": 137.7205570187216,
+     "score": -415.6623915568416,
+     "bench_pnl": -1336.7403968993162,
+     "round_trips_env": 22,
+     "action_mix": {
+      "hold": 0.675,
+      "buy": 0.179,
+      "sell": 0.013,
+      "short": 0.133
+     },
+     "pnl_long": -28.22412191213516,
+     "pnl_short": -318.57799113534566,
+     "open_left": 2,
+     "fees": 569.7654037288252,
+     "tele": {
+      "add_attempts": 15,
+      "adds_filled": 15,
+      "cap_limited": 0,
+      "cap_blocked": 0
+     },
+     "segments": 24
+    }
+   ],
+   "agg_score": -932.3877104274094,
+   "total_pnl": -2185.0613306384766,
+   "bench_pnl": 717.5366148134076,
+   "max_drawdown": 788.118120198953,
+   "total_round_trips": 66,
+   "closed_trips": 68,
+   "wins": 17,
+   "losses": 51,
+   "avg_win": 27.117767735446893,
+   "avg_loss": -48.32701617503435,
+   "pnl_long": -554.9980599924311,
+   "pnl_short": -1630.0632706460456,
+   "open_left": 5,
+   "action_mix": {
+    "hold": 0.675,
+    "buy": 0.179,
+    "sell": 0.013,
+    "short": 0.133
+   },
+   "fees_total": 2000.9049912334108,
+   "segments": 73,
+   "adds_mean": 0.863013698630137,
+   "adds_median": 0.0,
+   "adds_max": 9,
+   "adds_hist": {
+    "0": 44,
+    "1": 17,
+    "2": 5,
+    "3": 2,
+    "4": 2,
+    "5+": 3
+   },
+   "tele": {
+    "add_attempts": 63,
+    "adds_filled": 63,
+    "cap_limited": 0,
+    "cap_blocked": 0
+   },
+   "avg_deployed_all": 2186.2382183463983,
+   "avg_deployed_inpos": 8113.873800048487,
+   "pnl_pct_deployed_all": -99.94616836820227,
+   "pnl_pct_deployed_inpos": -26.92993981032117
+  }
+ },
+ "comparison": {
+  "lagf": {
+   "standard": {
+    "agg_25": -1871.1787109066063,
+    "agg_5": -408.01354303799116,
+    "d_agg": 1463.165167868615,
+    "pnl_25": -4416.975650035325,
+    "pnl_5": -947.0230537507887,
+    "d_pnl": 3469.9525962845364,
+    "bench": 717.5366148134076,
+    "trips_25": 40,
+    "trips_5": 40,
+    "fees_25": 4420.719600386905,
+    "fees_5": 915.1893725804605,
+    "avgdep_all_25": 3196.989997801293,
+    "avgdep_all_5": 738.3584271005284,
+    "pnlpct_dep_25": -138.160446328361,
+    "pnlpct_dep_5": -128.26061422088304,
+    "pnlpct_inpos_25": -17.461945299834515,
+    "pnlpct_inpos_5": -16.566996003530726,
+    "maxdd_25": 1174.3445266886265,
+    "maxdd_5": 310.2937297747412,
+    "cap_limited_25": 3,
+    "cap_limited_5": 0,
+    "cap_blocked_25": 1,
+    "cap_blocked_5": 0,
+    "adds_mean_25": 0.42857142857142855,
+    "adds_mean_5": 0.4523809523809524
+   },
+   "robustness": {
+    "agg_25": -8587.859155514774,
+    "agg_5": -2159.5677820049823,
+    "d_agg": 6428.291373509792,
+    "pnl_25": -21288.152273071028,
+    "pnl_5": -5505.76951856153,
+    "d_pnl": 15782.382754509497,
+    "bench": 27401.661429042622,
+    "trips_25": 75,
+    "trips_5": 71,
+    "fees_25": 10757.750662060735,
+    "fees_5": 2401.2129812125513,
+    "avgdep_all_25": 10439.595079731243,
+    "avgdep_all_5": 3181.637161839341,
+    "pnlpct_dep_25": -203.91741356331482,
+    "pnlpct_dep_5": -173.0483156469854,
+    "pnlpct_inpos_25": -67.12281529792448,
+    "pnlpct_inpos_5": -59.365186062229725,
+    "maxdd_25": 4957.210164389951,
+    "maxdd_5": 1114.8492295974283,
+    "cap_limited_25": 17,
+    "cap_limited_5": 0,
+    "cap_blocked_25": 13,
+    "cap_blocked_5": 0,
+    "adds_mean_25": 0.7222222222222222,
+    "adds_mean_5": 0.9310344827586207
+   }
+  },
+  "ppo": {
+   "standard": {
+    "agg_25": -2037.2360772399916,
+    "agg_5": -603.4203211751616,
+    "d_agg": 1433.81575606483,
+    "pnl_25": -4420.641124820162,
+    "pnl_5": -1204.5938363188907,
+    "d_pnl": 3216.0472885012714,
+    "bench": 717.5366148134076,
+    "trips_25": 0,
+    "trips_5": 0,
+    "fees_25": 1535.9972285584768,
+    "fees_5": 495.11793096720726,
+    "avgdep_all_25": 20214.615301136953,
+    "avgdep_all_5": 5483.137249025365,
+    "pnlpct_dep_25": -21.86853946496586,
+    "pnlpct_dep_5": -21.969062265093015,
+    "pnlpct_inpos_25": -8.747415785986345,
+    "pnlpct_inpos_5": -8.787624906037205,
+    "maxdd_25": 1493.4683579237462,
+    "maxdd_5": 688.8040104653628,
+    "cap_limited_25": 10,
+    "cap_limited_5": 0,
+    "cap_blocked_25": 16,
+    "cap_blocked_5": 0,
+    "adds_mean_25": 1.3333333333333333,
+    "adds_mean_5": 2.5555555555555554
+   }
+  },
+  "focusb": {
+   "standard": {
+    "agg_25": -3329.8010668826705,
+    "agg_5": -932.3877104274094,
+    "d_agg": 2397.4133564552612,
+    "pnl_25": -8138.372002165837,
+    "pnl_5": -2185.0613306384766,
+    "d_pnl": 5953.310671527361,
+    "bench": 717.5366148134076,
+    "trips_25": 66,
+    "trips_5": 66,
+    "fees_25": 9017.703701308958,
+    "fees_5": 2000.9049912334108,
+    "avgdep_all_25": 8769.70392346638,
+    "avgdep_all_5": 2186.2382183463983,
+    "pnlpct_dep_25": -92.80098932859983,
+    "pnlpct_dep_5": -99.94616836820227,
+    "pnlpct_inpos_25": -24.61804022467023,
+    "pnlpct_inpos_5": -26.92993981032117,
+    "maxdd_25": 1797.0827930208907,
+    "maxdd_5": 788.118120198953,
+    "cap_limited_25": 10,
+    "cap_limited_5": 0,
+    "cap_blocked_25": 10,
+    "cap_blocked_5": 0,
+    "adds_mean_25": 0.726027397260274,
+    "adds_mean_5": 0.863013698630137
+   }
+  }
+ },
+ "register": {
+  "run_ids": {
+   "lagf": 37,
+   "ppo": 38,
+   "focusb": 39
+  },
+  "lab_note": "Tranche-size study (Kass: 'lower the 25 percent of total portfolio value to 5 and then re run the numbers'): the reference signals re-graded at 5% tranche size, everything else frozen (same signals, production exits incl. the stop-anchor ratchet, 75% cap, 0.15% fees, next-candle fills). Standard windows -- Lag F: 5% P&L $-947 vs 25% $-4,417 (agg -408 vs -1871); P&L as % of avg deployed capital -128.3% vs -138.2%; PPO Champion: 5% P&L $-1,205 vs 25% $-4,421 (agg -603 vs -2037); P&L as % of avg deployed capital -22.0% vs -21.9%; Focus B: 5% P&L $-2,185 vs 25% $-8,138 (agg -932 vs -3330); P&L as % of avg deployed capital -99.9% vs -92.8%. Registered runs: {'lagf': 37, 'ppo': 38, 'focusb': 39}. Production sizing is unchanged (25%); adoption is Kass's decision. Full tables: refs/size-study-5pct-2026-10-22.md"
+ },
+ "verify": {
+  "protected_unchanged": true,
+  "start": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075,
+   "broker.py": 1792714750.1845446,
+   "trading_env.py": 1792554687.1970763,
+   "nightly.py": 1792711597.8485544
+  },
+  "end": {
+   "ppo_champion.zip": 1792590044.0566041,
+   "stacker_champion.pkl": 1792641767.0139437,
+   "stacker_champion.json": 1792641767.5443227,
+   "paper.db": 1792592372.425075,
+   "live_state.json": 1792592372.438075,
+   "broker.py": 1792714750.1845446,
+   "trading_env.py": 1792554687.1970763,
+   "nightly.py": 1792711597.8485544
+  }
+ }
+}

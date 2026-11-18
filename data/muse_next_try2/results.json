@@ -1,0 +1,266 @@
+{
+ "selected_frame": "a_control_98",
+ "selection_wf3": {
+  "a_control_98": {
+   "wf3_acc": 0.5039300343186096,
+   "folds": [
+    0.4908668216539356,
+    0.5021587512454334,
+    0.5187645300564596
+   ],
+   "n_cols": 98
+  },
+  "b_info_112": {
+   "wf3_acc": 0.4937451566478468,
+   "folds": [
+    0.4971770176021255,
+    0.48488874128196613,
+    0.4991697110594487
+   ],
+   "n_cols": 112
+  },
+  "d_full_120": {
+   "wf3_acc": 0.5028229823978744,
+   "folds": [
+    0.4991697110594487,
+    0.49485220856858186,
+    0.5144470275655928
+   ],
+   "n_cols": 120
+  }
+ },
+ "features": [
+  "score_master",
+  "score_trend",
+  "score_momentum",
+  "score_volume",
+  "Absolute Price Oscillator (APO)",
+  "Acceleration Oscillator (AC)",
+  "Accumulation/Distribution (A/D)",
+  "Accumulative Swing Index (ASI)",
+  "Arnaud Legoux Moving Average (ALMA)",
+  "Aroon Indicator",
+  "Average Daily Range (ADR)",
+  "Average Directional Movement Index (ADX)",
+  "Awesome Oscillator (AO)",
+  "Bollinger BandWidth",
+  "Bollinger %B",
+  "Center of Gravity (COG)",
+  "Chaikin Money Flow (CMF)",
+  "Chande Momentum Oscillator (CMO)",
+  "Chandelier Exit",
+  "Choppiness Index (CHOP)",
+  "Commodity Channel Index (CCI)",
+  "Connors RSI (CRSI)",
+  "Coppock Curve",
+  "Detrended Price Oscillator (DPO)",
+  "Directional Movement Index (DMI)",
+  "Donchian Channels",
+  "Double Exponential Moving Average (DEMA)",
+  "Ease of Movement (EMV)",
+  "Elder Force Index (EFI)",
+  "Exponential Moving Average (EMA)",
+  "Fisher Transform",
+  "Force Index",
+  "Historical Volatility (HV)",
+  "Hull Moving Average (HMA)",
+  "Ichimoku Cloud (Baseline)",
+  "Kaufman Adaptive Moving Average (KAMA)",
+  "Keltner Channels",
+  "Klinger Volume Oscillator (KVO)",
+  "Know Sure Thing (KST)",
+  "MACD (Moving Average Convergence Divergence)",
+  "MACD Histogram",
+  "MACD Signal Line",
+  "Mass Index (MI)",
+  "Momentum (MOM)",
+  "Money Flow Index (MFI)",
+  "On-Balance Volume (OBV)",
+  "Parabolic SAR (PSAR)",
+  "Price Volume Trend (PVT)",
+  "Rate of Change (ROC)",
+  "Relative Strength Index (RSI)",
+  "Relative Volatility Index (RVI)",
+  "Schaff Trend Cycle (STC)",
+  "Simple Moving Average (SMA)",
+  "Standard Deviation (SD)",
+  "Stochastic Oscillator (Fast)",
+  "Stochastic RSI (StochRSI)",
+  "SuperTrend",
+  "True Strength Index (TSI)",
+  "Ultimate Oscillator (UO)",
+  "Volume Weighted Average Price (VWAP)",
+  "Vortex Indicator (VI)",
+  "Williams %R",
+  "Zero Lag Exponential Moving Average (ZLEMA)",
+  "Distance to SMA 50 (%)",
+  "Distance to SMA 100 (%)",
+  "Distance to SMA 200 (%)",
+  "Distance to EMA 21 (%)",
+  "Distance to EMA 55 (%)",
+  "Distance to EMA 200 (%)",
+  "Distance to Bollinger Upper Band (20, 2.0) (%)",
+  "Distance to Bollinger Lower Band (20, 2.0) (%)",
+  "Distance to Donchian Upper (20) (%)",
+  "Distance to Donchian Lower (20) (%)",
+  "Distance to Donchian Upper (55) (%)",
+  "Distance to Donchian Lower (55) (%)",
+  "Distance to Keltner Upper (20, 2.0) (%)",
+  "Distance to Keltner Lower (20, 2.0) (%)",
+  "ATR Band Half-Width (14) (%)",
+  "Ichimoku Tenkan-sen Distance (%)",
+  "Ichimoku Senkou Span A Distance (%)",
+  "Ichimoku Senkou Span B Distance (%)",
+  "Ichimoku Chikou Distance (%)",
+  "Parabolic SAR Distance (%)",
+  "Parabolic SAR Side (+1/-1)",
+  "SuperTrend Distance (%)",
+  "SuperTrend Side (+1/-1)",
+  "Distance to Prior-Day Pivot Point (%)",
+  "Distance to Prior-Day Pivot R1 (%)",
+  "Distance to Prior-Day Pivot S1 (%)",
+  "Distance to Prior-Day High (%)",
+  "Distance to Prior-Day Low (%)",
+  "Distance to Fractal Resistance (%)",
+  "Distance to Fractal Support (%)",
+  "Distance to $5,000 Round Number (%)",
+  "Rolling Hurst Exponent (100)",
+  "Return Skewness (100)",
+  "Return Kurtosis (100)",
+  "Return Autocorrelation Lag-1 (100)"
+ ],
+ "n_features": 98,
+ "acc": 0.51010101010101,
+ "precision": 0.5,
+ "up_calls": 430,
+ "wf_acc": 0.4991529646238167,
+ "wf_precision": 0.49896057229390944,
+ "window_accs": [
+  0.5151515151515151,
+  0.5113636363636364,
+  0.5037878787878788
+ ],
+ "majority_baseline": 0.5101010101010102,
+ "champion96_acc": 0.5265151515151515,
+ "champion73_acc": 0.5227272727272727,
+ "try1_acc": 0.4898989898989899,
+ "win": false,
+ "degenerate": false,
+ "effective_win": false,
+ "votes": {
+  "bins": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   362,
+   430,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "n": 792,
+  "min": 0.4631,
+  "max": 0.5408,
+  "med": 0.5019,
+  "mid": 100.0,
+  "tight": 88.6
+ },
+ "top15": [
+  {
+   "feature": "Stochastic RSI (StochRSI)",
+   "importance": 0.01786678445440483
+  },
+  {
+   "feature": "Williams %R",
+   "importance": 0.016121308649537987
+  },
+  {
+   "feature": "Distance to $5,000 Round Number (%)",
+   "importance": 0.015161708724495106
+  },
+  {
+   "feature": "Acceleration Oscillator (AC)",
+   "importance": 0.013966012447721905
+  },
+  {
+   "feature": "Ultimate Oscillator (UO)",
+   "importance": 0.013915203157048249
+  },
+  {
+   "feature": "Force Index",
+   "importance": 0.01364147392180701
+  },
+  {
+   "feature": "Return Autocorrelation Lag-1 (100)",
+   "importance": 0.013571175770284648
+  },
+  {
+   "feature": "Connors RSI (CRSI)",
+   "importance": 0.013563141628023993
+  },
+  {
+   "feature": "Distance to Fractal Resistance (%)",
+   "importance": 0.01304693709005129
+  },
+  {
+   "feature": "Return Kurtosis (100)",
+   "importance": 0.013020561271676001
+  },
+  {
+   "feature": "Choppiness Index (CHOP)",
+   "importance": 0.012787550844916382
+  },
+  {
+   "feature": "Relative Volatility Index (RVI)",
+   "importance": 0.012746194975251066
+  },
+  {
+   "feature": "Klinger Volume Oscillator (KVO)",
+   "importance": 0.01246871490632919
+  },
+  {
+   "feature": "Mass Index (MI)",
+   "importance": 0.012362938619062076
+  },
+  {
+   "feature": "Detrended Price Oscillator (DPO)",
+   "importance": 0.012333142386770662
+  }
+ ],
+ "new_feature_ranks": {},
+ "guard_before": {
+  "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+  "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+  "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+  "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+  "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+ },
+ "registered": {
+  "win": false,
+  "guard_after": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+   "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  }
+ }
+}

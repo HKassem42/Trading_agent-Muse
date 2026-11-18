@@ -1,0 +1,455 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17037,
+  "split": 16245,
+  "holdout_start": "2026-10-02 06:00:00",
+  "data_first": "2024-11-04 06:00:00",
+  "data_last": "2026-11-04 05:00:00",
+  "eth_rows": 17510,
+  "eth_first": "2024-11-04 06:00:00",
+  "eth_last": "2026-11-04 05:00:00",
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+   "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "run73_artifact": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  },
+  "cols98": [
+   "score_master",
+   "score_trend",
+   "score_momentum",
+   "score_volume",
+   "Absolute Price Oscillator (APO)",
+   "Acceleration Oscillator (AC)",
+   "Accumulation/Distribution (A/D)",
+   "Accumulative Swing Index (ASI)",
+   "Arnaud Legoux Moving Average (ALMA)",
+   "Aroon Indicator",
+   "Average Daily Range (ADR)",
+   "Average Directional Movement Index (ADX)",
+   "Awesome Oscillator (AO)",
+   "Bollinger BandWidth",
+   "Bollinger %B",
+   "Center of Gravity (COG)",
+   "Chaikin Money Flow (CMF)",
+   "Chande Momentum Oscillator (CMO)",
+   "Chandelier Exit",
+   "Choppiness Index (CHOP)",
+   "Commodity Channel Index (CCI)",
+   "Connors RSI (CRSI)",
+   "Coppock Curve",
+   "Detrended Price Oscillator (DPO)",
+   "Directional Movement Index (DMI)",
+   "Donchian Channels",
+   "Double Exponential Moving Average (DEMA)",
+   "Ease of Movement (EMV)",
+   "Elder Force Index (EFI)",
+   "Exponential Moving Average (EMA)",
+   "Fisher Transform",
+   "Force Index",
+   "Historical Volatility (HV)",
+   "Hull Moving Average (HMA)",
+   "Ichimoku Cloud (Baseline)",
+   "Kaufman Adaptive Moving Average (KAMA)",
+   "Keltner Channels",
+   "Klinger Volume Oscillator (KVO)",
+   "Know Sure Thing (KST)",
+   "MACD (Moving Average Convergence Divergence)",
+   "MACD Histogram",
+   "MACD Signal Line",
+   "Mass Index (MI)",
+   "Momentum (MOM)",
+   "Money Flow Index (MFI)",
+   "On-Balance Volume (OBV)",
+   "Parabolic SAR (PSAR)",
+   "Price Volume Trend (PVT)",
+   "Rate of Change (ROC)",
+   "Relative Strength Index (RSI)",
+   "Relative Volatility Index (RVI)",
+   "Schaff Trend Cycle (STC)",
+   "Simple Moving Average (SMA)",
+   "Standard Deviation (SD)",
+   "Stochastic Oscillator (Fast)",
+   "Stochastic RSI (StochRSI)",
+   "SuperTrend",
+   "True Strength Index (TSI)",
+   "Ultimate Oscillator (UO)",
+   "Volume Weighted Average Price (VWAP)",
+   "Vortex Indicator (VI)",
+   "Williams %R",
+   "Zero Lag Exponential Moving Average (ZLEMA)",
+   "Distance to SMA 50 (%)",
+   "Distance to SMA 100 (%)",
+   "Distance to SMA 200 (%)",
+   "Distance to EMA 21 (%)",
+   "Distance to EMA 55 (%)",
+   "Distance to EMA 200 (%)",
+   "Distance to Bollinger Upper Band (20, 2.0) (%)",
+   "Distance to Bollinger Lower Band (20, 2.0) (%)",
+   "Distance to Donchian Upper (20) (%)",
+   "Distance to Donchian Lower (20) (%)",
+   "Distance to Donchian Upper (55) (%)",
+   "Distance to Donchian Lower (55) (%)",
+   "Distance to Keltner Upper (20, 2.0) (%)",
+   "Distance to Keltner Lower (20, 2.0) (%)",
+   "ATR Band Half-Width (14) (%)",
+   "Ichimoku Tenkan-sen Distance (%)",
+   "Ichimoku Senkou Span A Distance (%)",
+   "Ichimoku Senkou Span B Distance (%)",
+   "Ichimoku Chikou Distance (%)",
+   "Parabolic SAR Distance (%)",
+   "Parabolic SAR Side (+1/-1)",
+   "SuperTrend Distance (%)",
+   "SuperTrend Side (+1/-1)",
+   "Distance to Prior-Day Pivot Point (%)",
+   "Distance to Prior-Day Pivot R1 (%)",
+   "Distance to Prior-Day Pivot S1 (%)",
+   "Distance to Prior-Day High (%)",
+   "Distance to Prior-Day Low (%)",
+   "Distance to Fractal Resistance (%)",
+   "Distance to Fractal Support (%)",
+   "Distance to $5,000 Round Number (%)",
+   "Rolling Hurst Exponent (100)",
+   "Return Skewness (100)",
+   "Return Kurtosis (100)",
+   "Return Autocorrelation Lag-1 (100)"
+  ],
+  "design": "Muse's Next Try stacker: Pick recipe (RF+XGB+LGBM+ET -> LR, SMOTE) on Pick #2's 98 scored eyes + 22 new causal columns (Binance perp funding/OI/L-S ratios/taker/basis, ETH cross-asset, Master-Score trajectory, calendar) = 120 feats; frame + threshold selected on train CV only"
+ },
+ "external": {
+  "funding_settlements": 2200,
+  "funding_first": "2024-11-01 00:00:00",
+  "funding_last": "2026-11-04 00:00:00",
+  "perp_rows": 17598,
+  "perp_first": "2024-11-01 00:00:00",
+  "perp_last": "2026-11-04 05:00:00",
+  "metrics_rows": 210525,
+  "metrics_first": "2024-11-02 00:00:00",
+  "metrics_last": "2026-11-02 23:55:00",
+  "tail_funding_from_okx": 0,
+  "tail_perp_hours_from_okx": 0,
+  "gap_perp_hours_from_okx": 24,
+  "metrics_stale_hours_at_data_end": 30.083333333333332
+ },
+ "frames": {
+  "train_rows": 12045,
+  "holdout_rows": 792,
+  "frame_evidence": {
+   "pick2_p0": 4649,
+   "next_try_p0": 4673,
+   "scored_positions": 12837,
+   "new_column_coverage_from_p0": {
+    "Funding Rate (last settled)": 1.0,
+    "Funding Rate 24h Mean": 1.0,
+    "Open Interest Level": 1.0,
+    "Open Interest Change 1h %": 1.0,
+    "Open Interest Change 24h %": 1.0,
+    "Long/Short Ratio (all accounts)": 1.0,
+    "Top Trader Account L/S Ratio": 1.0,
+    "Top Trader Position L/S Ratio": 1.0,
+    "Taker L/S Volume Ratio (1h)": 1.0,
+    "Perp Basis %": 1.0,
+    "Perp Taker Buy Share": 1.0,
+    "Perp/Spot Volume Ratio": 1.0,
+    "ETH Return 1h %": 1.0,
+    "ETH/BTC Ratio Change 24h %": 1.0,
+    "Master Score Lag 6h": 1.0,
+    "Master Score Lag 24h": 1.0,
+    "Master Score Change 24h": 1.0,
+    "Prior Candle Return %": 1.0,
+    "Hour of Day Sin": 1.0,
+    "Hour of Day Cos": 1.0,
+    "Day of Week Sin": 1.0,
+    "Day of Week Cos": 1.0
+   },
+   "raw_warmup_last_bad": {
+    "funding_level_raw": -1,
+    "funding_mean24_raw": -1,
+    "oi_level_raw": -1,
+    "oi_chg1_raw": -1,
+    "oi_chg24_raw": -1,
+    "ls_all_raw": -1,
+    "ls_top_acct_raw": -1,
+    "ls_top_pos_raw": -1,
+    "taker_ls_raw": -1,
+    "basis_raw": -1,
+    "taker_buy_share_raw": -1,
+    "perp_vol_ratio_raw": -1,
+    "eth_ret_raw": 0,
+    "ethbtc_chg24_raw": 23,
+    "prior_ret_raw": 1
+   }
+  },
+  "causality_truncation": {
+   "9000": {
+    "max_abs_diff_new_cols": 0.0
+   },
+   "17018": {
+    "max_abs_diff_new_cols": 0.0
+   }
+  },
+  "train_first": "2025-05-17 23:00:00",
+  "train_last": "2026-10-02 05:00:00"
+ },
+ "screen": {
+  "scores": {
+   "a_control_98": {
+    "mean_acc": 0.5111258718033876,
+    "fold_accs": [
+     0.5127864496844902,
+     0.5091331783460644,
+     0.5114579873796081
+    ],
+    "n_cols": 98
+   },
+   "b_info_112": {
+    "mean_acc": 0.5141149119893723,
+    "fold_accs": [
+     0.516439721022916,
+     0.5127864496844902,
+     0.5131185652607108
+    ],
+    "n_cols": 112
+   },
+   "c_seqcal_106": {
+    "mean_acc": 0.5135613860290047,
+    "fold_accs": [
+     0.517103952175357,
+     0.5091331783460644,
+     0.5144470275655928
+    ],
+    "n_cols": 106
+   },
+   "d_full_120": {
+    "mean_acc": 0.5152219639101073,
+    "fold_accs": [
+     0.5187645300564596,
+     0.5121222185320492,
+     0.5147791431418134
+    ],
+    "n_cols": 120
+   },
+   "e_info_prod_35": {
+    "mean_acc": 0.515775489870475,
+    "fold_accs": [
+     0.5127864496844902,
+     0.5111258718033875,
+     0.523414148123547
+    ],
+    "n_cols": 35
+   }
+  },
+  "selected": "e_info_prod_35",
+  "train_rows": 12045
+ },
+ "final": {
+  "selected_frame": "e_info_prod_35",
+  "n_features": 35,
+  "features": [
+   "body_pct",
+   "upper_wick",
+   "lower_wick",
+   "range_pct",
+   "rsi_c",
+   "macd_hist_rel",
+   "dist_vwap",
+   "dist_sma50",
+   "atr_rel",
+   "price_change",
+   "volatility_21",
+   "volume_change",
+   "h4_rsi_c",
+   "h4_dist_sma",
+   "d1_dist_sma",
+   "h4_atr_rel",
+   "ha_dir",
+   "obv_slope",
+   "adl_slope",
+   "netvol_rel",
+   "ewo",
+   "Funding Rate (last settled)",
+   "Funding Rate 24h Mean",
+   "Open Interest Level",
+   "Open Interest Change 1h %",
+   "Open Interest Change 24h %",
+   "Long/Short Ratio (all accounts)",
+   "Top Trader Account L/S Ratio",
+   "Top Trader Position L/S Ratio",
+   "Taker L/S Volume Ratio (1h)",
+   "Perp Basis %",
+   "Perp Taker Buy Share",
+   "Perp/Spot Volume Ratio",
+   "ETH Return 1h %",
+   "ETH/BTC Ratio Change 24h %"
+  ],
+  "theta": 0.42000000000000004,
+  "theta_oof_acc": 0.5012456402590931,
+  "oof_acc_50": 0.48948679621325364,
+  "acc": 0.4898989898989899,
+  "acc_at_50": 0.44823232323232326,
+  "precision": 0.4898989898989899,
+  "up_calls": 792,
+  "wf_acc": 0.4894867962132536,
+  "wf_precision": 0.4819704809385348,
+  "window_accs": [
+   0.5151515151515151,
+   0.48484848484848486,
+   0.4696969696969697
+  ],
+  "majority_baseline": 0.5101010101010102,
+  "holdout_up_rate": 0.4898989898989899,
+  "champion96": {
+   "acc": 0.5265151515151515,
+   "precision": 0.5145413870246085,
+   "up_calls": 447,
+   "two_way_agree": true
+  },
+  "champion73": {
+   "acc": 0.5227272727272727,
+   "precision": 0.511520737327189,
+   "up_calls": 434,
+   "two_way_agree": true
+  },
+  "control98": {
+   "acc": 0.51010101010101,
+   "precision": 0.5
+  },
+  "win": false,
+  "degenerate": false,
+  "effective_win": false,
+  "votes": {
+   "bins": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    413,
+    379,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "n": 792,
+   "min": 0.4578,
+   "max": 0.5362,
+   "med": 0.4994,
+   "mid": 100.0,
+   "tight": 93.9
+  },
+  "top15": [
+   {
+    "feature": "ha_dir",
+    "importance": 0.03909811645783312
+   },
+   {
+    "feature": "upper_wick",
+    "importance": 0.037113357717574125
+   },
+   {
+    "feature": "lower_wick",
+    "importance": 0.035163687911894344
+   },
+   {
+    "feature": "volume_change",
+    "importance": 0.032647924968572675
+   },
+   {
+    "feature": "ETH Return 1h %",
+    "importance": 0.03251968311261114
+   },
+   {
+    "feature": "rsi_c",
+    "importance": 0.032395714947945
+   },
+   {
+    "feature": "Perp Basis %",
+    "importance": 0.03206563040627319
+   },
+   {
+    "feature": "Taker L/S Volume Ratio (1h)",
+    "importance": 0.03204663577857118
+   },
+   {
+    "feature": "macd_hist_rel",
+    "importance": 0.0316846183722615
+   },
+   {
+    "feature": "obv_slope",
+    "importance": 0.03163300845263488
+   },
+   {
+    "feature": "Perp/Spot Volume Ratio",
+    "importance": 0.03098267266170887
+   },
+   {
+    "feature": "Top Trader Position L/S Ratio",
+    "importance": 0.029933769444274214
+   },
+   {
+    "feature": "Perp Taker Buy Share",
+    "importance": 0.029890516322186
+   },
+   {
+    "feature": "Open Interest Change 1h %",
+    "importance": 0.029127360169964717
+   },
+   {
+    "feature": "Open Interest Change 24h %",
+    "importance": 0.028846499396409174
+   }
+  ],
+  "new_feature_ranks": {
+   "Funding Rate (last settled)": 25,
+   "Funding Rate 24h Mean": 31,
+   "Open Interest Level": 21,
+   "Open Interest Change 1h %": 14,
+   "Open Interest Change 24h %": 15,
+   "Long/Short Ratio (all accounts)": 30,
+   "Top Trader Account L/S Ratio": 33,
+   "Top Trader Position L/S Ratio": 12,
+   "Taker L/S Volume Ratio (1h)": 8,
+   "Perp Basis %": 7,
+   "Perp Taker Buy Share": 13,
+   "Perp/Spot Volume Ratio": 11,
+   "ETH Return 1h %": 5,
+   "ETH/BTC Ratio Change 24h %": 20
+  },
+  "meta_coef": {
+   "rf": 0.31013203760138747,
+   "xgb": 0.4501508404800356,
+   "lgbm": -0.8205350447478249,
+   "et": -0.02505178826905905
+  }
+ },
+ "registered": {
+  "win": false,
+  "guard_after": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "5b7ff99fb754916f0219baa63d57cf42aa0bf3896fc0f0a9e87d9f6e09dad158",
+   "lab_stacker_meta": "559e9b1c97b7734605ccd1005c3c2a9594886ddd75a065c7b4721d37112398f8",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "run73_artifact": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7"
+  }
+ }
+}

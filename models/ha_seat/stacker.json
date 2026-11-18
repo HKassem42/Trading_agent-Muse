@@ -1,0 +1,27 @@
+{
+ "accuracy": 0.5340909090909091,
+ "precision": 0.5260416666666666,
+ "wf_accuracy": 0.5234264432029796,
+ "wf_precision": 0.5269199676637025,
+ "folds": 5,
+ "model_path": "models/stacker_champion.pkl",
+ "feature_set": "ha10",
+ "run_id": 110,
+ "feature_columns": [
+  "ha_dir",
+  "ha_body_pct",
+  "ha_range_pct",
+  "ha_upper_wick",
+  "ha_lower_wick",
+  "ha_streak",
+  "ha_slope",
+  "ha_disp",
+  "raw_ret",
+  "ha_body_rel"
+ ],
+ "champion_no": 6,
+ "promoted_scope": "lab champion \u2014 Champion #6",
+ "display": "Muse's Pick #11 \u2014 HA Stacker \u2014 Champion #6",
+ "crowned_by": "Kass",
+ "crowned_at": "2026-11-05T19:29:26+00:00"
+}

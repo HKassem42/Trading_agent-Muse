@@ -1,0 +1,277 @@
+{
+ "frames": {
+  "rows_sup": 17047,
+  "split": 16255,
+  "train_rows_common": 12032,
+  "train_base_rate": 0.4904421542553192,
+  "holdout_first": "2026-09-27 16:00:00",
+  "holdout_last": "2026-10-30 15:00:00",
+  "exam_rows": 768,
+  "label_stats_full_series": {
+   "up_first": 8317,
+   "down_first": 8482,
+   "neither_up": 139,
+   "neither_down": 108,
+   "tie_dropped": 0,
+   "no_label": 1,
+   "no_atr": 0
+  },
+  "label_base_rate_exam": 0.5013020833333334,
+  "feature_evidence": {
+   "pick2": {
+    "champion_p0": 4639,
+    "pick2_p0": 4639,
+    "scored_positions": 12871,
+    "raw_warmup_last_bad": {
+     "hurst_rs_100_raw": 98,
+     "ret_skew_100_raw": 99,
+     "ret_kurt_100_raw": 99,
+     "ret_acf1_100_raw": 100
+    }
+   },
+   "finite_rows_full_series": 12871,
+   "rows": 17047
+  },
+  "guard_before": {
+   "live_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "live_seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "live_seat_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "shadow_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "gated_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "gated_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "gated_seat_gate_model": "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a",
+   "gated_seat_manifest": "be580f9fb3c08d1c9febd7b688ec2a2b33d723eaa5f870515cf483641f039829",
+   "lab_ppo_champion": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker_champion": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "live_state": "ae2e44a8a6b82887dec2c1ed82b8b85d0439080810d461c59d278730a0f5afde",
+   "live_state_shadow": "98ea1cadd56e894d4f35f0b9bf3893cff725875ce553d9a5f7130a7ac8966b5c",
+   "live_state_gated": "2d36dd5b625604c070ece463e82843b6f37124d22a328a589a295e759d1d9203",
+   "paper_db_info_only": "f922c40a460964f704366815ae34bfaee9d5035fb1fcee6de1b2acbcfca40d09",
+   "paper_shadow_db_info_only": "a15085cee62fade4143c47fb9f37e08e34978cfd1cbbf158b1805aba4f8e11d4",
+   "paper_gated_db_info_only": "ee56e750e2dd6e531fdff12edf501d483df607a3c0c816d111b6b3c9c046bdd5"
+  },
+  "seconds": 11.1
+ },
+ "oof": {
+  "table": {
+   "a": {
+    "balanced_accuracy": 0.5120163865313908,
+    "auc": 0.5053083446216791,
+    "accuracy": 0.5088320864505403,
+    "n_oof": 9624
+   },
+   "c": {
+    "balanced_accuracy": 0.501661287424322,
+    "auc": 0.5158215813590247,
+    "accuracy": 0.5030133000831255,
+    "n_oof": 9624
+   },
+   "b": {
+    "balanced_accuracy": 0.4936243883559561,
+    "auc": 0.4790199181710115,
+    "accuracy": 0.49345386533665836,
+    "n_oof": 9624
+   },
+   "d": {
+    "balanced_accuracy": 0.49370196693666546,
+    "auc": 0.48789489052608304,
+    "accuracy": 0.4922069825436409,
+    "n_oof": 9624
+   }
+  },
+  "selected": "a",
+  "fallback": {
+   "fired": false,
+   "reason": null,
+   "subset_cols": null
+  },
+  "arm_names": {
+   "a": "pick recipe (run 73's) on triple-barrier labels",
+   "b": "LightGBM (run 82 config) on triple-barrier labels",
+   "c": "pick recipe on OLD next-candle labels, new features",
+   "d": "LSTM sequence eyes (Kass's 24-candle lookback)",
+   "d_fallback": "flattened-lag LightGBM (substituted for d)"
+  }
+ },
+ "fit_exam": {
+  "selected": "a",
+  "fit_info": {
+   "artifact": "/home/hatch/workspace/trading-agent-muse/data/eyes_v2/eyes_v2_model.pkl"
+  },
+  "exam_new": {
+   "accuracy": 0.4778645833333333,
+   "precision": 0.4880952380952381,
+   "up_calls": 672,
+   "n": 768,
+   "base_rate": 0.5013020833333334
+  },
+  "exam_73": {
+   "accuracy": 0.51171875,
+   "precision": 0.5117370892018779,
+   "up_calls": 426,
+   "n": 768,
+   "base_rate": 0.5013020833333334
+  },
+  "spread_new_792": {
+   "min": 0.4354585421083561,
+   "max": 0.6089639801842543,
+   "mean": 0.529861187402855,
+   "pct_out_45_55": 0.21464646464646464,
+   "pct_out_40_60": 0.0012626262626262627,
+   "n": 792
+  },
+  "spread_73_792": {
+   "min": 0.46150255226607195,
+   "max": 0.5420505387748837,
+   "mean": 0.50161352248038,
+   "pct_out_45_55": 0.0,
+   "pct_out_40_60": 0.0,
+   "n": 792
+  },
+  "spread_new_exam": {
+   "min": 0.4354585421083561,
+   "max": 0.589246189129881,
+   "mean": 0.529169383208652,
+   "pct_out_45_55": 0.20442708333333334,
+   "pct_out_40_60": 0.0,
+   "n": 768
+  },
+  "spread_73_exam": {
+   "min": 0.46150255226607195,
+   "max": 0.5420505387748837,
+   "mean": 0.5015826388558476,
+   "pct_out_45_55": 0.0,
+   "pct_out_40_60": 0.0,
+   "n": 768
+  },
+  "diag_73": {
+   "next_candle_exam_rows": {
+    "accuracy": 0.52734375,
+    "precision": 0.5187793427230047,
+    "up_calls": 426,
+    "n": 768,
+    "base_rate": 0.4934895833333333
+   },
+   "next_candle_full_holdout": {
+    "accuracy": 0.523989898989899,
+    "precision": 0.5135746606334841,
+    "up_calls": 442,
+    "n": 792,
+    "base_rate": 0.4911616161616162
+   },
+   "recorded_holdout_acc": 0.5353535353535354
+  },
+  "exam_win": false,
+  "seconds": 128.7
+ },
+ "duel": {
+  "champion": {
+   "score": -210.1721831509761,
+   "total_pnl": -305.27848778398766,
+   "mean_reward": -1.2702037316331387,
+   "max_drawdown": 266.3998000261781,
+   "mean_drawdown": 35.965103722300654,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.633,
+    "buy": 0.0,
+    "sell": 0.354,
+    "short": 0.013
+   },
+   "windows": [
+    {
+     "score": 85.4,
+     "pnl": 207.96,
+     "bench": -4086.01,
+     "dd": 245.12,
+     "mdd": 27.41,
+     "mr": -1.179,
+     "episodes": 10
+    },
+    {
+     "score": -208.44,
+     "pnl": -138.96,
+     "bench": 1174.86,
+     "dd": 138.96,
+     "mdd": 13.9,
+     "mr": -1.394,
+     "episodes": 10
+    },
+    {
+     "score": -507.48,
+     "pnl": -374.28,
+     "bench": -5548.69,
+     "dd": 266.4,
+     "mdd": 66.59,
+     "mr": -1.237,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -210.1721831509761,
+   "total_pnl": -305.27848778398766,
+   "mean_reward": -1.2702037316331387,
+   "max_drawdown": 266.3998000261781,
+   "mean_drawdown": 35.965103722300654,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.633,
+    "buy": 0.0,
+    "sell": 0.354,
+    "short": 0.013
+   },
+   "windows": [
+    {
+     "score": 85.4,
+     "pnl": 207.96,
+     "bench": -4086.01,
+     "dd": 245.12,
+     "mdd": 27.41,
+     "mr": -1.179,
+     "episodes": 10
+    },
+    {
+     "score": -208.44,
+     "pnl": -138.96,
+     "bench": 1174.86,
+     "dd": 138.96,
+     "mdd": 13.9,
+     "mr": -1.394,
+     "episodes": 10
+    },
+    {
+     "score": -507.48,
+     "pnl": -374.28,
+     "bench": -5548.69,
+     "dd": 266.4,
+     "mdd": 66.59,
+     "mr": -1.237,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "money_win": false,
+  "champ_pin": {
+   "agg": -210.17,
+   "pnl": -305.28,
+   "reproduced": true
+  }
+ },
+ "registered": {
+  "run_id": 85,
+  "verdict": "FAIL",
+  "reason": "Eyes v2 (pick recipe (run 73's) on triple-barrier labels): champion kept \u2014 exam acc 0.4779 vs run 73 re-scored 0.5117 (prec 0.4881 vs 0.5117, up-calls 672 vs 426); duel agg -210 vs champion -210, P&L -305 vs -305 \u2014 failed eyes attempt (component study, not a numbered null)",
+  "guard_after_ok": true
+ }
+}

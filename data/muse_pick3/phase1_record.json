@@ -1,0 +1,39 @@
+{
+ "at": "2026-10-27T18:21:06+00:00",
+ "book_at_swap": {
+  "cash": 124962.5,
+  "btc": -0.31163144421105327,
+  "entry_price": 80222.97,
+  "last_ts": "2026-10-27T17:00:00",
+  "trades": 1,
+  "last_equity": [
+   "2026-10-27T17:00:00",
+   99909.25776775654
+  ],
+  "opened_under_eyes_run": 69
+ },
+ "archive_dir": "20261027T182106_20261027_pre_champion4",
+ "archive": {
+  "ppo_champion.zip": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "stacker_champion.pkl": "20705159775147d1d81baf25fffd507aac93aa0c7342fd795a8f79b47947cb89",
+  "stacker_champion.json": "d0c1cf7c7472c6372378c725f2044966b6987eac53be736c5d578348e1a1f458"
+ },
+ "lab_stacker_sha": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+ "lab_meta_sha": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+ "cold_rescore": {
+  "acc": 0.5353535353535354,
+  "precision": 0.525,
+  "up_calls": 440
+ },
+ "nightly_path": {
+  "acc": 0.5353535353535354,
+  "up_calls": 440,
+  "max_proba_diff_vs_cold": 2.220446049250313e-16
+ },
+ "registry": "run 73 promoted=1, pending resolved approved",
+ "shadow": {
+  "stacker_sha": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+  "meta_sha": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+  "desk": "TradingAgent Live \u2014 Shadow (Champion #4 Eyes)"
+ }
+}

@@ -1,0 +1,8 @@
+{
+ "done": [
+  "setup",
+  "fit_candidate",
+  "wf",
+  "register"
+ ]
+}

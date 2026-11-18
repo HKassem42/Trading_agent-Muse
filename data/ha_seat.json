@@ -1,0 +1,39 @@
+{
+ "desk": "TradingAgent Live \u2014 HA Desk (Book #4 \u00b7 Pick #11 Eyes)",
+ "book": "Book #4",
+ "driver": {
+  "brain": "PPO",
+  "run_id": 44,
+  "file": "models/ha_seat/ppo.zip",
+  "sha256": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "source": "models/ppo_champion.zip"
+ },
+ "eyes": {
+  "brain": "Stacker",
+  "run_id": 110,
+  "name": "Muse's Pick #11 Stacker \u2014 Flat Recipe on HA Candles",
+  "champion": "Champion #6",
+  "feature_set": "ha10",
+  "n_features": 10,
+  "file": "models/ha_seat/stacker.pkl",
+  "sha256": "fcac935da48f9830c0f3509a85fdb9c8c4c495336393ce700117e53889d56938",
+  "meta_file": "models/ha_seat/stacker.json",
+  "meta_sha256": "357cb44667123a5d7a15a61935fa00b8230bc79fab5f16e7764d8cd0860b39c2",
+  "source": "data/muse_pick11/pick11_stacker.pkl"
+ },
+ "book_db": "data/paper_ha.db",
+ "state_file": "data/live_state_ha.json",
+ "starting_balance": 100000,
+ "started": "2026-11-05T18:00:00",
+ "seeded_by": "Book #4 HA desk build (Kass's order 2026-11-05, the same day he crowned Pick #11 Lab Stacker Champion #6)",
+ "grading_record": {
+  "eyes_run": 110,
+  "exam_acc": 0.5341,
+  "exam_precision": 0.526,
+  "wf_acc": 0.5234,
+  "wf_majority": 0.5039,
+  "source": "Muse's Pick #11 pre-registered grading (refs/muse-pick-11-preregistration-2026-11-05.md): the eyes passed their stacker bar on the Picks #9/#10 identical exam with walk-forward agreement. The PAIRING (PPO run 44 + Pick #11 eyes) has no duel exam; this book IS its forward test."
+ },
+ "pinned": "Stacker pinned to run 110 (Champion #6, Muse's Pick #11) and PPO pinned to run 44: this seat does NOT follow future lab crownings and is NOT the driver's seat. The stacker source is the Pick #11 study artifact itself, so later crownings cannot move it. It changes only by Kass's explicit decision, executed manually.",
+ "note": "Book #4: the HA book. Same driver as Books #1/#2 (PPO run 44), but the eyes read Heikin-Ashi candles (10 values per candle: color, body, range, wicks, signed streak, slope, displacement, raw return, body share) instead of the production or scored frames -- and this desk's price chart renders the HA candle stream, per Kass's order. Trading itself (fills, stops, equity) is on real prices, exactly like the other books."
+}

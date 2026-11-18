@@ -1,0 +1,372 @@
+{
+ "prep": {
+  "train_rows": 12079,
+  "holdout_rows": 792,
+  "train_last": "2026-09-27 15:00:00",
+  "holdout_first": "2026-09-27 16:00:00",
+  "holdout_last": "2026-10-30 15:00:00",
+  "run82_reference": {
+   "champion_score": -210.1721831509761,
+   "champion_total_pnl": -305.27848778398766,
+   "champion_bench_pnl": -8459.840190272616,
+   "g55_score": -36.78939233467099,
+   "g55_total_pnl": 37.31346652020875,
+   "g55_gate_stats": {
+    "attempted": 7,
+    "vetoed": 2,
+    "filled": 5,
+    "fills": 5,
+    "fees": 187.5
+   },
+   "oof82": {
+    "n_oof": 388,
+    "accuracy": 0.5231958762886598,
+    "balanced_accuracy": 0.5184560104529616,
+    "auc": 0.5211509146341463,
+    "gate_rate_055": 0.45618556701030927
+   }
+  },
+  "guard_before": {
+   "live_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "live_seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "live_seat_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "shadow_seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_seat_stacker": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "shadow_seat_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "lab_ppo_champion": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker_champion": "89b633945843062a85d71bf8a2c97c238446ce5bd4fdfb783280daa2e75364a7",
+   "lab_stacker_meta": "c2078c1cc7399b1854b885161eac5834abc40dcd81fe49f09ab394c0ef09e6b0",
+   "live_state": "5dfb6bb56cb941d385756f7c73f523a4d11ba00af0b93b6b0d9313e652ca0839",
+   "live_state_shadow": "d0bb88c1c77d95e6e13d8ebe4fbf126ef996225d4478bbf1cdf49252553a9649",
+   "paper_db_info_only": "247fca4282097ff3353bb272af80187f6c2f1cd2fd9fe0ab083c2fe5a767850c",
+   "paper_shadow_db_info_only": "53b35949e5fd529b80e8230f0adee48150a8490b28961c2796c32b323d1d7c2f"
+  }
+ },
+ "extract": {
+  "stream1_candidates": 1450,
+  "stream2_candidates": 25,
+  "stream1_dropped_refused": 13,
+  "stream2_dropped_refused": 0,
+  "seconds": 183.1
+ },
+ "assemble": {
+  "n_pooled": 640,
+  "deduped_dropped": 835,
+  "base_rate": 0.440625,
+  "per_stream": {
+   "1": {
+    "n": 615,
+    "base_rate": 0.44390243902439025
+   },
+   "0": {
+    "n": 25,
+    "base_rate": 0.36
+   }
+  },
+  "mean_contribution": -55.571227684125326
+ },
+ "compare": {
+  "oof_table": {
+   "lgbm82": {
+    "n_oof": 512,
+    "accuracy": 0.51171875,
+    "balanced_accuracy": 0.5014880952380952,
+    "auc": 0.5088045634920635
+   },
+   "stacker": {
+    "n_oof": 512,
+    "accuracy": 0.544921875,
+    "balanced_accuracy": 0.5275297619047619,
+    "auc": 0.5158420138888888
+   },
+   "lgbm82+isotonic": {
+    "n_oof": 512,
+    "accuracy": 0.49609375,
+    "balanced_accuracy": 0.4742063492063492,
+    "auc": 0.4880564856150794
+   },
+   "lgbm82+platt": {
+    "n_oof": 512,
+    "accuracy": 0.5625,
+    "balanced_accuracy": 0.5014880952380952,
+    "auc": 0.4680059523809524
+   },
+   "stacker+isotonic": {
+    "n_oof": 512,
+    "accuracy": 0.55078125,
+    "balanced_accuracy": 0.5124007936507936,
+    "auc": 0.5021933903769841
+   },
+   "stacker+platt": {
+    "n_oof": 512,
+    "accuracy": 0.5625,
+    "balanced_accuracy": 0.5,
+    "auc": 0.4688585069444445
+   }
+  },
+  "seconds": 214.4
+ },
+ "fit": {
+  "selected_variant": "stacker",
+  "oof_selected": {
+   "n_oof": 512,
+   "accuracy": 0.544921875,
+   "balanced_accuracy": 0.5275297619047619,
+   "auc": 0.5158420138888888
+  },
+  "n_train": 640,
+  "seconds": 20.3
+ },
+ "duel": {
+  "champion": {
+   "score": -210.1721831509761,
+   "total_pnl": -305.27848778398766,
+   "mean_reward": -1.2702037316331387,
+   "max_drawdown": 266.3998000261781,
+   "mean_drawdown": 35.965103722300654,
+   "bench_pnl": -8459.840190272616,
+   "episodes": 30,
+   "round_trips_per_day": 0.03333333333333333,
+   "action_mix": {
+    "hold": 0.633,
+    "buy": 0.0,
+    "sell": 0.354,
+    "short": 0.013
+   },
+   "windows": [
+    {
+     "score": 85.4,
+     "pnl": 207.96,
+     "bench": -4086.01,
+     "dd": 245.12,
+     "mdd": 27.41,
+     "mr": -1.179,
+     "episodes": 10
+    },
+    {
+     "score": -208.44,
+     "pnl": -138.96,
+     "bench": 1174.86,
+     "dd": 138.96,
+     "mdd": 13.9,
+     "mr": -1.394,
+     "episodes": 10
+    },
+    {
+     "score": -507.48,
+     "pnl": -374.28,
+     "bench": -5548.69,
+     "dd": 266.4,
+     "mdd": 66.59,
+     "mr": -1.237,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "champion_gate_stats": {
+   "attempted": 6,
+   "filled": 6,
+   "fills": 7,
+   "fees": 262.3475834673691
+  },
+  "arms": {
+   "0.50": {
+    "agg": {
+     "score": -155.1004396243152,
+     "total_pnl": -140.0632572040049,
+     "mean_reward": -1.264693320536561,
+     "max_drawdown": 266.3998000261781,
+     "mean_drawdown": 30.45792936963456,
+     "bench_pnl": -8459.840190272616,
+     "episodes": 30,
+     "round_trips_per_day": 0.03333333333333333,
+     "action_mix": {
+      "hold": 0.637,
+      "buy": 0.0,
+      "sell": 0.354,
+      "short": 0.008
+     },
+     "windows": [
+      {
+       "score": 114.37,
+       "pnl": 236.92,
+       "bench": -4086.01,
+       "dd": 245.12,
+       "mdd": 24.51,
+       "mr": -1.176,
+       "episodes": 10
+      },
+      {
+       "score": -208.44,
+       "pnl": -138.96,
+       "bench": 1174.86,
+       "dd": 138.96,
+       "mdd": 13.9,
+       "mr": -1.394,
+       "episodes": 10
+      },
+      {
+       "score": -371.23,
+       "pnl": -238.03,
+       "bench": -5548.69,
+       "dd": 266.4,
+       "mdd": 52.97,
+       "mr": -1.224,
+       "episodes": 10
+      }
+     ],
+     "runnable": true
+    },
+    "wins": 2,
+    "attempted": 6,
+    "vetoed": 2,
+    "filled": 4,
+    "veto_rate": 0.3333333333333333,
+    "fills": 5,
+    "fees": 187.34758346736908,
+    "resum_total_pnl": -140.0632572040049,
+    "resum_diff": 0.0,
+    "resum_per_window": {
+     "0": 236.92396203627868,
+     "1": -138.95860522132716,
+     "2": -238.02861401895643
+    }
+   },
+   "0.55": {
+    "agg": {
+     "score": 38.121700997030224,
+     "total_pnl": 236.92396203627868,
+     "mean_reward": -1.3254452086753585,
+     "max_drawdown": 245.117718090376,
+     "mean_drawdown": 8.170590603012533,
+     "bench_pnl": -8459.840190272616,
+     "episodes": 30,
+     "round_trips_per_day": 0.0,
+     "action_mix": {
+      "hold": 0.65,
+      "buy": 0.0,
+      "sell": 0.35,
+      "short": 0.0
+     },
+     "windows": [
+      {
+       "score": 114.37,
+       "pnl": 236.92,
+       "bench": -4086.01,
+       "dd": 245.12,
+       "mdd": 24.51,
+       "mr": -1.176,
+       "episodes": 10
+      },
+      {
+       "score": 0.0,
+       "pnl": 0.0,
+       "bench": 1174.86,
+       "dd": 0.0,
+       "mdd": 0.0,
+       "mr": -1.4,
+       "episodes": 10
+      },
+      {
+       "score": 0.0,
+       "pnl": 0.0,
+       "bench": -5548.69,
+       "dd": 0.0,
+       "mdd": 0.0,
+       "mr": -1.4,
+       "episodes": 10
+      }
+     ],
+     "runnable": true
+    },
+    "wins": 3,
+    "attempted": 8,
+    "vetoed": 7,
+    "filled": 1,
+    "veto_rate": 0.875,
+    "fills": 1,
+    "fees": 37.5,
+    "resum_total_pnl": 236.92396203627868,
+    "resum_diff": 0.0,
+    "resum_per_window": {
+     "0": 236.92396203627868,
+     "1": 0.0,
+     "2": 0.0
+    }
+   },
+   "0.60": {
+    "agg": {
+     "score": 0.0,
+     "total_pnl": 0.0,
+     "mean_reward": -1.3999999999999997,
+     "max_drawdown": 0.0,
+     "mean_drawdown": 0.0,
+     "bench_pnl": -8459.840190272616,
+     "episodes": 30,
+     "round_trips_per_day": 0.0,
+     "action_mix": {
+      "hold": 0.65,
+      "buy": 0.0,
+      "sell": 0.35,
+      "short": 0.0
+     },
+     "windows": [
+      {
+       "score": 0.0,
+       "pnl": 0.0,
+       "bench": -4086.01,
+       "dd": 0.0,
+       "mdd": 0.0,
+       "mr": -1.4,
+       "episodes": 10
+      },
+      {
+       "score": 0.0,
+       "pnl": 0.0,
+       "bench": 1174.86,
+       "dd": 0.0,
+       "mdd": 0.0,
+       "mr": -1.4,
+       "episodes": 10
+      },
+      {
+       "score": 0.0,
+       "pnl": 0.0,
+       "bench": -5548.69,
+       "dd": 0.0,
+       "mdd": 0.0,
+       "mr": -1.4,
+       "episodes": 10
+      }
+     ],
+     "runnable": true
+    },
+    "wins": 2,
+    "attempted": 9,
+    "vetoed": 9,
+    "filled": 0,
+    "veto_rate": 1.0,
+    "fills": 0,
+    "fees": 0.0,
+    "resum_total_pnl": 0.0,
+    "resum_diff": 0.0,
+    "resum_per_window": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0
+    }
+   }
+  },
+  "formula_pass": true,
+  "floor_fail": null,
+  "promotable": true,
+  "improved_vs_run82": true
+ },
+ "registered": {
+  "run_id": 83,
+  "verdict": "PASS",
+  "reason": "Meta-Label Gate \u2014 Pick A-83: gated pair aggregate 38 vs champion -210, won 3/3 windows, P&L +237 vs champion -305 (buy-and-hold -8,460); vetoed 7/8 candidate entries (88%), fees $38 vs champion $262; vs run 82's gate (agg -37, P&L +37): IMPROVED on both frozen numbers; meta-model 'stacker' selected from 6 variants on training OOF (bal acc 0.528 vs run 82's LightGBM 0.518); 640 in-context-labeled candidates (base rate 0.441) (gate pass incl. two-part floor) \u2014 WOULD PROMOTE: held as PENDING KASS APPROVAL under the promotion lock; champion kept, nothing installed",
+  "guard_after_ok": true
+ }
+}

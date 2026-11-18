@@ -1,0 +1,1 @@
+{"accuracy": 0.4797979797979798, "precision": 0.4830097087378641, "wf_accuracy": 0.49855929072774285, "wf_precision": 0.4987348108305888, "folds": 5, "model_path": "/home/hatch/workspace/trading-agent-muse/models/stacker_champion.pkl"}

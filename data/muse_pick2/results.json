@@ -1,0 +1,529 @@
+{
+ "meta": {
+  "rows_raw": 17510,
+  "rows_sup": 17048,
+  "split": 16256,
+  "holdout_start": "2026-09-24 17:00:00",
+  "hold_start_pos": 16718,
+  "data_first": "2024-10-27 17:00:00",
+  "data_last": "2026-10-27 16:00:00",
+  "guard_before": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "20705159775147d1d81baf25fffd507aac93aa0c7342fd795a8f79b47947cb89",
+   "lab_stacker_meta": "d0c1cf7c7472c6372378c725f2044966b6987eac53be736c5d578348e1a1f458",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "20705159775147d1d81baf25fffd507aac93aa0c7342fd795a8f79b47947cb89",
+   "shadow_stacker_meta": "d0c1cf7c7472c6372378c725f2044966b6987eac53be736c5d578348e1a1f458",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "3778fa5d5c9e18bfcec9a6dde52c6f20ff54297115a23400e5027a5244e23328",
+   "paper_shadow_db_info_only": "6b6611cbc850b8815c4d0698d8be94810795e6d17b6fe1c3fe52615fff53e34f"
+  },
+  "state_size": 102,
+  "n_features": 98,
+  "champion_run": 69,
+  "design": {
+   "stacker": "Muse's Pick #2 stacker: Pick #1 recipe (RF+XGB+LGBM+ET -> LR), scored-102 + Hurst/skew/kurtosis/autocorr (98 feats)",
+   "ppo": "Muse's Pick #2 PPO: SB3 PPO, 102-wide scored state + Pick #2 Stacker votes, reward shaping -0.5 x step DD increase, 264-candle training episodes",
+   "episode_candles": 264,
+   "shaping_coef": 0.5,
+   "new_features": [
+    "Rolling Hurst Exponent (100)",
+    "Return Skewness (100)",
+    "Return Kurtosis (100)",
+    "Return Autocorrelation Lag-1 (100)"
+   ],
+   "windows": {
+    "hurst": 100,
+    "moments": 100,
+    "autocorr": 100
+   }
+  }
+ },
+ "frames": {
+  "train_rows": 12080,
+  "dropped_warmup_train_rows": 4176,
+  "holdout_rows": 792,
+  "frame_evidence": {
+   "champion_p0": 4638,
+   "pick2_p0": 4638,
+   "scored_positions": 12872,
+   "raw_warmup_last_bad": {
+    "hurst_rs_100_raw": 98,
+    "ret_skew_100_raw": 99,
+    "ret_kurt_100_raw": 99,
+    "ret_acf1_100_raw": 100
+   }
+  },
+  "causality_truncation": {
+   "9000": {
+    "score_master": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4363
+    },
+    "Relative Strength Index (RSI)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4363
+    },
+    "Rolling Hurst Exponent (100)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 4363
+    },
+    "__votes__": {
+     "max_abs_diff": 1.1102230246251565e-16,
+     "rows": 200
+    }
+   },
+   "17018": {
+    "score_master": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12381
+    },
+    "Relative Strength Index (RSI)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12381
+    },
+    "Rolling Hurst Exponent (100)": {
+     "max_abs_diff": 0.0,
+     "shared_rows": 12381
+    },
+    "__votes__": {
+     "max_abs_diff": 1.1102230246251565e-16,
+     "rows": 200
+    }
+   }
+  },
+  "train_first": "2025-05-08 23:00:00",
+  "train_last": "2026-09-24 16:00:00"
+ },
+ "stacker": {
+  "acc": 0.5353535353535354,
+  "precision": 0.525,
+  "up_calls": 440,
+  "p_up_max": 0.5420505387748838,
+  "p_up_mean": 0.5017623088024287,
+  "wf_acc": 0.5177347242921013,
+  "wf_precision": 0.517764727558121,
+  "folds": 5,
+  "train_rows": 12080,
+  "champion_acc": 0.5290404040404041,
+  "champion_precision": 0.5203836930455635,
+  "champion_up_calls": 417,
+  "champion_p_up_max": 0.5244493675032932,
+  "champion_two_way_agree": true,
+  "champion_two_way_max_proba_diff": 1.1102230246251565e-16,
+  "win": true,
+  "degenerate": false,
+  "effective_win": true,
+  "base_learner_holdout_acc": {
+   "rf": 0.5366161616161617,
+   "xgb": 0.523989898989899,
+   "lgbm": 0.5353535353535354,
+   "et": 0.5454545454545454
+  },
+  "meta_coef": {
+   "rf": 0.7484700815604046,
+   "xgb": -0.010217503634896477,
+   "lgbm": -0.4997728477529006,
+   "et": 1.4071463642845425
+  },
+  "top15": [
+   {
+    "feature": "Stochastic RSI (StochRSI)",
+    "importance": 0.017600318792684137
+   },
+   {
+    "feature": "Distance to $5,000 Round Number (%)",
+    "importance": 0.015552874449962034
+   },
+   {
+    "feature": "Force Index",
+    "importance": 0.014459807753500625
+   },
+   {
+    "feature": "Connors RSI (CRSI)",
+    "importance": 0.014458126862354457
+   },
+   {
+    "feature": "Return Autocorrelation Lag-1 (100)",
+    "importance": 0.014051576228988418
+   },
+   {
+    "feature": "Williams %R",
+    "importance": 0.013445384133071153
+   },
+   {
+    "feature": "Return Kurtosis (100)",
+    "importance": 0.01342541610478896
+   },
+   {
+    "feature": "Accumulative Swing Index (ASI)",
+    "importance": 0.013091102842112434
+   },
+   {
+    "feature": "Acceleration Oscillator (AC)",
+    "importance": 0.012913738667565965
+   },
+   {
+    "feature": "Ultimate Oscillator (UO)",
+    "importance": 0.012464358031332265
+   },
+   {
+    "feature": "Choppiness Index (CHOP)",
+    "importance": 0.01239651680445985
+   },
+   {
+    "feature": "Relative Volatility Index (RVI)",
+    "importance": 0.012391753210705217
+   },
+   {
+    "feature": "Hull Moving Average (HMA)",
+    "importance": 0.012327131281216649
+   },
+   {
+    "feature": "Parabolic SAR Side (+1/-1)",
+    "importance": 0.012227017879961225
+   },
+   {
+    "feature": "Klinger Volume Oscillator (KVO)",
+    "importance": 0.0122091551184056
+   }
+  ],
+  "new_feature_ranks": {
+   "Rolling Hurst Exponent (100)": 46,
+   "Return Skewness (100)": 47,
+   "Return Kurtosis (100)": 7,
+   "Return Autocorrelation Lag-1 (100)": 5
+  }
+ },
+ "votes": {
+  "train_vote_mean": 0.49900217625801624,
+  "train_vote_std": 0.010463827406642917,
+  "train_vote_neutral_share": 0.2,
+  "pick_hold_vote_mean": 0.5017623088024287,
+  "pick_hold_vote_std": 0.012580653406190512,
+  "champ_hold_vote_mean": 0.49996981736215557,
+  "champ_hold_vote_std": 0.009024813263941589
+ },
+ "arm": {
+  "challenger_path": "/home/hatch/workspace/trading-agent-muse/data/muse_pick2/arm60/ppo_challenger.zip",
+  "timesteps": 60000,
+  "episode_candles": 264,
+  "reward_curve": [
+   [
+    2640,
+    -13.161
+   ],
+   [
+    5280,
+    -10.398
+   ],
+   [
+    7920,
+    -13.739
+   ],
+   [
+    10560,
+    -13.207
+   ],
+   [
+    13200,
+    -10.728
+   ],
+   [
+    15840,
+    -11.248
+   ],
+   [
+    18480,
+    -12.428
+   ],
+   [
+    21120,
+    -12.923
+   ],
+   [
+    23760,
+    -13.805
+   ],
+   [
+    26400,
+    -10.051
+   ],
+   [
+    29040,
+    -8.883
+   ],
+   [
+    31680,
+    -10.062
+   ],
+   [
+    34320,
+    -8.656
+   ],
+   [
+    36960,
+    -10.508
+   ],
+   [
+    39600,
+    -8.97
+   ],
+   [
+    42240,
+    -8.539
+   ],
+   [
+    44880,
+    -9.004
+   ],
+   [
+    47520,
+    -8.35
+   ],
+   [
+    50160,
+    -8.102
+   ],
+   [
+    52800,
+    -10.687
+   ],
+   [
+    55440,
+    -7.935
+   ],
+   [
+    58080,
+    -8.485
+   ]
+  ],
+  "telemetry": {
+   "rollouts": 118,
+   "kl_end": null,
+   "clip_end": 0.0668,
+   "ev_end": 0.0006,
+   "vl_end": 0.1586,
+   "ent_start": 1.3831,
+   "ent_end": 0.952,
+   "ent_min": 0.952,
+   "ent_curve": [
+    [
+     1024,
+     1.3831
+    ],
+    [
+     3584,
+     1.332
+    ],
+    [
+     6144,
+     1.3333
+    ],
+    [
+     8704,
+     1.3031
+    ],
+    [
+     11264,
+     1.326
+    ],
+    [
+     13824,
+     1.3161
+    ],
+    [
+     16384,
+     1.3088
+    ],
+    [
+     18944,
+     1.3066
+    ],
+    [
+     21504,
+     1.2278
+    ],
+    [
+     24064,
+     1.2664
+    ],
+    [
+     26624,
+     1.2267
+    ],
+    [
+     29184,
+     1.1474
+    ],
+    [
+     32256,
+     1.1453
+    ],
+    [
+     34816,
+     1.1505
+    ],
+    [
+     37376,
+     1.1833
+    ],
+    [
+     39936,
+     1.235
+    ],
+    [
+     42496,
+     1.0752
+    ],
+    [
+     45056,
+     1.1423
+    ],
+    [
+     47616,
+     1.1036
+    ],
+    [
+     50176,
+     0.9955
+    ],
+    [
+     52736,
+     0.9884
+    ],
+    [
+     55296,
+     1.0375
+    ],
+    [
+     57856,
+     1.0526
+    ],
+    [
+     60416,
+     0.952
+    ]
+   ]
+  }
+ },
+ "duel": {
+  "champion": {
+   "score": -52.28781362577138,
+   "total_pnl": 162.116122688647,
+   "mean_reward": -1.2479742798320752,
+   "max_drawdown": 303.52465802374354,
+   "mean_drawdown": 24.8684720620091,
+   "bench_pnl": -4296.4358346621275,
+   "episodes": 30,
+   "round_trips_per_day": 0.06666666666666667,
+   "action_mix": {
+    "hold": 0.567,
+    "buy": 0.0,
+    "sell": 0.425,
+    "short": 0.008
+   },
+   "windows": [
+    {
+     "score": 190.23,
+     "pnl": 312.79,
+     "bench": 1431.9,
+     "dd": 245.12,
+     "mdd": 28.05,
+     "mr": -1.169,
+     "episodes": 10
+    },
+    {
+     "score": -114.46,
+     "pnl": -69.8,
+     "bench": -4792.55,
+     "dd": 89.32,
+     "mdd": 8.93,
+     "mr": -1.367,
+     "episodes": 10
+    },
+    {
+     "score": -232.63,
+     "pnl": -80.87,
+     "bench": -935.79,
+     "dd": 303.52,
+     "mdd": 37.62,
+     "mr": -1.208,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "challenger": {
+   "score": -1071.7113823981538,
+   "total_pnl": -2099.686082144821,
+   "mean_reward": -1.0371367927993447,
+   "max_drawdown": 1203.192868030179,
+   "mean_drawdown": 136.1440476022491,
+   "bench_pnl": -4296.4358346621275,
+   "episodes": 30,
+   "round_trips_per_day": 0.16666666666666666,
+   "action_mix": {
+    "hold": 0.542,
+    "buy": 0.025,
+    "sell": 0.392,
+    "short": 0.042
+   },
+   "windows": [
+    {
+     "score": -1086.99,
+     "pnl": -614.6,
+     "bench": 1431.9,
+     "dd": 944.79,
+     "mdd": 146.9,
+     "mr": -1.042,
+     "episodes": 10
+    },
+    {
+     "score": 428.27,
+     "pnl": 469.73,
+     "bench": -4792.55,
+     "dd": 82.92,
+     "mdd": 21.44,
+     "mr": -0.493,
+     "episodes": 10
+    },
+    {
+     "score": -2556.41,
+     "pnl": -1954.81,
+     "bench": -935.79,
+     "dd": 1203.19,
+     "mdd": 240.09,
+     "mr": -1.576,
+     "episodes": 10
+    }
+   ],
+   "runnable": true
+  },
+  "windows_won": 1,
+  "formula_pass": false,
+  "floor_fail": null,
+  "promotable": false
+ },
+ "registered": {
+  "stacker_win": true,
+  "stacker_strict_win": true,
+  "stacker_degenerate": false,
+  "ppo_promotable": false,
+  "guard_after": {
+   "lab_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "lab_stacker": "20705159775147d1d81baf25fffd507aac93aa0c7342fd795a8f79b47947cb89",
+   "lab_stacker_meta": "d0c1cf7c7472c6372378c725f2044966b6987eac53be736c5d578348e1a1f458",
+   "seat_stacker": "0dd62fc44037e689e7167692f2cbb63e03c77c370e25f0612a1ce090c0fd5e33",
+   "seat_stacker_meta": "4cc2147efb5fb3e2287ccca818f4eaeb372a2499b8d3bd7079ec270ba76560ba",
+   "seat_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "shadow_stacker": "20705159775147d1d81baf25fffd507aac93aa0c7342fd795a8f79b47947cb89",
+   "shadow_stacker_meta": "d0c1cf7c7472c6372378c725f2044966b6987eac53be736c5d578348e1a1f458",
+   "shadow_ppo": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+   "paper_db_info_only": "3778fa5d5c9e18bfcec9a6dde52c6f20ff54297115a23400e5027a5244e23328",
+   "paper_shadow_db_info_only": "6b6611cbc850b8815c4d0698d8be94810795e6d17b6fe1c3fe52615fff53e34f"
+  }
+ }
+}

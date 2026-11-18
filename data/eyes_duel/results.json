@@ -1,0 +1,119 @@
+{
+  "study": "eyes_duel_64_vs_73",
+  "ran_at": "2026-10-29T23:28:28.406711+00:00",
+  "holdout_start": "2026-09-27 00:00:00",
+  "holdout_end": "2026-10-29 23:00:00",
+  "holdout_rows": 792,
+  "ppo": "run 44 (models/ppo_champion.zip)",
+  "sides": {
+    "run64": {
+      "score": -90.89362827783528,
+      "total_pnl": 69.8532874458906,
+      "mean_reward": -1.251054775142761,
+      "max_drawdown": 350.63387545061414,
+      "mean_drawdown": 50.576072921500604,
+      "bench_pnl": -7180.291680383532,
+      "episodes": 30,
+      "round_trips_per_day": 0.06666666666666667,
+      "action_mix": {
+        "hold": 0.654,
+        "buy": 0.0,
+        "sell": 0.329,
+        "short": 0.017
+      },
+      "windows": [
+        {
+          "score": 105.11,
+          "pnl": 227.67,
+          "bench": -1205.52,
+          "dd": 245.12,
+          "mdd": 45.82,
+          "mr": -1.177,
+          "episodes": 10
+        },
+        {
+          "score": -114.46,
+          "pnl": -69.8,
+          "bench": -1584.48,
+          "dd": 89.32,
+          "mdd": 8.93,
+          "mr": -1.367,
+          "episodes": 10
+        },
+        {
+          "score": -263.33,
+          "pnl": -88.01,
+          "bench": -4390.29,
+          "dd": 350.63,
+          "mdd": 96.97,
+          "mr": -1.209,
+          "episodes": 10
+        }
+      ],
+      "runnable": true,
+      "label": "Run 44 PPO + Run 64 eyes (scored102, former Champion #2)",
+      "feature_set": "scored102",
+      "holdout_acc": 0.5025252525252525,
+      "holdout_precision": 0.49074074074074076,
+      "up_calls": 324,
+      "vote_mean": 0.4983526220397162
+    },
+    "run73": {
+      "score": -90.89362827783528,
+      "total_pnl": 69.8532874458906,
+      "mean_reward": -1.251054775142761,
+      "max_drawdown": 350.63387545061414,
+      "mean_drawdown": 50.576072921500604,
+      "bench_pnl": -7180.291680383532,
+      "episodes": 30,
+      "round_trips_per_day": 0.06666666666666667,
+      "action_mix": {
+        "hold": 0.65,
+        "buy": 0.0,
+        "sell": 0.333,
+        "short": 0.017
+      },
+      "windows": [
+        {
+          "score": 105.11,
+          "pnl": 227.67,
+          "bench": -1205.52,
+          "dd": 245.12,
+          "mdd": 45.82,
+          "mr": -1.177,
+          "episodes": 10
+        },
+        {
+          "score": -114.46,
+          "pnl": -69.8,
+          "bench": -1584.48,
+          "dd": 89.32,
+          "mdd": 8.93,
+          "mr": -1.367,
+          "episodes": 10
+        },
+        {
+          "score": -263.33,
+          "pnl": -88.01,
+          "bench": -4390.29,
+          "dd": 350.63,
+          "mdd": 96.97,
+          "mr": -1.209,
+          "episodes": 10
+        }
+      ],
+      "runnable": true,
+      "label": "Run 44 PPO + Run 73 eyes (pick2_98, Champion #4)",
+      "feature_set": "pick2_98",
+      "holdout_acc": 0.5252525252525253,
+      "holdout_precision": 0.5136986301369864,
+      "up_calls": 438,
+      "vote_mean": 0.5015306151642777
+    }
+  },
+  "delta_73_minus_64": {
+    "agg_score": 0.0,
+    "total_pnl": 0.0,
+    "holdout_acc": 0.022727272727272818
+  }
+}
