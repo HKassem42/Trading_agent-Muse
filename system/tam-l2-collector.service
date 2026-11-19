@@ -1,0 +1,14 @@
+[Unit]
+Description=TradingAgent-Muse Coinbase Level 2 + trades-tape collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hatch/workspace/trading-agent-muse
+ExecStart=/home/hatch/workspace/trading-agent-muse/.venv/bin/python -m src.data.l2_collector
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

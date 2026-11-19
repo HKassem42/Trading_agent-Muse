@@ -159,6 +159,137 @@ def backfill_rollups(db_path: Path | str = DEFAULT_DB,
         conn.close()
 
 
+# ------------------------------------------------------- trades-tape hours
+# The tape side (Coinbase market_trades, aggregated per minute into
+# l2_trades_minutes by data.l2_collector) folds into l2_trades_hours
+# under the same conventions as the book side: hour-start ts, ONLY
+# minutes inside [H, H+3600), same usable thresholds. Differences that
+# matter: volumes SUM (they never average), and signed_imbalance is
+# computed from the summed volumes -- never as the mean of per-minute
+# imbalances, which weights a 0.01 BTC minute the same as a 10 BTC one.
+
+TRADES_HOUR_SCHEMA = """
+CREATE TABLE IF NOT EXISTS l2_trades_hours (
+    ts INTEGER PRIMARY KEY,
+    buy_vol REAL, sell_vol REAL, signed_imbalance REAL,
+    n_trades INTEGER, vwap REAL, max_qty REAL, large_share REAL,
+    minutes_present INTEGER NOT NULL,
+    coverage_mean REAL,
+    usable INTEGER NOT NULL
+)
+"""
+
+_TRADES_HOUR_COLUMNS = (
+    "ts", "buy_vol", "sell_vol", "signed_imbalance", "n_trades", "vwap",
+    "max_qty", "large_share", "minutes_present", "coverage_mean", "usable",
+)
+
+
+def compute_trades_hour_rollup(rows: list[dict], hour_start: int) -> dict:
+    """Fold tape minute rows into hour `hour_start`'s rollup (pure).
+
+    A minute is VALID when its aggregates are present (total_vol not
+    NULL) -- a live-but-quiet minute carries total_vol = 0.0 and IS
+    valid data; a down minute carries NULLs and only contributes its
+    coverage. Rows outside the hour are ignored (causality boundary
+    enforced here, not trusted to the caller).
+    """
+    inside = [r for r in rows if hour_start <= int(r["ts"]) < hour_start + 3600]
+    valid = [r for r in inside if r.get("total_vol") is not None]
+
+    out: dict = {"ts": int(hour_start), "minutes_present": len(valid)}
+    if valid:
+        buy = sum(float(r["buy_vol"]) for r in valid)
+        sell = sum(float(r["sell_vol"]) for r in valid)
+        total = buy + sell
+        out["buy_vol"] = buy
+        out["sell_vol"] = sell
+        out["signed_imbalance"] = ((buy - sell) / total) if total > 0 else None
+        out["n_trades"] = sum(int(r["n_trades"]) for r in valid)
+        pv = sum(float(r["vwap"]) * float(r["total_vol"]) for r in valid
+                 if r.get("vwap") is not None and float(r["total_vol"]) > 0)
+        out["vwap"] = (pv / total) if total > 0 else None
+        out["max_qty"] = max(float(r["max_qty"]) for r in valid)
+        large = sum(float(r["large_vol"]) for r in valid)
+        out["large_share"] = (large / total) if total > 0 else None
+    else:
+        for col in ("buy_vol", "sell_vol", "signed_imbalance", "n_trades",
+                    "vwap", "max_qty", "large_share"):
+            out[col] = None
+    coverages = [float(r["coverage"]) for r in inside
+                 if r.get("coverage") is not None]
+    out["coverage_mean"] = (sum(coverages) / len(coverages)) if coverages else None
+    out["usable"] = int(
+        out["minutes_present"] >= MINUTES_PRESENT_MIN
+        and out["coverage_mean"] is not None
+        and out["coverage_mean"] >= COVERAGE_MEAN_MIN
+    )
+    return out
+
+
+def init_trades_hours_table(conn: sqlite3.Connection) -> None:
+    conn.execute(TRADES_HOUR_SCHEMA)
+    conn.commit()
+
+
+def fetch_trades_hour_minutes(conn: sqlite3.Connection,
+                              hour_start: int) -> list[dict]:
+    cur = conn.execute(
+        "SELECT * FROM l2_trades_minutes WHERE ts >= ? AND ts < ? ORDER BY ts",
+        (int(hour_start), int(hour_start) + 3600),
+    )
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def rollup_trades_hour(conn: sqlite3.Connection,
+                       hour_start: int) -> dict | None:
+    """Compute and store hour `hour_start`'s tape rollup; None if empty."""
+    rows = fetch_trades_hour_minutes(conn, hour_start)
+    if not rows:
+        return None
+    rollup = compute_trades_hour_rollup(rows, hour_start)
+    placeholders = ", ".join("?" for _ in _TRADES_HOUR_COLUMNS)
+    conn.execute(
+        f"INSERT OR REPLACE INTO l2_trades_hours "
+        f"({', '.join(_TRADES_HOUR_COLUMNS)}) VALUES ({placeholders})",
+        [rollup[c] for c in _TRADES_HOUR_COLUMNS],
+    )
+    conn.commit()
+    return rollup
+
+
+def backfill_trades_rollups(db_path: Path | str = DEFAULT_DB,
+                            now_ts: float | None = None) -> list[int]:
+    """Tape twin of backfill_rollups: every completed hour that has
+    tape minutes but no stored row, plus the newest completed hour
+    re-rolled unconditionally."""
+    now = time.time() if now_ts is None else now_ts
+    current_hour = int(now // 3600) * 3600
+    conn = sqlite3.connect(str(db_path))
+    try:
+        init_trades_hours_table(conn)
+        minute_hours = [r[0] for r in conn.execute(
+            "SELECT DISTINCT ts - (ts % 3600) FROM l2_trades_minutes "
+            "WHERE ts < ? ORDER BY 1", (current_hour,))]
+        if not minute_hours:
+            return []
+        done = {r[0] for r in conn.execute("SELECT ts FROM l2_trades_hours")}
+        targets = [h for h in minute_hours if h not in done]
+        newest = minute_hours[-1]
+        if newest not in targets:
+            targets.append(newest)
+        rolled = []
+        for hour in targets:
+            if rollup_trades_hour(conn, hour) is not None:
+                rolled.append(hour)
+        return rolled
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     rolled = backfill_rollups()
-    print(f"rolled up {len(rolled)} hour(s): {rolled}")
+    print(f"rolled up {len(rolled)} book hour(s): {rolled}")
+    rolled = backfill_trades_rollups()
+    print(f"rolled up {len(rolled)} tape hour(s): {rolled}")

@@ -7,6 +7,14 @@ hourly rollups live in data.l2_features / table l2_hours. Raw book
 snapshots and the update stream are never stored -- the stream is
 thousands of messages a second and worthless to us after aggregation.
 
+The same connection also carries the trades tape (`market_trades`
+channel, added 2026-11-18): every executed trade, aggregated per
+minute into l2_trades_minutes / l2_trades_hours. SIDE CONVENTION:
+Coinbase documents the trade `side` as the MAKER (resting) order's
+side, so all buy/sell accounting inverts it -- a print of side=BUY is
+SELL-initiated volume (a resting buy was hit), side=SELL is
+BUY-initiated (a resting sell was lifted).
+
 This is a data-collection runway for a future pre-registered study.
 It touches no trading code and makes no decisions.
 
@@ -15,10 +23,13 @@ Honesty rules (refs/level2-collector-2026-11-18.md):
   disconnect / sequence gap. Any gap tears the session down and the
   book is rebuilt from a new snapshot -- a stale book is never sampled.
 - Each minute row's `coverage` is the true number of seconds that
-  minute the book was live and consistent (0-60, never rounded up).
-- A minute whose book is not live at sample time is still written,
+  minute the stream was live (0-60, never rounded up). The tape has
+  its own coverage: the channel has no snapshot to rebuild from, so
+  trades during an outage are simply lost and the coverage says so.
+- A minute whose stream is not live at sample time is still written,
   with NULL features and its true coverage, so "we were down" is
-  visible in the data instead of silently absent.
+  visible in the data instead of silently absent. A live minute with
+  zero trades is real data and is written with ZEROS, not NULLs.
 
 Run as a systemd service (tam-l2-collector):
     .venv/bin/python -m src.data.l2_collector
@@ -33,6 +44,8 @@ import logging
 import sqlite3
 import sys
 import time
+from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 
 import websockets
@@ -164,6 +177,136 @@ def book_features(bids: dict[float, float],
     return out
 
 
+# ------------------------------------------------------------ trades tape
+
+TRADES_MINUTE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS l2_trades_minutes (
+    ts INTEGER PRIMARY KEY,
+    buy_vol REAL, sell_vol REAL, total_vol REAL,
+    n_trades INTEGER, n_buy INTEGER, n_sell INTEGER,
+    vwap REAL, max_qty REAL, large_vol REAL,
+    coverage REAL NOT NULL,
+    sampled_at INTEGER NOT NULL
+)
+"""
+
+_TRADES_MINUTE_COLUMNS = (
+    "ts", "buy_vol", "sell_vol", "total_vol", "n_trades", "n_buy",
+    "n_sell", "vwap", "max_qty", "large_vol", "coverage", "sampled_at",
+)
+
+LARGE_TRADE_BTC = 0.5        # a "large" print: qty >= 0.5 BTC
+_SEEN_IDS_CAP = 300_000      # trade-id dedupe window (ids are unique)
+
+
+def taker_side(printed_side) -> str | None:
+    """Invert Coinbase's maker-side print to the aggressor (taker) side.
+
+    market_trades documents `side` as the MAKER (resting) order's
+    side: side=BUY means a resting buy was hit by a seller (taker
+    SELL); side=SELL means a resting sell was lifted (taker BUY).
+    Anything else is not a venue print we recognize -> None.
+    """
+    if printed_side == "BUY":
+        return "SELL"
+    if printed_side == "SELL":
+        return "BUY"
+    return None
+
+
+class TapeAccumulator:
+    """Running aggregates for one minute of executed trades.
+
+    All volumes are TAKER-side (see taker_side): buy_vol is volume
+    where the aggressor bought. `vwap` is over the minute's trades.
+    """
+
+    __slots__ = ("buy_vol", "sell_vol", "n_trades", "n_buy", "n_sell",
+                 "_sum_pv", "max_qty", "large_vol")
+
+    def __init__(self) -> None:
+        self.buy_vol = 0.0
+        self.sell_vol = 0.0
+        self.n_trades = 0
+        self.n_buy = 0
+        self.n_sell = 0
+        self._sum_pv = 0.0
+        self.max_qty = 0.0
+        self.large_vol = 0.0
+
+    def add(self, printed_side, price: float, qty: float) -> bool:
+        side = taker_side(printed_side)
+        if side is None or qty <= 0:
+            return False
+        if side == "BUY":
+            self.buy_vol += qty
+            self.n_buy += 1
+        else:
+            self.sell_vol += qty
+            self.n_sell += 1
+        self.n_trades += 1
+        self._sum_pv += price * qty
+        if qty > self.max_qty:
+            self.max_qty = qty
+        if qty >= LARGE_TRADE_BTC:
+            self.large_vol += qty
+        return True
+
+    @property
+    def total_vol(self) -> float:
+        return self.buy_vol + self.sell_vol
+
+    @property
+    def vwap(self) -> float | None:
+        total = self.total_vol
+        return (self._sum_pv / total) if total > 0 else None
+
+
+def tape_minute_row(minute_start: int, acc: TapeAccumulator | None,
+                    coverage: float, sampled_at: int) -> dict:
+    """Build one l2_trades_minutes row (pure function).
+
+    - trades seen -> their aggregates, whatever the coverage
+    - no trades but the stream was live (coverage > 0) -> ZEROS:
+      a quiet minute is real data (vwap stays NULL: 0/0 is undefined)
+    - no trades and the stream was down (coverage == 0) -> NULLs:
+      "we were down" must not masquerade as a quiet minute
+    """
+    row: dict = {"ts": int(minute_start), "coverage": coverage,
+                 "sampled_at": int(sampled_at)}
+    if acc is not None and acc.n_trades > 0:
+        row.update({
+            "buy_vol": acc.buy_vol, "sell_vol": acc.sell_vol,
+            "total_vol": acc.total_vol, "n_trades": acc.n_trades,
+            "n_buy": acc.n_buy, "n_sell": acc.n_sell, "vwap": acc.vwap,
+            "max_qty": acc.max_qty, "large_vol": acc.large_vol,
+        })
+    elif coverage > 0:
+        row.update({
+            "buy_vol": 0.0, "sell_vol": 0.0, "total_vol": 0.0,
+            "n_trades": 0, "n_buy": 0, "n_sell": 0, "vwap": None,
+            "max_qty": 0.0, "large_vol": 0.0,
+        })
+    else:
+        for col in _TRADES_MINUTE_COLUMNS:
+            if col not in row:
+                row[col] = None
+    return row
+
+
+def _parse_trade_ts(text) -> float | None:
+    """Coinbase trade `time` (ISO 8601, microsecond precision) -> epoch."""
+    if not isinstance(text, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
 # --------------------------------------------------------------- coverage
 
 class CoverageTracker:
@@ -227,6 +370,60 @@ class CollectorState:
         self.next_minute_to_finalize: int | None = None
         self.reconnect_count = 0
         self.last_error: str | None = None
+        # trades tape (market_trades on the same socket)
+        self.tape_acc: dict[int, TapeAccumulator] = {}
+        self.tape_tracker = CoverageTracker()
+        self.tape_subscribed = False
+        self.tape_open_from: int | None = None
+        self.next_tape_minute_to_finalize: int | None = None
+        self.last_tape_minute_written: int | None = None
+        self.last_tape_minute_trades = 0
+        self.last_trade_ts: float | None = None
+        self.trades_total = 0
+        self.trades_late_dropped = 0
+        self._seen_trade_ids: set = set()
+        self._seen_trade_order: deque = deque()
+
+
+def _handle_trade(state: CollectorState, trade: dict) -> None:
+    """Bucket one market_trades print by its TRADE time (not receipt).
+
+    Coinbase batches tape updates over ~250ms, so receipt time can
+    spill across a minute boundary the trade does not belong to.
+    Prints are deduped by trade_id (the subscribe-time snapshot can
+    overlap the first updates). A print whose minute is already
+    written is counted as late-dropped -- never merged into a
+    finalized row, never backfilled.
+    """
+    if trade.get("product_id") not in (None, PRODUCT):
+        return
+    trade_ts = _parse_trade_ts(trade.get("time"))
+    if trade_ts is None:
+        return
+    try:
+        price = float(trade["price"])
+        qty = float(trade["size"])
+    except (KeyError, TypeError, ValueError):
+        return
+    tid = trade.get("trade_id")
+    if tid is not None:
+        if tid in state._seen_trade_ids:
+            return
+        state._seen_trade_ids.add(tid)
+        state._seen_trade_order.append(tid)
+        while len(state._seen_trade_order) > _SEEN_IDS_CAP:
+            state._seen_trade_ids.discard(state._seen_trade_order.popleft())
+    minute = int(trade_ts // 60) * 60
+    if state.tape_open_from is not None and minute < state.tape_open_from:
+        state.trades_late_dropped += 1
+        return
+    acc = state.tape_acc.get(minute)
+    if acc is None:
+        acc = state.tape_acc[minute] = TapeAccumulator()
+    if acc.add(trade.get("side"), price, qty):
+        state.trades_total += 1
+        if state.last_trade_ts is None or trade_ts > state.last_trade_ts:
+            state.last_trade_ts = trade_ts
 
 
 def _handle_message(state: CollectorState, raw: str, recv_ts: float) -> None:
@@ -237,7 +434,18 @@ def _handle_message(state: CollectorState, raw: str, recv_ts: float) -> None:
             raise SequenceGapError(
                 f"sequence gap: expected {state.last_seq + 1}, got {seq}")
         state.last_seq = seq
-    if msg.get("channel") != "l2_data":
+    channel = msg.get("channel")
+    if channel == "market_trades":
+        # the tape is live from its first message of the session
+        # (snapshot or update); there is no book to rebuild, so
+        # liveness is simply "prints are arriving on this socket"
+        if not state.tape_tracker.is_live:
+            state.tape_tracker.set_live(True, recv_ts)
+        for event in msg.get("events", []):
+            for trade in event.get("trades") or []:
+                _handle_trade(state, trade)
+        return
+    if channel != "l2_data":
         return
     for event in msg.get("events", []):
         if event.get("product_id") not in (None, PRODUCT):
@@ -260,6 +468,7 @@ def _handle_message(state: CollectorState, raw: str, recv_ts: float) -> None:
 
 async def _run_session(state: CollectorState) -> None:
     state.last_seq = None
+    state.tape_subscribed = False
     async with websockets.connect(
             WS_URL, max_size=2 ** 26, ping_interval=20,
             ping_timeout=20) as ws:
@@ -271,7 +480,12 @@ async def _run_session(state: CollectorState) -> None:
         await ws.send(json.dumps({
             "type": "subscribe", "product_ids": [PRODUCT],
             "channel": "heartbeats"}))
-        log.info("subscribed: level2 + heartbeats (%s)", PRODUCT)
+        await ws.send(json.dumps({
+            "type": "subscribe", "product_ids": [PRODUCT],
+            "channel": "market_trades"}))
+        state.tape_subscribed = True
+        log.info("subscribed: level2 + heartbeats + market_trades (%s)",
+                 PRODUCT)
         while True:
             raw = await asyncio.wait_for(ws.recv(), timeout=WS_STALE_SECS)
             recv_ts = time.time()
@@ -293,7 +507,9 @@ async def _supervise(state: CollectorState) -> None:
         finally:
             state.connected = False
             state.has_snapshot = False
+            state.tape_subscribed = False
             state.tracker.set_live(False, time.time())
+            state.tape_tracker.set_live(False, time.time())
         state.reconnect_count += 1
         if time.time() - session_start > 60:
             backoff = 1.0
@@ -332,6 +548,29 @@ def _finalize_minute(state: CollectorState, conn: sqlite3.Connection,
                      rollup["coverage_mean"] or 0.0, rollup["usable"])
 
 
+def _finalize_tape_minute(state: CollectorState, conn: sqlite3.Connection,
+                          minute_start: int) -> None:
+    coverage = state.tape_tracker.coverage_for(minute_start, time.time())
+    acc = state.tape_acc.pop(minute_start, None)
+    row = tape_minute_row(minute_start, acc, coverage, int(time.time()))
+    placeholders = ", ".join("?" for _ in _TRADES_MINUTE_COLUMNS)
+    conn.execute(
+        f"INSERT OR REPLACE INTO l2_trades_minutes "
+        f"({', '.join(_TRADES_MINUTE_COLUMNS)}) VALUES ({placeholders})",
+        [row[c] for c in _TRADES_MINUTE_COLUMNS])
+    conn.commit()
+    state.last_tape_minute_written = minute_start
+    state.last_tape_minute_trades = acc.n_trades if acc else 0
+    if minute_start % 3600 == 3540:
+        hour = minute_start - 3540
+        rollup = l2_features.rollup_trades_hour(conn, hour)
+        if rollup is not None:
+            log.info("tape hour %d rolled up: minutes_present=%d "
+                     "coverage=%.1f usable=%d", hour,
+                     rollup["minutes_present"],
+                     rollup["coverage_mean"] or 0.0, rollup["usable"])
+
+
 async def _sampler(state: CollectorState, conn: sqlite3.Connection) -> None:
     while True:
         now = time.time()
@@ -349,11 +588,27 @@ async def _sampler(state: CollectorState, conn: sqlite3.Connection) -> None:
                              with_features=(minute == upto))
             minute += 60
         state.next_minute_to_finalize = upto + 60
+        # Tape minutes finalize ONE MINUTE behind the book: Coinbase
+        # batches tape updates over ~250ms, so a print executed at
+        # :59.9 can arrive just after the boundary; the lag gives
+        # every print its full minute to land in its own bucket.
+        if state.next_tape_minute_to_finalize is None:
+            state.next_tape_minute_to_finalize = upto - 60
+            state.tape_open_from = upto - 60
+        tape_upto = upto - 60
+        tminute = state.next_tape_minute_to_finalize
+        while tminute <= tape_upto:
+            _finalize_tape_minute(state, conn, tminute)
+            tminute += 60
+        state.next_tape_minute_to_finalize = tape_upto + 60
+        state.tape_open_from = tape_upto + 60
 
 
 # ----------------------------------------------------------------- status
 
 def _write_status(state: CollectorState) -> None:
+    current_minute = int(time.time() // 60) * 60
+    current_acc = state.tape_acc.get(current_minute)
     payload = {
         "connected": state.connected,
         "has_snapshot": state.has_snapshot,
@@ -366,6 +621,15 @@ def _write_status(state: CollectorState) -> None:
         "last_error": state.last_error,
         "started_ts": state.started_ts,
         "updated_ts": time.time(),
+        # trades tape
+        "tape_subscribed": state.tape_subscribed,
+        "tape_live": state.tape_tracker.is_live,
+        "last_trade_ts": state.last_trade_ts,
+        "trades_current_minute": current_acc.n_trades if current_acc else 0,
+        "trades_last_minute": state.last_tape_minute_trades,
+        "last_tape_minute_written": state.last_tape_minute_written,
+        "trades_total": state.trades_total,
+        "trades_late_dropped": state.trades_late_dropped,
     }
     tmp = STATUS_PATH.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, indent=1))
@@ -387,15 +651,24 @@ async def run() -> None:
     DATA.mkdir(parents=True, exist_ok=True)
     setup_conn = sqlite3.connect(str(DB_PATH))
     setup_conn.execute(MINUTE_SCHEMA)
+    setup_conn.execute(TRADES_MINUTE_SCHEMA)
     l2_features.init_hours_table(setup_conn)
+    l2_features.init_trades_hours_table(setup_conn)
     setup_conn.close()
     rolled = l2_features.backfill_rollups(DB_PATH)
     if rolled:
         log.info("startup backfill rolled up hours: %s", rolled)
+    rolled = l2_features.backfill_trades_rollups(DB_PATH)
+    if rolled:
+        log.info("startup backfill rolled up tape hours: %s", rolled)
 
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute("PRAGMA journal_mode=WAL")
     state = CollectorState()
+    # tape minutes before this process existed are closed from the
+    # start: subscribe-time snapshot prints older than the first
+    # finalizable minute count as late-dropped, never as data
+    state.tape_open_from = int(time.time() // 60) * 60 - 60
     log.info("collector starting (db=%s)", DB_PATH)
     await asyncio.gather(
         _supervise(state),

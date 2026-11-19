@@ -120,3 +120,117 @@ only other design that has passed here, and the one needing the least
 data to prove itself), with a full feature frame as the alternative.
 Nothing about the books, champions, or grading changes until that
 Pick is pre-registered and graded.
+
+## Trades tape (Time & Sales) — added 2026-11-18
+
+Kass approved adding the tape the same day the book collector
+launched. The book shows resting intent; the tape shows money that
+actually changed hands, and which side was the aggressor. It rides
+the SAME websocket connection as a third subscription:
+`market_trades` for BTC-USD (public, no auth). Coinbase batches tape
+updates over ~250 ms; prints are bucketed by their TRADE time, never
+receipt time, and deduped by trade_id (the subscribe-time snapshot
+can overlap the first updates).
+
+### Side convention — the load-bearing detail
+
+Coinbase's Advanced Trade docs state the market_trades `side` field
+"refers to the makers side" — the RESTING order's side. The
+aggressor (taker) is the opposite:
+
+- print `side=BUY` → a resting buy was hit by a seller →
+  **SELL-initiated** volume
+- print `side=SELL` → a resting sell was lifted by a buyer →
+  **BUY-initiated** volume
+
+All buy/sell accounting uses the TAKER side (`taker_side()` in
+`l2_collector.py`, pinned by tests: a fixture print of side "BUY"
+must land in `sell_vol`). Getting this backwards would flip the sign
+of the single most valuable tape feature, `signed_imbalance`.
+
+### What is stored
+
+Per minute → `l2_trades_minutes` (ts = minute start, UTC):
+
+- `buy_vol` / `sell_vol` — BTC volume by TAKER side; `total_vol`
+  (buy + sell, exactly), `n_trades`, `n_buy`, `n_sell`
+- `vwap` — volume-weighted price over the minute's prints
+- `max_qty` — largest single print (BTC)
+- `large_vol` — BTC volume from prints with qty ≥ **0.5 BTC** (the
+  "large" threshold)
+- `coverage` — seconds of the minute the socket was connected with
+  `market_trades` subscribed (own tracker, same banking rules as the
+  book's)
+
+Tape minutes finalize ONE MINUTE behind book minutes: the ~250 ms
+batching means a print executed at :59.9 can arrive just after the
+boundary, and the lag gives every print its full minute to land in
+its own bucket. Cost of the lag: a process restart loses the
+in-flight tape minute entirely (its accumulator dies with the
+process) on top of the partial restart minute — the lost minute is
+written NULL with coverage 0 by the successor, never reconstructed.
+
+Per completed hour → `l2_trades_hours` (same hour-start convention,
+same `usable` rule: minutes_present ≥ 50 AND coverage_mean ≥ 55):
+
+- `buy_vol`, `sell_vol` — SUMMED over the hour's valid minutes
+- `signed_imbalance` = (buy − sell) / (buy + sell) computed **from
+  the summed volumes** — never the mean of per-minute imbalances,
+  which would weight a 0.01 BTC minute the same as a 10 BTC one
+  (pinned by a divergence fixture in the tests); NULL if the hour's
+  total volume is 0
+- `n_trades`, `vwap` (volume-weighted across minutes), `max_qty`,
+  `large_share` = large_vol / total_vol
+- `minutes_present` counts live minutes INCLUDING quiet ones (a
+  zero-trade minute is valid data); down minutes contribute only
+  their coverage
+
+### Gap honesty for a snapshot-less channel
+
+The tape has no snapshot to rebuild from (the subscribe-time
+snapshot only carries the last few seconds of prints). Trades during
+an outage are simply LOST — never backfilled, never invented; the
+minute's coverage number says how much of it we actually saw. Prints
+arriving for an already-finalized minute are counted in
+`trades_late_dropped` (status file) and dropped, never merged into a
+written row. A live minute with zero trades is written with ZEROS
+(vwap NULL — 0/0 is undefined); a down minute is written with NULL
+aggregates and its true coverage, exactly mirroring the book side.
+
+Status: `data/l2_status.json` now also carries `tape_subscribed`,
+`tape_live`, `last_trade_ts`, `trades_current_minute`,
+`trades_last_minute`, `trades_total`, `trades_late_dropped`.
+
+### Verification at launch (2026-11-18)
+
+- Tests first: 14 new tests in `tests/test_l2_tape.py` (side
+  inversion, hand-computed minute aggregation, inclusive 0.5 BTC
+  large threshold, zero-vs-NULL minute rows, trade-time bucketing +
+  trade_id dedupe, late-print drops, from-sums imbalance divergence,
+  causality, usable thresholds) failed on the missing code, then
+  passed; 29/29 with the existing L2 + market-data-cache suites.
+- Live: all three subscriptions confirmed on one connection; tape
+  minutes landing at ~200–2,500 prints/minute.
+- **Independent cross-check:** over the full-coverage minutes
+  available at verification (20:29–20:30 UTC), summed tape volume
+  matched Coinbase's own 1-minute candle volume EXACTLY — 19.2851
+  and 21.8869 BTC, diff +0.000%. (The full-hour version of this
+  check awaits the first completed tape hour; the rollup path was
+  exercised end-to-end against a copy of the live DB.)
+- Restart test (`systemctl restart`): service reconnected,
+  re-snapshotted and resumed; book minute of the restart shows
+  coverage 34.5s and the tape minute 34.4s; the in-flight tape
+  minute (20:31) was written NULL/coverage 0 per the lag rule
+  above; the following minutes are back to 60.0s on both sides.
+
+### Environment note (2026-11-18)
+
+The VM was replaced at 20:08 UTC and the systemd unit (installed
+under /etc of the previous instance) did not survive it — the
+collector had been down since the old instance died (~06:46 UTC;
+06:27–06:45 UTC of launch data is intact in the DB). The unit is
+recreated from the copy now kept IN the project at
+`system/tam-l2-collector.service` (install: `cp system/tam-l2-collector.service
+/etc/systemd/system/ && systemctl daemon-reload && systemctl enable
+--now tam-l2-collector`). Hours with no collector have no rows at
+all — absence stays distinguishable from dead minutes.
