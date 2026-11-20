@@ -1,0 +1,5 @@
+/home/hatch/workspace/trading-agent-muse/src/dashboards/compact.py:816: Pandas4Warning: 'd' is deprecated and will be removed in a future version, please use 'D' instead.
+  d1 = df.resample("1d", closed="left", label="left").agg(agg).dropna()
+/home/hatch/workspace/trading-agent-muse/src/dashboards/compact.py:816: Pandas4Warning: 'd' is deprecated and will be removed in a future version, please use 'D' instead.
+  d1 = df.resample("1d", closed="left", label="left").agg(agg).dropna()
+bytes=27661
