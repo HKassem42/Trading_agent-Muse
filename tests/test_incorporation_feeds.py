@@ -211,15 +211,24 @@ def test_audit_matches_registry_facts():
     # winner lab-only, so the stacker champion IS run 126 at
     # 0.5581 and no run pends unresolved. Declines unchanged;
     # PPO champion unchanged.
-    assert a["stk"][2] == 4 and a["ppo"][2] == 0
+    # RE-PINNED 2026-11-21 (run 137 decline + run 147 crowning):
+    # run 137 was DECLINED by Muse on 2026-11-16 under the same
+    # delegation (won its exam by ~2 candles with weaker precision
+    # and walk-forward), so stacker declines are now FIVE
+    # (61/63/67/78/137); and Muse crowned the 2026-11-21
+    # retrain's PPO winner run 147 as lab PPO champion (full gate
+    # pass: agg 1070.4 vs run 112's 280.6, 2/3 windows), so the
+    # PPO champion IS run 147 at 1070.4 and no run pends
+    # unresolved. Stacker champion unchanged (run 126).
+    assert a["stk"][2] == 5 and a["ppo"][2] == 0
     assert a["ppo"][3] == 0 and a["stk"][3] == 0
     # Champions: stacker #13 is run 126 at 0.5581; PPO champion
-    # run 112 dueled -291.6. Best-of-the-rest stacker (post-fix)
+    # run 147 dueled 1070.4. Best-of-the-rest stacker (post-fix)
     # is run 107's 0.5612.
     assert a["cs"][0] == 126 and a["cs"][1] == pytest.approx(0.5581)
     assert a["cs"][3] == pytest.approx(0.5612)
     assert a["cs"][2] < a["cs"][3]  # median below the luckiest draw
-    assert a["cp"][0] == 112 and a["cp"][1] == pytest.approx(-291.6)
+    assert a["cp"][0] == 147 and a["cp"][1] == pytest.approx(1070.4)
 
 
 def test_telemetry_block_reads_records_verbatim():
@@ -267,6 +276,10 @@ def test_training_feed_carries_audit_and_telemetry():
     # Updated 2026-11-12: the block rolls forward again -- it
     # now carries runs 127, 124, 122 and 120 (run 127 is the
     # 2026-11-12 nightly PPO challenger).
+    # Updated 2026-11-21: the block rolls forward again -- it
+    # now carries runs 147, 145, 143 and 140 (run 147 is the
+    # 2026-11-21 nightly PPO challenger, crowned lab PPO
+    # champion the same night).
     keys = ("ent_start", "ent_end", "ent_min", "kl_end", "clip_end",
             "ev_end", "vl_end")
 
@@ -279,8 +292,8 @@ def test_training_feed_carries_audit_and_telemetry():
             else None for k in keys]
 
     assert feed["telemetry"] == {"from": 70,
-                                  "rows": [_row(127), _row(124),
-                                           _row(122), _row(120)]}
+                                  "rows": [_row(147), _row(145),
+                                           _row(143), _row(140)]}
     import json
     assert len(json.dumps(feed, separators=(",", ":"))) < 16384
 

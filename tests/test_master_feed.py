@@ -99,7 +99,11 @@ def test_master_identities_derive_from_manifests():
     assert b4["identity"]["gate_run"] is None
     desk5 = compact._champ_desk_block()
     assert b5["kind"] == "champ"
-    assert b5["identity"]["brain_run"] == desk5["driver"]["run"] == 112
+    # RE-PINNED 2026-11-21 (run 147 crowning): Muse crowned the
+    # 2026-11-21 retrain's PPO winner run 147 as lab PPO champion
+    # and re-pinned Book #5's follows-the-crown seat (Era 2), so
+    # the Book #5 driver IS run 147; eyes unchanged (run 126).
+    assert b5["identity"]["brain_run"] == desk5["driver"]["run"] == 147
     assert b5["identity"]["eyes_run"] == desk5["eyes"]["run"] == 126
     assert "Champion #13" in b5["identity"]["eyes_label"]
     assert b5["identity"]["feature_set"] == desk5["eyes"]["feature_set"] == "ha10"

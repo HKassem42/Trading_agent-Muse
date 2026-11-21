@@ -57,11 +57,14 @@ def test_run_why_ships_full_text_when_trimmed():
 
     feed = compact.build_compact_training()
     runs = {r["i"]: r for r in feed["runs"]}
-    r96 = runs[96]
-    assert r96["why"].endswith("…"), (
-        "run 96's recorded reason is longer than the 100-char "
-        "preview cap; if this stops holding, pick another run")
-    assert "why_full" in r96
-    assert not r96["why_full"].endswith("…")
-    assert r96["why_full"].startswith(r96["why"][:-1])
-    assert "0.5341" in r96["why_full"]
+    # RE-PINNED 2026-11-21: run 96 rolled out of the detail window
+    # as the registry grew (the window is the newest runs and rolls
+    # every night), so no single run id is pinned any more -- the
+    # contract is checked for EVERY trimmed verdict in the window,
+    # which is what the test is actually about.
+    trimmed = [r for r in feed["runs"] if r["why"].endswith("…")]
+    assert trimmed, "expected at least one trimmed run verdict"
+    for r in trimmed:
+        assert "why_full" in r
+        assert not r["why_full"].endswith("…")
+        assert r["why_full"].startswith(r["why"][:-1])

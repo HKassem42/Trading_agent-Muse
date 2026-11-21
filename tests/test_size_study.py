@@ -173,13 +173,19 @@ def test_ppo_25_identity_standard():
 def test_focusb_25_identity_standard():
     """GBM Focus B (run 22, the most active arm: 66 round trips),
     current-code baseline. Recorded pre-fix: agg -3,476.80 /
-    P&L -$8,432.41; with the ratchet active: -3,329.80 / -$8,138.37."""
+    P&L -$8,432.41; with the ratchet active: -3,329.80 / -$8,138.37.
+    RE-BASELINED 2026-11-21: Kass's 2026-11-02 directive moved the
+    trailing arm from 3% to 2%, which moves this baseline to
+    -3,556.73 / -$8,819.15 -- verified adversarially that the arm
+    alone explains it: forcing the arm back to 3% reproduces the
+    Oct-22 pin to the cent (-3,329.8011 / -8,138.3720 / bench
+    717.5366), so no other drift is hiding in the re-baseline."""
     windows, p_ups = load_focusb_signal()
     res = evaluate_windows_size(windows, p_ups, load_model("focusb"),
                                 0.25)
     assert res["total_round_trips"] == 66
-    assert res["agg_score"] == pytest.approx(-3329.8011, abs=0.01)
-    assert res["total_pnl"] == pytest.approx(-8138.3720, abs=0.01)
+    assert res["agg_score"] == pytest.approx(-3556.7287, abs=0.01)
+    assert res["total_pnl"] == pytest.approx(-8819.1549, abs=0.01)
     assert res["bench_pnl"] == pytest.approx(717.5366, abs=0.01)
 
 
@@ -281,7 +287,19 @@ class PreFixBroker(SizeBroker):
     first tranche's ATR stayed frozen (adds never refreshed it).
     Emulated by neutralizing the ratchet hook and clearing the
     anchor after every entry, which returns stop_level to its
-    entry-derived fallback permanently."""
+    entry-derived fallback permanently.
+
+    The trailing activation is pinned to the pre-2026-11-02 value
+    (3%) as an INSTANCE attribute: StudyBroker shadows the class
+    constant per-instance from ExitConfig, whose "current" preset
+    follows the live 2% value (Kass, 2026-11-02) -- a class-level
+    pin is silently shadowed and Focus B drifts (-3,703.72 vs the
+    recorded -3,476.80). Audit 2026-11-03 recommendation.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.TRAIL_ACTIVATE_PCT = 0.03
 
     def _ratchet_anchor_on_add(self, is_long, old_entry, old_atr,
                                new_atr):

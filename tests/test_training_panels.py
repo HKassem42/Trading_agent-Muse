@@ -163,10 +163,19 @@ def test_gate_history_matches_recorded_duels():
             assert row[9] is None
         # The verdict text is the RECORDED outcome, never recomputed.
         assert row[10] == ("PROMOTED" if promoted else "NOT PROMOTED")
-    # The one floor-blocked duel in the current strip: run 44 passed
-    # the formula, the floor stopped it, and the recorded floor reason
+    # The one floor-blocked duel in history: run 44 passed the
+    # formula, the floor stopped it, and the recorded floor reason
     # rides along verbatim from the run's own recorded reason.
-    r44 = next(row for row in hist if row[0] == 44)
+    # RE-PINNED 2026-11-21: run 44 rolled out of the 6-row strip
+    # long ago (the strip now starts at run 147), so the row is
+    # verified by running the same builder over run 44's own
+    # record instead of fishing it out of the strip -- the
+    # floor-reason extraction is what this block pins, not strip
+    # membership. Run 44 remains the only floor-blocked duel in
+    # the registry (checked 2026-11-21).
+    r44_rec = next(r for r in compact._all_runs_desc()
+                   if r["id"] == 44)
+    r44 = compact._gate_history([r44_rec])[0]
     assert r44[8] == 1 and r44[9] == 0 and r44[10] == "NOT PROMOTED"
     assert r44[11] == "P&L -$650 ≤ $0"
     # Consistency with the live gate feed: the strip's newest row is
@@ -231,6 +240,7 @@ def test_models_index_names_come_from_production_lineage_only():
 def test_models_index_live_registry_names_current_lineage():
     # The index ships in push_models_page pages since 2026-11-17;
     # assemble it the way the desk does.
+    t = compact.build_compact_training()
     names = {m[0]: m[2] for p in compact.build_models_pages()
              for m in p["rows"]}
     # The newest nightly runs (57-60) ran the v5.1 recipe; the "V3

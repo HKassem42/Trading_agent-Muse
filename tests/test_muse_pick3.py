@@ -346,12 +346,20 @@ def test_training_feed_run75_mix_is_exposure_shaped_and_numeric():
 
     from dashboards import compact
 
+    # RE-PINNED 2026-11-21: runs 74/75 rolled out of the detail
+    # window as the registry grew (the window is the newest runs),
+    # so their mixes are asserted on the same row builder over
+    # their full-registry records -- the mix shape the builder
+    # emits is what this test pins, not window membership (same
+    # pattern as the run-45 naming assertion above).
+    by_id = {r["id"]: r for r in compact._all_runs_desc()}
+    r75 = compact._duel_run(by_id[75])
+    r74 = compact._duel_run(by_id[74])
+    assert set(r75["mix"]) == {"stand_aside", "half", "full",
+                               "hold"}
+    assert set(r74["mix"]) == {"hold", "buy", "sell", "short"}
     feed = compact.build_compact_training()
-    rows = {r["i"]: r for r in feed["runs"]}
-    assert set(rows[75]["mix"]) == {"stand_aside", "half", "full",
-                                    "hold"}
-    assert set(rows[74]["mix"]) == {"hold", "buy", "sell", "short"}
-    for row in rows.values():
+    for row in feed["runs"]:
         for key in ("mix", "cmix"):
             if key in row:
                 assert all(

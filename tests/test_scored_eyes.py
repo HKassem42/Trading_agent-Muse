@@ -80,21 +80,24 @@ def test_score_to_state_preserves_series_index():
 def test_champion_columns_are_the_recorded_columns():
     meta = json.loads((ROOT / "models" / "stacker_champion.json")
                       .read_text())
-    # Run 96 since Kass's 2026-11-02 LAB-ONLY crowning (Champion
-    # #5): the champion is a nightly prod21 stacker, so its recorded
-    # columns are the production 21, in FEATURE_COLUMNS order. The
-    # pin's substance is unchanged: the champion's columns are its
-    # RECORDED columns. The scored102 set this study was built
+    # RE-PINNED 2026-11-21 (crown-agnostic): this used to pin run 96
+    # (prod21, Champion #5, crowned 2026-11-02) -- the crown has
+    # since moved through the HA line to run 126 (ha10, Champion
+    # #13). The pin's substance is unchanged: the champion's columns
+    # are its RECORDED columns, resolved from its own recorded
+    # feature set -- so the test tracks the crown instead of rotting
+    # at every crowning. The scored102 set this study was built
     # against is still run 64's recorded 94, read from the registry
     # (it no longer depends on who holds the crown) -- and because
     # the reigning champion is NOT a scored-frame stacker, the
     # scored-eyes bridge must refuse it loudly rather than feed it
     # the wrong frame.
-    assert meta["feature_set"] == "prod21"
-    assert meta["run_id"] == 96
     from features.technical_indicators import FEATURE_COLUMNS
-    assert meta["feature_columns"] == list(FEATURE_COLUMNS)
-    assert len(meta["feature_columns"]) == 21
+    from models.muse_pick10 import HA_COLUMNS
+    by_set = {"ha10": list(HA_COLUMNS),
+              "prod21": list(FEATURE_COLUMNS)}
+    assert meta["feature_set"] in by_set, meta["feature_set"]
+    assert meta["feature_columns"] == by_set[meta["feature_set"]]
     import sqlite3
     con = sqlite3.connect(ROOT / "data" / "training.db")
     m64 = json.loads(con.execute(

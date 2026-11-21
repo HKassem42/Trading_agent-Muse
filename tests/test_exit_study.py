@@ -123,15 +123,24 @@ def test_tp_off_by_default_no_fill_above_target(tmp_path):
 
 
 # --------------------------------------------------------------- trailing
-def test_trail_tight_arms_earlier_than_current(tmp_path):
+def test_trail_tight_trails_closer_than_current(tmp_path):
+    # RENAMED 2026-11-21 (was test_trail_tight_arms_earlier_than_current):
+    # Kass's 2026-11-02 directive moved the production arm from 3% to
+    # 2%, colliding with tight's 2% arm -- at +2.5% both presets arm
+    # now, so "arms earlier" no longer distinguishes them. What still
+    # distinguishes tight is the closer trail (1.0x ATR vs 1.5x ATR):
+    # both arm, and tight's level sits higher (closer to price).
     cur = _broker(tmp_path, ExitConfig(), "cur.db")
     tight = _broker(tmp_path, ExitConfig(trail="tight"), "tight.db")
     for b in (cur, tight):
         b.buy(100.0, ts="t0", atr_pct=0.02)
         b.check_stop(102.5, ts="t1", low=102.0, high=102.6)
-    assert cur.stop_level()[1] is False       # +2.5% < +3% arm
-    lvl, armed = tight.stop_level()
-    assert armed is True and lvl == pytest.approx(102.5 * (1 - 0.02))
+    clvl, carmed = cur.stop_level()
+    tlvl, tarmed = tight.stop_level()
+    assert carmed is True and tarmed is True
+    assert tlvl > clvl  # tight trails closer
+    assert clvl == pytest.approx(102.5 * (1 - 0.03))
+    assert tlvl == pytest.approx(102.5 * (1 - 0.02))
 
 
 def test_trail_off_never_arms(tmp_path):
