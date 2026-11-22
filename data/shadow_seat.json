@@ -1,5 +1,5 @@
 {
- "desk": "TradingAgent Live \u2014 Shadow (Champion #11 Eyes)",
+ "desk": "TradingAgent Live \u2014 Shadow (Champion #11 Eyes \u00b7 Run 82 Gate @ 51%)",
  "book": "Book #2",
  "driver": {
   "brain": "PPO",
@@ -21,6 +21,20 @@
   "meta_sha256": "3a5394382babf89d05e120d23482fdf352fb7d2dec0cc62fd78f4ddee4e0bbdb",
   "source": "models/stacker_champion.pkl"
  },
+ "gate": {
+  "brain": "Meta-Label (LightGBM)",
+  "run_id": 82,
+  "family": "meta_label",
+  "file": "models/shadow_seat/gate_model.pkl",
+  "sha256": "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a",
+  "source": "data/meta_label/meta_model.pkl",
+  "threshold": 0.51,
+  "meta_file": "models/shadow_seat/gate_columns.json",
+  "meta_sha256": "43c5cddea965da26d48c3541012cf8b8ddb1ca90d103c0a034315996c1bb23be",
+  "feature_vector": "104 = 98 pick2_98 scored values (run 73's recorded column order, gate_columns.json) + [p_up, |p_up-0.5|, atr_rel, volatility_21, atr_pct_raw, side], built by src/training/meta_label.py feature_row; p_up is Book #2's own eyes vote (run 119)",
+  "study": "refs/meta-label-study-2026-10-30.md",
+  "seated_by": "Kass's direct order 2026-11-21 (dashboard Upgrades chat): Book #3's gate added to Book #2 at 0.51; Book #3 unchanged at 0.55"
+ },
  "book_db": "data/paper_shadow.db",
  "state_file": "data/live_state_shadow.json",
  "starting_balance": 100000,
@@ -34,8 +48,8 @@
   "days": 33,
   "source": "Muse's Pick #2 duel (run 74 record) champion side \u2014 the exam graded the RETIRED pairing (PPO run 44 + run 69 eyes): +$162.12 / +0.1621% over the 33-day holdout. The current pairing (44 + run 73) has no graded exam."
  },
- "pinned": "Stacker pinned to run 119 (Champion #11, HA nightly stacker, ha10) and PPO pinned to run 44: this seat does NOT follow future lab crownings and is NOT the driver's seat. It changes only by Kass's explicit decision (or his recorded delegation of the ruling), executed manually (procedure: models/shadow_seat/README.md). The run-119 pin supersedes the run-73 pin (2026-10-27) by Kass's order of 2026-11-09.",
- "note": "Book #2: a shadow paper book so the seated stacker champion's eyes accumulate a live track record next to Book #1 (the driver's seat: PPO run 44 + stacker run 40, prod21). Same driver, different eyes -- the only difference between the two books is the stacker vote's source. Eyes history: run 64 (Champion #2) from the 2026-10-26 seed; run 69 (Champion #3, Muse's Pick) from Kass's 2026-10-26 swap \u2014 the book was flat with zero fills under run 64; run 73 (Champion #4, Muse's Pick #2) from the 2026-10-27 swap \u2014 the book was MID-SHORT at that swap; run 119 (Champion #11, HA nightly stacker) from Kass's 2026-11-09 order \u2014 the book was MID-SHORT at that swap too (see the eyes_swapped entry for the position record).",
+ "pinned": "Stacker pinned to run 119 (Champion #11, HA nightly stacker, ha10) and PPO pinned to run 44: this seat does NOT follow future lab crownings and is NOT the driver's seat. It changes only by Kass's explicit decision (or his recorded delegation of the ruling), executed manually (procedure: models/shadow_seat/README.md). The run-119 pin supersedes the run-73 pin (2026-10-27) by Kass's order of 2026-11-09. GATE added 2026-11-21 by Kass's order: run 82's frozen meta-model, hash-pinned in this seat, threshold 0.51 (a seat parameter, Kass's to change); the gate model is never retrained or refit.",
+ "note": "Book #2: a shadow paper book so the seated stacker champion's eyes accumulate a live track record next to Book #1 (the driver's seat: PPO run 44 + stacker run 40, prod21). Same driver, different eyes -- the only difference between the two books is the stacker vote's source. Eyes history: run 64 (Champion #2) from the 2026-10-26 seed; run 69 (Champion #3, Muse's Pick) from Kass's 2026-10-26 swap \u2014 the book was flat with zero fills under run 64; run 73 (Champion #4, Muse's Pick #2) from the 2026-10-27 swap \u2014 the book was MID-SHORT at that swap; run 119 (Champion #11, HA nightly stacker) from Kass's 2026-11-09 order \u2014 the book was MID-SHORT at that swap too (see the eyes_swapped entry for the position record). GATE SEGMENT (from 2026-11-21, Kass's order): the book now also carries Book #3's run-82 entry gate at 0.51 \u2014 entries and presses are judged on the pick2_98 scored frame plus run 119's vote; exits/covers/stops are never gated. Book #3's own gate (same model, 0.55) is unchanged.",
  "eyes_swapped": {
   "at": "2026-11-10T02:54:11.203702+00:00",
   "from_run": 73,
@@ -65,5 +79,18 @@
    "by": "Kass's order 2026-11-09",
    "note": "Mid-position swap \u2014 see eyes_swapped."
   }
- ]
+ ],
+ "gate_added": {
+  "at": "2026-11-21T14:08:13Z",
+  "by": "Kass's direct order 2026-11-21 (dashboard Upgrades chat: 'adding the gate on book 2 that book 3 has... at 51 percent on book 2 and keep book 3 the way it is')",
+  "changes": [
+   "gate seated: run 82's frozen meta-label model byte-copied to models/shadow_seat/gate_model.pkl (sha256 cf7630c0..., identical to Book #3's seat copy and the study source)",
+   "gate threshold: 0.51 (seat parameter in this manifest; Book #3 keeps 0.55)",
+   "gate column order pinned: models/shadow_seat/gate_columns.json (run 73's recorded pick2_98 order)",
+   "driver unchanged: PPO run 44; eyes unchanged: Stacker run 119 (Champion #11, ha10)"
+  ],
+  "book_state_at_change": "FLAT, cash $100,520.11, 0 BTC, last processed candle 2026-11-21T12:00:00 (equity $100,520.11)",
+  "segment_boundary": "The ungated segment closes at the last candle processed without the gate, 2026-11-21T12:00:00; the gated segment begins with the first candle processed under this manifest. The book was FLAT at the change and was NOT re-seeded: ledger, state and track record carry over, with gate_decisions rows in data/paper_shadow.db as the gated segment's primary evidence (each row records the 0.51 threshold it was judged at).",
+  "pre_change_backup": "models/archive/20261121_pre_book2_gate051/"
+ }
 }

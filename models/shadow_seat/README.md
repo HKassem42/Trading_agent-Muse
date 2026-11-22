@@ -13,6 +13,14 @@ This directory holds the exact artifacts the SHADOW loop
   values — ha_dir, ha_body_pct, ha_range_pct, ha_upper_wick,
   ha_lower_wick, ha_streak, ha_slope, ha_disp, raw_ret,
   ha_body_rel).
+- `gate_model.pkl` — **run 82's frozen meta-label gate**
+  (LightGBM; byte-identical copy of
+  `data/meta_label/meta_model.pkl`, sha256 cf7630c0…; seated
+  2026-11-21 by Kass's order — the same gate Book #3 runs,
+  at threshold **0.51** here vs Book #3's 0.55).
+- `gate_columns.json` — the gate's 98 pick2_98 column order
+  (run 73's recorded order, from `models/gated_seat/stacker.json`);
+  part of the gate's identity, hash-pinned in the manifest.
 
 The seat is recorded in `data/shadow_seat.json` (run ids, feature
 set, SHA-256 hashes, start timestamp, eye-swap history). The loop
@@ -69,6 +77,25 @@ eyes' FRAME (pick2_98 scored percentiles → ha10 HA candle
 values): the shadow loop and the shadow/master vision feeds
 dispatch on the seat's `feature_set` tag, the nightly grading
 doctrine applied to this seat.
+
+## The gate (added 2026-11-21, Kass's order)
+
+Kass ordered Book #3's gate added to this book at 51% ("adding
+the gate on book 2 that book 3 has… keep book 3 the way it
+is"). The loop now judges ENTRY attempts (opens and presses,
+long or short) with run 82's frozen model before dispatch: the
+104-vector is the 98 pick2_98 scored values at the candle (a
+frame the loop builds for the gate alone, in the order pinned
+in `gate_columns.json`) plus [run 119's p_up, |p_up−0.5|,
+atr_rel, volatility_21, atr_pct_raw, side]. Below 0.51 the
+entry is vetoed (substituted with HOLD) and recorded in
+`data/paper_shadow.db`'s `gate_decisions` table with the
+threshold it was judged at; exits, covers and stops are never
+gated. The book was FLAT ($100,520.11, last candle
+2026-11-21T12:00Z) when the gate was seated — no re-seed; the
+manifest's `gate_added` entry marks the segment boundary, and
+a manifest without a gate block runs the book exactly as
+before. Book #3's gate (same model, 0.55) is untouched.
 
 ## Changing the shadow seat (Kass only, manual)
 

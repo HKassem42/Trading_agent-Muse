@@ -85,6 +85,10 @@ def test_master_identities_derive_from_manifests():
     assert "Champion #11" in b2["identity"]["eyes_label"]
     assert b2["identity"]["feature_set"] == desk2["eyes"]["feature_set"] == "ha10"
     assert b2["identity"]["indicators_n"] == desk2["eyes"]["n_features"] == 10
+    # Book #2 gained Book #3's gate on Kass's 2026-11-21 order:
+    # run 82's model at 0.51 (Book #3 keeps its own 0.55 below).
+    assert b2["identity"]["gate_run"] == desk2["gate"]["run"] == 82
+    assert b2["identity"]["gate_threshold"] == desk2["gate"]["threshold"] == 0.51
     desk3 = compact._gated_desk_block()
     assert b3["kind"] == "gated"
     assert b3["identity"]["gate_run"] == desk3["gate"]["run"] == 82
@@ -110,8 +114,13 @@ def test_master_identities_derive_from_manifests():
     assert b5["identity"]["indicators_n"] == desk5["eyes"]["n_features"] == 10
     assert b5["identity"]["gate_run"] is None
     assert b5["label"] == desk5["book_name"]
-    assert "vetoes" not in b1 and "vetoes" not in b2 and "vetoes" not in b4
+    assert "vetoes" not in b1 and "vetoes" not in b4
     assert "vetoes" not in b5
+    # Both gated books carry their veto rows (Book #3 since
+    # 2026-10-30; Book #2 since the gate joined its seat
+    # 2026-11-21 -- its list is empty until its first judged
+    # entry attempt).
+    assert "vetoes" in b2 and "vetoes" in b3
 
 
 def _expand_rows(rows, cols):

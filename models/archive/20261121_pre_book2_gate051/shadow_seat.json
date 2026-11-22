@@ -1,0 +1,69 @@
+{
+ "desk": "TradingAgent Live \u2014 Shadow (Champion #11 Eyes)",
+ "book": "Book #2",
+ "driver": {
+  "brain": "PPO",
+  "run_id": 44,
+  "file": "models/shadow_seat/ppo.zip",
+  "sha256": "e610ddf3a6f6ffe7b7b566694482c5930cbed7cbbc7e4501bec00ed489bae4cb",
+  "source": "models/ppo_champion.zip"
+ },
+ "eyes": {
+  "brain": "Stacker",
+  "run_id": 119,
+  "name": "HA Nightly Stacker",
+  "champion": "Champion #11",
+  "feature_set": "ha10",
+  "n_features": 10,
+  "file": "models/shadow_seat/stacker.pkl",
+  "sha256": "63476e31f74445959de4718e5d69a71c0dae496b5c68a3d95c2cdacde498e861",
+  "meta_file": "models/shadow_seat/stacker.json",
+  "meta_sha256": "3a5394382babf89d05e120d23482fdf352fb7d2dec0cc62fd78f4ddee4e0bbdb",
+  "source": "models/stacker_champion.pkl"
+ },
+ "book_db": "data/paper_shadow.db",
+ "state_file": "data/live_state_shadow.json",
+ "starting_balance": 100000,
+ "started": "2026-10-26T01:00:00",
+ "seeded_by": "Champion #2 shadow desk build (Kass approved 2026-10-25); eyes swapped to run 69 by Kass's decision 2026-10-26; eyes swapped to run 73 by Muse's ruling under Kass's delegation 2026-10-27; eyes swapped to run 119 by Kass's order 2026-11-09 ('promote all the champions that won and add the highest one of our numbers to book 2')",
+ "wfe_exam": {
+  "driver_run": 44,
+  "eyes_run": 69,
+  "pnl": 162.12,
+  "pct": 0.1621,
+  "days": 33,
+  "source": "Muse's Pick #2 duel (run 74 record) champion side \u2014 the exam graded the RETIRED pairing (PPO run 44 + run 69 eyes): +$162.12 / +0.1621% over the 33-day holdout. The current pairing (44 + run 73) has no graded exam."
+ },
+ "pinned": "Stacker pinned to run 119 (Champion #11, HA nightly stacker, ha10) and PPO pinned to run 44: this seat does NOT follow future lab crownings and is NOT the driver's seat. It changes only by Kass's explicit decision (or his recorded delegation of the ruling), executed manually (procedure: models/shadow_seat/README.md). The run-119 pin supersedes the run-73 pin (2026-10-27) by Kass's order of 2026-11-09.",
+ "note": "Book #2: a shadow paper book so the seated stacker champion's eyes accumulate a live track record next to Book #1 (the driver's seat: PPO run 44 + stacker run 40, prod21). Same driver, different eyes -- the only difference between the two books is the stacker vote's source. Eyes history: run 64 (Champion #2) from the 2026-10-26 seed; run 69 (Champion #3, Muse's Pick) from Kass's 2026-10-26 swap \u2014 the book was flat with zero fills under run 64; run 73 (Champion #4, Muse's Pick #2) from the 2026-10-27 swap \u2014 the book was MID-SHORT at that swap; run 119 (Champion #11, HA nightly stacker) from Kass's 2026-11-09 order \u2014 the book was MID-SHORT at that swap too (see the eyes_swapped entry for the position record).",
+ "eyes_swapped": {
+  "at": "2026-11-10T02:54:11.203702+00:00",
+  "from_run": 73,
+  "to_run": 119,
+  "by": "Kass's order 2026-11-09 ('change out the model in book two to our highest %' \u2014 run 119, holdout 0.5530, the highest of the four crowned winners)",
+  "note": "Book #2 was MID-POSITION at this swap (like the 2026-10-27 swap): SHORT -0.342743 BTC @ blended entry $74,364.07, stop anchor $75,895.00, cash $126,164.98, last equity $100,466.97 @ 2026-11-10T01:00:00 (20 fills under the outgoing eyes). The book and its state were NOT re-seeded: the open short was opened under run 73's votes (with run 44 driving) and is managed from the swap under run 119's votes; fills from the swap onward carry the champion11_run119 context tag."
+ },
+ "eyes_swap_history": [
+  {
+   "at": "2026-10-27T02:32:14+00:00",
+   "from_run": 64,
+   "to_run": 69,
+   "by": "Kass's decision 2026-10-26",
+   "note": "Book #2 was flat ($100,000, 0 fills) at the swap; nothing to blend."
+  },
+  {
+   "at": "2026-10-27T18:21:06+00:00",
+   "from_run": 69,
+   "to_run": 73,
+   "by": "Muse's ruling under Kass's delegation 2026-10-27",
+   "note": "Mid-position swap \u2014 see eyes_swapped."
+  },
+  {
+   "at": "2026-11-10T02:54:11.203702+00:00",
+   "from_run": 73,
+   "to_run": 119,
+   "by": "Kass's order 2026-11-09",
+   "note": "Mid-position swap \u2014 see eyes_swapped."
+  }
+ ]
+}

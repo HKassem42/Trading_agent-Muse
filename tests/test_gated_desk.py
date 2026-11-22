@@ -613,6 +613,13 @@ def test_gated_race_b2_label_derives_from_shadow_seat(monkeypatch, tmp_path):
     expected = (f"{desk2['book_name']} (PPO Run {desk2['driver']['run']} "
                 f"driver · {desk2['eyes']['champion']} Run "
                 f"{desk2['eyes']['run']} eyes)")
+    # Since the 2026-11-21 gate addition the seat carries the
+    # run-82 gate at 0.51, and the race label must name it like
+    # Book #3's label names its gate — derived, not hard-coded.
+    gate = desk2.get("gate") or {}
+    if gate:
+        expected = (expected[:-1] + f" · Meta-Label Run {gate['run']} "
+                    f"gate @ {gate['threshold']})")
     assert r["b2"]["label"] == expected
 
 

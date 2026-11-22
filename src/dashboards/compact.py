@@ -2854,7 +2854,7 @@ def _shadow_desk_block(man: dict | None = None) -> dict:
     e_n = eyes.get("n_features", 94)
     e_set = eyes.get("feature_set", "scored102")
     e_units = "HA candle values" if e_set == "ha10" else "scored indicators"
-    return {
+    block = {
         "book": "Book #2",
         "book_name": f"Book #2 — {e_champ} Shadow",
         "desk": man.get("desk") or f"TradingAgent Live — {e_champ} (Shadow)",
@@ -2868,6 +2868,106 @@ def _shadow_desk_block(man: dict | None = None) -> dict:
         "started": man.get("started"),
         "starting_balance": man.get("starting_balance", 100000),
         "paper": 1,
+    }
+    gate = man.get("gate") or {}
+    if gate:
+        # The gate joined this seat on Kass's 2026-11-21 order
+        # (run 82's frozen model, threshold from the manifest --
+        # 0.51 here vs Book #3's 0.55). Label derives from the
+        # seat record like every other identity on this desk.
+        g_run = gate.get("run_id", 82)
+        g_thr = gate.get("threshold", 0.51)
+        block["gate"] = {
+            "brain": gate.get("brain", "Meta-Label"),
+            "run": g_run, "threshold": g_thr,
+            "label": f"Gate: Meta-Label · Run {g_run} · "
+                     f"veto entries below {g_thr}"}
+    return block
+
+
+def _shadow_race_label(desk: dict) -> str:
+    """Book #2's race label, with the gate named when the seat
+    carries one -- the same "Meta-Label Run {run} gate @
+    {threshold}" suffix Book #3's race label carries (Kass's
+    2026-11-21 order: the 0.51 gate must be named anywhere the
+    book is described). Derives from the desk block, never
+    hard-coded; a seat with no gate keeps the plain label."""
+    label = (f"{desk['book_name']} (PPO Run {desk['driver']['run']} "
+             f"driver · {desk['eyes']['champion']} Run "
+             f"{desk['eyes']['run']} eyes)")
+    gate = desk.get("gate") or {}
+    if gate:
+        label = (label[:-1] + f" · Meta-Label Run {gate['run']} "
+                 f"gate @ {gate['threshold']})")
+    return label
+
+
+def _shadow_gate_decision_rows(limit: int | None = None) -> list:
+    """Book #2's recorded gate decisions, newest first, as
+    (ts, side, proba, verdict) -- [] when the book has none yet
+    (or the gate_decisions table does not exist yet)."""
+    import sqlite3
+
+    if not SHADOW_DB.exists():
+        return []
+    try:
+        con = sqlite3.connect(SHADOW_DB)
+        try:
+            q = ("SELECT ts, side, proba, verdict FROM "
+                 "gate_decisions ORDER BY id DESC")
+            if limit:
+                q += f" LIMIT {int(limit)}"
+            return con.execute(q).fetchall()
+        finally:
+            con.close()
+    except Exception:
+        return []
+
+
+def _shadow_gate_summary() -> dict | None:
+    """The gate block on Book #2's snapshot: run/threshold from
+    the seat manifest, decision counts + the latest decision
+    from the engine's own gate_decisions table in
+    paper_shadow.db. None when the seat carries no gate."""
+    desk_gate = _shadow_desk_block().get("gate")
+    if desk_gate is None:
+        return None
+    rows = _shadow_gate_decision_rows()
+    taken = sum(1 for r in rows if r[3] == "TAKEN")
+    vetoed = sum(1 for r in rows if r[3] == "VETOED")
+    last = None
+    if rows:
+        ts, side, proba, verdict = rows[0]
+        last = {"ts": ts, "side": side, "proba": round(proba, 4),
+                "verdict": verdict}
+    return {"run": desk_gate["run"], "threshold": desk_gate["threshold"],
+            "label": desk_gate["label"], "attempts": len(rows),
+            "taken": taken, "vetoed": vetoed, "last": last}
+
+
+def build_shadow_veto() -> dict:
+    """Book #2's Veto Log feed (the gate joined this book
+    2026-11-21): every gate decision on an entry attempt, newest
+    first, capped at 200 rows with shown/total counts -- the
+    same contract as Book #3's veto feed, read from Book #2's
+    own gate_decisions table. Counts always cover the FULL
+    table; the full table stays in the DB."""
+    rows = _shadow_gate_decision_rows(limit=200)
+    total_rows = _shadow_gate_decision_rows()
+    taken = sum(1 for r in total_rows if r[3] == "TAKEN")
+    vetoed = sum(1 for r in total_rows if r[3] == "VETOED")
+    desk = _shadow_desk_block()
+    gate = desk.get("gate") or {"run": 82, "threshold": 0.51,
+                                "label": "Gate: Meta-Label · Run 82"}
+    return {
+        "desk": desk,
+        "gate": {"run": gate["run"],
+                 "threshold": gate["threshold"],
+                 "label": gate["label"]},
+        "total": len(total_rows), "taken": taken, "vetoed": vetoed,
+        "shown": len(rows),
+        "rows": [[ts, side, round(proba, 4), verdict]
+                 for ts, side, proba, verdict in rows],
     }
 
 
@@ -2959,6 +3059,9 @@ def build_shadow_compact_trading() -> dict:
         "bench_pct": bench["bench_pct"],
         **_drawdown_stats(s),
     }
+    gate_summary = _shadow_gate_summary()
+    if gate_summary is not None:
+        out["gate"] = gate_summary
     drift = _shadow_drift_block()
     if drift is not None:
         out["drift"] = drift
@@ -3287,8 +3390,7 @@ def build_shadow_race() -> dict:
     return {
         "start": start,
         "desk": desk,
-        "b2": {"label": f"{desk['book_name']} (PPO Run {desk['driver']['run']} driver · "
-                        f"{desk['eyes']['champion']} Run {desk['eyes']['run']} eyes)",
+        "b2": {"label": _shadow_race_label(desk),
                **b2_h, "curve": b2_curve},
         "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
                         f"Stacker Run 40 prod21 eyes)",
@@ -3785,10 +3887,7 @@ def build_gated_race() -> dict:
                         f"Run {desk['gate']['run']} gate @ "
                         f"{desk['gate']['threshold']})",
                **b3_h, "curve": b3_curve},
-        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
-                        f"{sdesk['driver']['run']} driver · "
-                        f"{sdesk['eyes']['champion']} Run "
-                        f"{sdesk['eyes']['run']} eyes)",
+        "b2": {"label": _shadow_race_label(sdesk),
                **b2_h, "curve": b2_curve},
         "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
                         f"Stacker Run 40 prod21 eyes)",
@@ -4120,10 +4219,7 @@ def build_ha_race() -> dict:
                         f"Run {g3['gate']['run']} gate @ "
                         f"{g3['gate']['threshold']})",
                **b3_h, "curve": curves["b3"]},
-        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
-                        f"{sdesk['driver']['run']} driver · "
-                        f"{sdesk['eyes']['champion']} Run "
-                        f"{sdesk['eyes']['run']} eyes)",
+        "b2": {"label": _shadow_race_label(sdesk),
                **b2_h, "curve": curves["b2"]},
         "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
                         f"Stacker Run 40 prod21 eyes)",
@@ -4637,10 +4733,7 @@ def build_champ_race() -> dict:
                         f"Run {g3['gate']['run']} gate @ "
                         f"{g3['gate']['threshold']})",
                **b3_h, "curve": curves["b3"]},
-        "b2": {"label": f"{sdesk['book_name']} (PPO Run "
-                        f"{sdesk['driver']['run']} driver · "
-                        f"{sdesk['eyes']['champion']} Run "
-                        f"{sdesk['eyes']['run']} eyes)",
+        "b2": {"label": _shadow_race_label(sdesk),
                **b2_h, "curve": curves["b2"]},
         "b1": {"label": f"{B1_LABEL} (PPO Run 44 driver · "
                         f"Stacker Run 40 prod21 eyes)",
@@ -5162,16 +5255,17 @@ def _master_book(book_id, db_path, state_path, identity, *,
     return book
 
 
-def _master_book3_vetoes(limit: int = 8) -> list:
-    """Book #3's newest gate decisions from the gated engine's
-    own gate_decisions table (the same rows build_gated_veto
-    renders, threshold carried per row as stored)."""
+def _master_gate_vetoes(db_path, limit: int = 8) -> list:
+    """A gated book's newest gate decisions from its engine's
+    own gate_decisions table (threshold carried per row as
+    stored -- Book #3's rows carry 0.55, Book #2's carry 0.51
+    since the gate joined its seat on 2026-11-21)."""
     import sqlite3
 
-    if not GATED_DB.exists():
+    if not db_path.exists():
         return []
     try:
-        con = sqlite3.connect(GATED_DB)
+        con = sqlite3.connect(db_path)
         try:
             rows = con.execute(
                 "SELECT ts, proba, threshold, verdict FROM "
@@ -5183,6 +5277,18 @@ def _master_book3_vetoes(limit: int = 8) -> list:
         return []
     return [{"ts": ts, "proba": round(p, 4), "threshold": thr,
              "verdict": v} for ts, p, thr, v in rows]
+
+
+def _master_book3_vetoes(limit: int = 8) -> list:
+    """Book #3's newest gate decisions (the same rows
+    build_gated_veto renders)."""
+    return _master_gate_vetoes(GATED_DB, limit)
+
+
+def _master_book2_vetoes(limit: int = 8) -> list:
+    """Book #2's newest gate decisions (the same rows
+    build_shadow_veto renders)."""
+    return _master_gate_vetoes(SHADOW_DB, limit)
 
 
 def build_master(include_vision: bool = True) -> dict:
@@ -5227,10 +5333,13 @@ def build_master(include_vision: bool = True) -> dict:
              "eyes_label": desk2["eyes"]["label"],
              "feature_set": desk2["eyes"]["feature_set"],
              "indicators_n": desk2["eyes"]["n_features"],
-             "gate_run": None, "gate_threshold": None},
+             "gate_run": (desk2.get("gate") or {}).get("run"),
+             "gate_threshold": (desk2.get("gate") or {}).get(
+                 "threshold")},
             kind="shadow", label=desk2["book_name"],
             start_equity=float(man2.get("starting_balance", 100000)),
             include_vision=include_vision,
+            vetoes=_master_book2_vetoes(),
             # Book #2's vision follows its seat's frame: scored
             # gauges while a scored champion held the seat, the HA
             # gauges since Champion #11 (ha10) took it 2026-11-09.
@@ -5341,6 +5450,7 @@ if __name__ == "__main__":
         "shadow_vision0": lambda: build_shadow_vision(0),
         "shadow_vision1": lambda: build_shadow_vision(1),
         "shadow_race": build_shadow_race,
+        "shadow_veto": build_shadow_veto,
         "gated": build_gated_compact_trading,
         "gated_ledger": build_gated_ledger,
         "gated_market0": lambda: build_gated_market(0),

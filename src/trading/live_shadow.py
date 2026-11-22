@@ -38,8 +38,10 @@ PERIMETER (pinned by tests/test_shadow_desk.py): this module reads
 production state (Book #1's ledger, for the race feed's source
 data) but WRITES only its own files:
     models/shadow_seat/        byte-copies of the pinned artifacts
+                               (run 82's gate model + its column
+                               order included, since 2026-11-21)
     data/shadow_seat.json      the shadow seat manifest (hashes)
-    data/paper_shadow.db       Book #2's own ledger
+    data/paper_shadow.db       Book #2's own ledger + gate_decisions
     data/live_state_shadow.json  Book #2's own loop state
 It never opens a production file for writing, and a missing or
 tampered shadow seat file is a loud failure -- never a fallback to
@@ -66,6 +68,29 @@ delegation of the ruling), executed manually (see
 models/shadow_seat/README.md) -- exactly how run 69 replaced
 run 64 on 2026-10-26, run 73 replaced run 69 on 2026-10-27, and
 run 119 replaced run 73 on 2026-11-09.
+
+THE GATE (Kass's direct order, 2026-11-21): Book #3's gate --
+run 82's frozen meta-label model, byte-copied into this seat
+and hash-pinned -- now judges this book's ENTRY attempts at a
+seat threshold of 0.51 (Book #3 keeps its own gate at 0.55;
+its seat and manifest are untouched). The gate's 104-vector is
+the study's own (training.meta_label.feature_row): the 98
+pick2_98 scored values at the candle -- a frame this loop
+builds for the gate alone, in run 73's recorded column order
+(models/shadow_seat/gate_columns.json) -- plus [p_up,
+|p_up-0.5|, atr_rel, volatility_21, atr_pct_raw, side], where
+p_up is THIS book's eyes vote (run 119), the vote behind the
+proposal being judged, exactly as Book #3's gate reads its own
+eyes' vote. A vetoed entry is substituted with HOLD before
+dispatch and recorded in this book's own gate_decisions table
+(data/paper_shadow.db) with the threshold it was judged at;
+exits, covers, through-flat closes and protective stops are
+never gated. The book was FLAT ($100,520.11, last candle
+2026-11-21T12:00Z) when the gate was seated, so the gated
+segment starts clean at the next candle; the ungated record
+before it stays attributable via the manifest's gate_added
+entry. A manifest WITHOUT a gate block runs exactly as the
+book ran before 2026-11-21.
 
 Trading mechanics are NOT forked: the broker is the production
 PaperBroker (25% tranche, 75% exposure cap, 0.15% fees, ATR
@@ -102,6 +127,7 @@ from trading.broker import PaperBroker
 from trading.decision_log import (append_decision, broker_stop_level,
                                   describe_outcome, make_record,
                                   stance_name)
+from training.meta_label import MetaGate, is_entry_attempt
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = ROOT / "models"
@@ -116,6 +142,22 @@ SEAT_PPO = SEAT_DIR / "ppo.zip"
 SOURCE_STACKER = MODELS / "stacker_champion.pkl"        # run 119
 SOURCE_STACKER_META = MODELS / "stacker_champion.json"   # run 119
 SOURCE_PPO = MODELS / "ppo_champion.zip"                 # run 44
+
+SEAT_GATE = SEAT_DIR / "gate_model.pkl"
+SEAT_GATE_META = SEAT_DIR / "gate_columns.json"
+SOURCE_GATE = DATA / "meta_label" / "meta_model.pkl"     # run 82
+SOURCE_GATE_META = MODELS / "gated_seat" / "stacker.json"  # run 73
+
+GATE_RUN = 82
+# The seat's gate threshold (Kass's order 2026-11-21). At runtime
+# the manifest (data/shadow_seat.json) is authoritative -- this is
+# only build_manifest's seed-time value. Book #3's gate keeps its
+# own 0.55; the gate MODEL is the same frozen artifact on both.
+SEAT_GATE_THRESHOLD = 0.51
+# The frozen gate identity (run-82 study record): the seat copy
+# must hash to this or the desk refuses to seat it.
+GATE_MODEL_SHA256 = \
+    "cf7630c0d2e386322f1422a29ee04581f30b723634478c4a875e8b5d9ad3240a"
 
 STARTING_BALANCE = 100_000.0
 DRIVER_RUN = 44
@@ -159,6 +201,56 @@ def ensure_seat(seat_dir: Path = SEAT_DIR) -> None:
                     f"change is Kass's explicit decision")
         else:
             shutil.copyfile(src, dest)
+    # The gate (Kass's order 2026-11-21): run 82's frozen model,
+    # seated under its study hash -- a different file at the
+    # source path means the study artifact was replaced, and the
+    # desk refuses to seat the replacement (Book #3's rule).
+    if not SOURCE_GATE.exists():
+        raise FileNotFoundError(f"shadow gate source missing: {SOURCE_GATE}")
+    if _sha256(SOURCE_GATE) != GATE_MODEL_SHA256:
+        raise ValueError(
+            f"gate model source {SOURCE_GATE} hashes to "
+            f"{_sha256(SOURCE_GATE)}, not the frozen run-82 identity "
+            f"{GATE_MODEL_SHA256}; refusing to seat a different gate")
+    gate_dest = seat_dir / "gate_model.pkl"
+    if gate_dest.exists():
+        if _sha256(gate_dest) != GATE_MODEL_SHA256:
+            raise ValueError(
+                f"shadow seat gate {gate_dest} differs from the "
+                f"frozen run-82 identity; refusing to overwrite")
+    else:
+        shutil.copyfile(SOURCE_GATE, gate_dest)
+    # The gate's column order (run 73's recorded pick2_98 order)
+    # is part of the gate's identity; the seat carries it as
+    # gate_columns.json, generated from the gated seat's meta.
+    if not SOURCE_GATE_META.exists():
+        raise FileNotFoundError(
+            f"shadow gate meta source missing: {SOURCE_GATE_META}")
+    want_cols = list(json.loads(
+        SOURCE_GATE_META.read_text()).get("feature_columns") or [])
+    if len(want_cols) != 98:
+        raise ValueError(
+            f"gate meta source {SOURCE_GATE_META} carries "
+            f"{len(want_cols)} columns, not the gate's 98")
+    cols_dest = seat_dir / "gate_columns.json"
+    if cols_dest.exists():
+        got_cols = list(json.loads(
+            cols_dest.read_text()).get("feature_columns") or [])
+        if got_cols != want_cols:
+            raise ValueError(
+                f"shadow seat gate columns {cols_dest} differ from "
+                f"run 73's recorded order; refusing to overwrite")
+    else:
+        cols_dest.write_text(json.dumps({
+            "run_id": 73, "feature_set": "pick2_98",
+            "feature_columns": want_cols,
+            "source": "models/gated_seat/stacker.json (run 73's "
+                      "recorded column order -- the frame order "
+                      "run 82's gate was trained on)",
+            "note": "The gate's 98 scored values must be read in "
+                    "THIS order; it is part of the gate's "
+                    "identity, hash-pinned in data/shadow_seat.json.",
+        }, indent=1))
 
 
 def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
@@ -167,7 +259,8 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
     meta = json.loads((seat_dir / "stacker.json").read_text())
     cols = list(meta.get("feature_columns") or [])
     return {
-        "desk": "TradingAgent Live — Shadow (Champion #11 Eyes)",
+        "desk": "TradingAgent Live — Shadow (Champion #11 Eyes "
+                "· Run 82 Gate @ 51%)",
         "book": "Book #2",
         "driver": {
             "brain": "PPO", "run_id": DRIVER_RUN,
@@ -186,6 +279,29 @@ def build_manifest(started: str, seat_dir: Path = SEAT_DIR) -> dict:
             "meta_file": "models/shadow_seat/stacker.json",
             "meta_sha256": _sha256(seat_dir / "stacker.json"),
             "source": "models/stacker_champion.pkl",
+        },
+        "gate": {
+            "brain": "Meta-Label (LightGBM)", "run_id": GATE_RUN,
+            "family": "meta_label",
+            "file": "models/shadow_seat/gate_model.pkl",
+            "sha256": _sha256(seat_dir / "gate_model.pkl"),
+            "source": "data/meta_label/meta_model.pkl",
+            "threshold": SEAT_GATE_THRESHOLD,
+            "meta_file": "models/shadow_seat/gate_columns.json",
+            "meta_sha256": _sha256(seat_dir / "gate_columns.json"),
+            "feature_vector": "104 = 98 pick2_98 scored values "
+                              "(run 73's recorded column order, "
+                              "gate_columns.json) + [p_up, "
+                              "|p_up-0.5|, atr_rel, volatility_21, "
+                              "atr_pct_raw, side], built by "
+                              "src/training/meta_label.py "
+                              "feature_row; p_up is Book #2's own "
+                              "eyes vote (run 119)",
+            "study": "refs/meta-label-study-2026-10-30.md",
+            "seated_by": "Kass's direct order 2026-11-21 "
+                         "(dashboard Upgrades chat): Book #3's "
+                         "gate added to Book #2 at 0.51; Book #3 "
+                         "unchanged at 0.55",
         },
         "book_db": "data/paper_shadow.db",
         "state_file": "data/live_state_shadow.json",
@@ -254,6 +370,17 @@ def verify_seat(manifest: dict, seat_dir: Path) -> None:
         (seat_dir / "stacker.json", manifest["eyes"]["meta_sha256"],
          "stacker meta"),
     ]
+    gate = manifest.get("gate")
+    if gate is not None:
+        # The gate is part of the seat since Kass's 2026-11-21
+        # order: its model and its column order verify like every
+        # other pinned artifact. A manifest WITHOUT a gate block
+        # (the pre-2026-11-21 record) verifies as it always did.
+        checks += [
+            (seat_dir / "gate_model.pkl", gate["sha256"], "gate model"),
+            (seat_dir / "gate_columns.json", gate["meta_sha256"],
+             "gate columns"),
+        ]
     for path, want, what in checks:
         if not path.exists():
             raise FileNotFoundError(f"shadow seat {what} missing: {path}")
@@ -324,6 +451,76 @@ def champion2_vote(model, scored_frame: pd.DataFrame, ts,
     computation the scored-eyes study graded the champion side
     with (nightly.py's per-frame vote path)."""
     return float(model.predict_proba(scored_frame.loc[[ts], columns])[0, 1])
+
+
+# -------------------------------------------------------- the gate math
+
+def gate_columns(seat_dir: Path = SEAT_DIR) -> list[str]:
+    """The gate's 98 pick2_98 columns in run 73's recorded order,
+    from the seat's gate_columns.json -- the order run 82's gate
+    was trained on. Part of the gate's identity: a wrong order
+    would feed the judge a scrambled vector, so anything but 98
+    recorded columns is a loud failure."""
+    meta = json.loads((seat_dir / "gate_columns.json").read_text())
+    cols = list(meta.get("feature_columns") or [])
+    if len(cols) != 98:
+        raise ValueError(
+            f"shadow seat gate columns carry {len(cols)} columns, "
+            f"not the gate's 98")
+    return cols
+
+
+def gate_proba(model, frame_row, p_up: float, atr_rel: float,
+               vol21: float, atr_raw: float, side: int,
+               threshold: float = SEAT_GATE_THRESHOLD) -> float:
+    """Run 82's P(profitable) for ONE decision candle, computed by
+    the study's own MetaGate/feature_row on 1-row arrays -- the
+    identical function Book #3's live loop uses, so a vector
+    judged here is judged there (parity pinned in
+    tests/test_shadow_gate.py against the gated desk's wrapper
+    on the real model)."""
+    gate = MetaGate(model,
+                    np.asarray([frame_row], dtype=float),
+                    np.array([float(p_up)]),
+                    np.array([float(atr_rel)]),
+                    np.array([float(vol21)]),
+                    np.array([float(atr_raw)]),
+                    threshold=float(threshold))
+    return gate.proba(0, int(side))
+
+
+# ------------------------------------------------------ decision record
+
+def ensure_decisions_table(db_file: Path) -> None:
+    import sqlite3
+
+    with sqlite3.connect(db_file) as con:
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS gate_decisions("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "ts TEXT NOT NULL, side INTEGER NOT NULL, "
+            "action INTEGER NOT NULL, proba REAL NOT NULL, "
+            "threshold REAL NOT NULL, verdict TEXT NOT NULL)")
+
+
+def record_gate_decision(db_file: Path, ts: str, side: int,
+                         action: int, proba: float, verdict: str,
+                         threshold: float = SEAT_GATE_THRESHOLD) -> None:
+    """One durable row per entry attempt in Book #2's own ledger
+    -- the gated segment's primary evidence, written at decision
+    time before the (possibly vetoed) dispatch. Each row records
+    the threshold it was judged at (0.51 here; Book #3's rows
+    carry their own 0.55)."""
+    import sqlite3
+
+    ensure_decisions_table(db_file)
+    with sqlite3.connect(db_file) as con:
+        con.execute(
+            "INSERT INTO gate_decisions"
+            "(ts, side, action, proba, threshold, verdict) "
+            "VALUES (?,?,?,?,?,?)",
+            (ts, int(side), int(action), float(proba),
+             float(threshold), verdict))
 
 
 # ------------------------------------------------------------ the state
@@ -455,7 +652,8 @@ def seed(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None) -> dict:
              "entry_price": None, "last_entry_price": None,
              "entry_atr_pct": None, "high_water": None,
              "low_water": None, "stop_anchor": None,
-             "last_stance": None, "last_p_up": None}
+             "last_stance": None, "last_p_up": None,
+             "last_gate_decision": None}
     save_state(cfg, state)
     if not cfg.manifest_file.exists():
         cfg.manifest_file.write_text(
@@ -490,7 +688,8 @@ def _eyes_tag(man: dict) -> str:
 
 
 def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
-             stacker=None, ppo=None, scored_builder=None) -> dict:
+             stacker=None, ppo=None, scored_builder=None,
+             gate_model=None, gate_frame_builder=None) -> dict:
     if not cfg.state_file.exists() or not cfg.manifest_file.exists():
         raise RuntimeError(
             "shadow desk is not seeded; run "
@@ -499,6 +698,21 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
             "first candle closed after launch)")
     man = load_manifest(cfg)
     verify_seat(man, cfg.seat_dir)
+    # The gate is a SEAT parameter set: it exists iff the manifest
+    # carries a gate block (Kass's 2026-11-21 order seated it at
+    # 0.51). The threshold lives in the manifest and changes only
+    # on Kass's order; what stays frozen is the gate MODEL,
+    # hash-pinned by verify_seat above. No gate block -> the book
+    # runs exactly as it did before 2026-11-21.
+    gate_cfg = man.get("gate") or None
+    gate_threshold = None
+    if gate_cfg is not None:
+        gate_threshold = float(gate_cfg.get(
+            "threshold", SEAT_GATE_THRESHOLD))
+        if not 0.0 < gate_threshold < 1.0:
+            raise ValueError(
+                f"shadow manifest gate threshold {gate_threshold} "
+                f"is not a probability; refusing to run")
     fetch = fetch or fetch_klines
     state = load_state(cfg)
     last_ts = state.get("last_ts")
@@ -527,6 +741,21 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         return {"processed": 0,
                 "skipped": f"shadow PPO expects {model_dim}-dim obs, "
                            f"recipe builds {expected_dim}-dim"}
+    gate_cols = None
+    if gate_cfg is not None:
+        gate_cols = gate_columns(cfg.seat_dir)
+        if gate_model is None:
+            import joblib
+            gate_model = joblib.load(cfg.seat_dir / "gate_model.pkl")
+        if gate_frame_builder is None:
+            from features import pick2_features
+            gate_frame_builder = pick2_features.builder_for_tag(
+                "pick2_98")
+    # The gate's scored frame builds LAZILY on the run's first
+    # entry attempt (most processed candles propose no entry);
+    # it is built from the same `raw` the eyes' frame is built
+    # from, so its rows are the gated desk's rows by construction.
+    gate_frame = None
 
     raw = fetch("BTC-USD", interval="1h", period="730d")
     full = raw.iloc[:-1]
@@ -553,6 +782,7 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         df = df[df.index > pd.Timestamp(last_ts)]
 
     processed = 0
+    vetoes = 0
     last_price = 0.0
     for ts, row in df.iterrows():
         frow = feat.loc[ts]
@@ -581,26 +811,83 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         ], dtype=np.float32)
         obs = np.clip(obs, -1.0, 1.0).astype(np.float32)
         action, _ = ppo.predict(obs, deterministic=True)
+        action = int(np.asarray(action).reshape(-1)[0])
         ts_s = ts.isoformat()
-        ctx = json.dumps({
-            "f": [round(float(frow[c]), 4) for c in FEATURE_COLUMNS],
-            "p": round(p_up, 4), "eyes": _eyes_tag(man)})
         atr_raw = frow.get("atr_pct_raw")
         atr_pct = (float(atr_raw) if atr_raw is not None
                    and np.isfinite(float(atr_raw)) else None)
         if broker.btc != 0 and broker.entry_atr_pct is None:
             broker.entry_atr_pct = atr_pct
+        ctx_dict = {
+            "f": [round(float(frow[c]), 4) for c in FEATURE_COLUMNS],
+            "p": round(p_up, 4), "eyes": _eyes_tag(man)}
+        if gate_cfg is not None:
+            ctx_dict["g"] = None
+            ctx_dict["grun"] = GATE_RUN
+        # Gate pre-flight (Book #3's exactness rule, checked BEFORE
+        # any write on this candle): only BUY/SHORT can be entry
+        # attempts, and for those the gate vector must be buildable
+        # exactly -- a missing atr or a NaN scored row stops the
+        # run here and the candle is retried next wake, rather
+        # than gating on a partial vector.
+        grow = None
+        if gate_cfg is not None and action in (1, 3):
+            if atr_pct is None:
+                print(f"candle {ts} has no finite atr_pct_raw; "
+                      f"the gate vector cannot be built exactly "
+                      f"-- stopping shadow run here", flush=True)
+                break
+            if gate_frame is None:
+                gate_frame, _gate_built = gate_frame_builder(raw)
+            grow = gate_frame.loc[ts, gate_cols]
+            if grow.isna().any():
+                print(f"candle {ts} has NaN gate-frame features; "
+                      f"stopping shadow run here", flush=True)
+                break
         pos_before = broker.btc
-        stop_fill = broker.check_stop(price, ts=ts_s, low=float(row["low"]),
-                                      high=float(row["high"]), context=ctx)
+        stop_fill = broker.check_stop(
+            price, ts=ts_s, low=float(row["low"]),
+            high=float(row["high"]), context=json.dumps(ctx_dict))
+        # ---- THE GATE (Kass's order 2026-11-21; Book #3's
+        # semantics, mirrored): the protective stop check above
+        # runs FIRST -- exits are never gated, and a stop fill on
+        # this candle settles the position before any entry is
+        # judged. Only entry attempts (opens/adds, long or short)
+        # reach the judge; a veto substitutes HOLD before dispatch.
+        side = is_entry_attempt(action, broker.btc) \
+            if gate_cfg is not None else 0
+        gate_p = None
+        gate_verdict = None
+        vetoed = False
+        if side != 0:
+            gate_p = gate_proba(
+                gate_model, grow.to_numpy(dtype=float), p_up,
+                float(frow["atr_rel"]), float(frow["volatility_21"]),
+                atr_pct, side, threshold=gate_threshold)
+            gate_verdict = "TAKEN" if gate_p >= gate_threshold \
+                else "VETOED"
+            record_gate_decision(cfg.db_file, ts_s, side, action,
+                                 gate_p, gate_verdict,
+                                 threshold=gate_threshold)
+            state["last_gate_decision"] = {
+                "ts": ts_s, "side": side, "action": action,
+                "proba": round(gate_p, 4),
+                "threshold": gate_threshold,
+                "verdict": gate_verdict}
+            vetoed = gate_verdict == "VETOED"
+            if vetoed:
+                vetoes += 1
+            ctx_dict["g"] = round(gate_p, 4)
+        ctx = json.dumps(ctx_dict)
+        executed = 0 if vetoed else action
         fill = None
-        if int(action) == 1:
+        if executed == 1:
             fill = broker.buy(price, reason="ppo_live", ts=ts_s,
                               atr_pct=atr_pct, context=ctx)
-        elif int(action) == 2:
+        elif executed == 2:
             fill = broker.sell(price, reason="ppo_live", ts=ts_s,
                                context=ctx)
-        elif int(action) == 3:
+        elif executed == 3:
             fill = broker.short_open(price, reason="ppo_live", ts=ts_s,
                                      atr_pct=atr_pct, context=ctx)
         broker.snapshot(ts_s, price)
@@ -610,12 +897,17 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         # computed from included. Failure-isolated; never alters
         # trading.
         _d_action, _d_taken, _d_reason = describe_outcome(
-            int(action), stop_fill, fill)
+            action, stop_fill, fill, gate_verdict=gate_verdict)
         _d_eq = broker.equity(price)
         append_decision("book2", make_record(
             ts=ts_s, close=price, p_up=round(p_up, 4),
-            stance=stance_name(int(action)), action=_d_action,
+            stance=stance_name(action), action=_d_action,
             taken=_d_taken, reason=_d_reason,
+            gate_proba=(round(gate_p, 4) if gate_p is not None
+                        else None),
+            gate_threshold=(gate_threshold
+                            if gate_cfg is not None else None),
+            gate_verdict=gate_verdict,
             pos_before=pos_before, pos_after=broker.btc,
             equity=round(_d_eq, 2),
             stop_level=broker_stop_level(broker),
@@ -624,7 +916,7 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
             features={c: float(srow[c]) for c in columns}),
             decisions_dir=cfg.state_file.parent / "decisions")
         state["last_ts"] = ts_s
-        state["last_stance"] = ["hold", "buy", "sell", "short"][int(action)]
+        state["last_stance"] = ["hold", "buy", "sell", "short"][executed]
         state["last_p_up"] = round(p_up, 4)
         state["cash"] = broker.cash
         state["btc"] = broker.btc
@@ -637,7 +929,7 @@ def run_once(cfg: ShadowConfig = DEFAULT_CONFIG, fetch=None,
         save_state(cfg, state)
         processed += 1
 
-    return {"processed": processed,
+    return {"processed": processed, "vetoes": vetoes,
             "equity": broker.equity(last_price) if processed else None,
             "cash": broker.cash, "btc": broker.btc}
 

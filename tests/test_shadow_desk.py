@@ -166,6 +166,12 @@ def test_verify_seat_rejects_a_tampered_copy(tmp_path):
         (SHADOW_SEAT / "stacker.pkl").read_bytes())
     (seat / "stacker.json").write_bytes(
         (SHADOW_SEAT / "stacker.json").read_bytes())
+    # The gate files (seated 2026-11-21) ride along intact, so
+    # the failure under test is the tampered PPO alone.
+    (seat / "gate_model.pkl").write_bytes(
+        (SHADOW_SEAT / "gate_model.pkl").read_bytes())
+    (seat / "gate_columns.json").write_bytes(
+        (SHADOW_SEAT / "gate_columns.json").read_bytes())
     man = json.loads(SHADOW_MANIFEST.read_text())
     with pytest.raises(ValueError):
         live_shadow.verify_seat(man, seat)
@@ -243,6 +249,22 @@ class _StubPPO:
         assert obs.shape == (25,)
         assert np.all(obs >= -1.0) and np.all(obs <= 1.0)
         return np.array([a]), None
+
+
+class _StubGateModel:
+    """The run-82 gate stand-in for engine fixtures (seated on
+    Book #2 on 2026-11-21): a fixed P(profitable) above the 0.51
+    seat threshold, so scripted entries are TAKEN unless a test
+    scripts otherwise (tests/test_shadow_gate.py owns the veto
+    semantics)."""
+
+    def __init__(self, p: float = 0.90):
+        self.p = p
+        self.classes_ = np.array([0, 1])
+
+    def predict_proba(self, X):
+        assert X.shape == (1, 104)
+        return np.array([[1.0 - self.p, self.p]])
 
 
 def _fake_scored_builder(columns):
@@ -336,13 +358,21 @@ def test_shadow_engine_perimeter_idempotence_and_floor(
 
     # Two new closed candles arrive (frame grows by 2; the last row is
     # the new forming candle). Actions: buy on the first, hold after.
+    # Since 2026-11-21 the seeded manifest carries the gate block,
+    # so the buy is an entry attempt judged by the gate: the stub
+    # gate allows it (0.90 >= 0.51) and the decision is recorded.
     raw2 = _ohlcv(603, start=start)
     assert raw2.index[-4] == anchor  # same history, extended tail
     fetch2 = lambda *a, **kw: raw2  # noqa: E731
+    gate_columns = list(json.loads(
+        (MODELS / "gated_seat" / "stacker.json").read_text()
+    )["feature_columns"])
     ppo = _StubPPO([1, 0])
     res = live_shadow.run_once(
         cfg, fetch=fetch2, stacker=_StubStacker(),
-        ppo=ppo, scored_builder=_fake_scored_builder(columns))
+        ppo=ppo, scored_builder=_fake_scored_builder(columns),
+        gate_model=_StubGateModel(),
+        gate_frame_builder=_fake_scored_builder(gate_columns))
     assert res["processed"] == 2
     con = sqlite3.connect(cfg.db_file)
     fills = con.execute(
@@ -350,6 +380,10 @@ def test_shadow_engine_perimeter_idempotence_and_floor(
     assert fills == [("BUY", "ppo_live")]
     eq_rows = con.execute("SELECT COUNT(*) FROM equity").fetchone()[0]
     assert eq_rows == 3  # anchor + 2 processed candles
+    gate_rows = con.execute(
+        "SELECT side, proba, threshold, verdict FROM gate_decisions"
+    ).fetchall()
+    assert gate_rows == [(1, 0.90, 0.51, "TAKEN")]
     con.close()
     state = json.loads(cfg.state_file.read_text())
     assert state["last_ts"] == raw2.index[-2].isoformat()
@@ -360,7 +394,9 @@ def test_shadow_engine_perimeter_idempotence_and_floor(
     res2 = live_shadow.run_once(
         cfg, fetch=fetch2, stacker=_StubStacker(),
         ppo=_StubPPO([1, 0]),
-        scored_builder=_fake_scored_builder(columns))
+        scored_builder=_fake_scored_builder(columns),
+        gate_model=_StubGateModel(),
+        gate_frame_builder=_fake_scored_builder(gate_columns))
     assert res2["processed"] == 0
     con = sqlite3.connect(cfg.db_file)
     assert con.execute("SELECT COUNT(*) FROM trades").fetchone()[0] == 1

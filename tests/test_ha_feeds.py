@@ -97,6 +97,14 @@ def test_ha_race_carries_book4_from_its_fresh_100k():
     expected_b2 = (f"{desk2['book_name']} (PPO Run {desk2['driver']['run']} "
                    f"driver · {desk2['eyes']['champion']} Run "
                    f"{desk2['eyes']['run']} eyes)")
+    # Since the 2026-11-21 gate addition the seat carries the
+    # run-82 gate at 0.51, and the race label must name it like
+    # Book #3's label names its gate — derived, not hard-coded.
+    gate2 = desk2.get("gate") or {}
+    if gate2:
+        expected_b2 = (expected_b2[:-1] +
+                       f" · Meta-Label Run {gate2['run']} "
+                       f"gate @ {gate2['threshold']})")
     assert race["b2"]["label"] == expected_b2
     for key in ("b1", "b2", "b3", "bh"):
         assert key in race
