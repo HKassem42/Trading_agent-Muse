@@ -1,7 +1,7 @@
 {
- "accuracy": 0.5580808080808081,
- "precision": 0.5435356200527705,
- "wf_accuracy": 0.5241226449944588,
+ "accuracy": 0.5467171717171717,
+ "precision": 0.5037593984962406,
+ "wf_accuracy": 0.5245659401551533,
  "folds": 5,
  "model_path": "models/stacker_champion.pkl",
  "feature_set": "ha10",
@@ -17,10 +17,10 @@
   "raw_ret",
   "ha_body_rel"
  ],
- "run_id": 126,
- "champion_no": 13,
- "promoted_scope": "lab champion \u2014 Champion #13",
- "display": "HA Nightly Stacker \u2014 Champion #13",
+ "run_id": 152,
+ "champion_no": 14,
+ "promoted_scope": "lab champion \u2014 Champion #14",
+ "display": "HA Nightly Stacker \u2014 Champion #14",
  "crowned_by": "Muse (standing delegation from Kass, 2026-11-12)",
- "crowned_at": "2026-11-13T02:19:19.505260+00:00"
+ "crowned_at": "2026-11-23T05:30:27+00:00"
 }

@@ -4,22 +4,22 @@
  "seat_policy": "follows_the_crown",
  "driver": {
   "brain": "PPO",
-  "run_id": 147,
+  "run_id": 153,
   "file": "models/champ_seat/ppo.zip",
-  "sha256": "884e60f05505e30bdf27b25c7e456de1c14b054475682ffa6cbfc2860a8dc8dd",
+  "sha256": "36c8705e264d1937b899dbce976779b9caf6bf8553a44883c71baec3159d5ea0",
   "source": "models/ppo_champion.zip"
  },
  "eyes": {
   "brain": "Stacker",
-  "run_id": 126,
-  "name": "HA Nightly Stacker \u2014 Champion #13",
-  "champion": "Champion #13",
+  "run_id": 152,
+  "name": "HA Nightly Stacker \u2014 Champion #14",
+  "champion": "Champion #14",
   "feature_set": "ha10",
   "n_features": 10,
   "file": "models/champ_seat/stacker.pkl",
-  "sha256": "a7389a277af32489e668d3cf1b1eb2411bbbc173c7dcd1fa1a9265dd442fbf7e",
+  "sha256": "eee458520563b2eec28aa57d199ceb1d01b9aaea478aea2507b1188666caf51e",
   "meta_file": "models/champ_seat/stacker.json",
-  "meta_sha256": "bae2655443b4754adaa492e750e1b3ec3d7b8b9a0792aa817dfc3e4fcd9c2ad3",
+  "meta_sha256": "50c1b21e9d635d7b03579d357f812ee4f7b0dfe793805dc0af22be04640a5de6",
   "source": "models/stacker_champion.pkl"
  },
  "book_db": "data/paper_champ.db",
@@ -28,20 +28,20 @@
  "started": "2026-11-13T01:00:00",
  "seeded_by": "Book #5 Champions build (Kass's full-freedom order 2026-11-12: Muse picks everything about this book)",
  "grading_record": {
-  "driver_run": 147,
-  "driver_duel_score": 1070.399053554657,
-  "driver_duel_pnl": 5676.047035997661,
+  "driver_run": 153,
+  "driver_duel_score": 2391.7054486987327,
+  "driver_duel_pnl": 9627.784510021622,
   "driver_duel_windows": [
-   1942.89,
-   -1544.86,
-   2813.17
+   2406.54,
+   -863.27,
+   5631.85
   ],
-  "driver_duel_bench_pnl": -34590.06462141072,
-  "driver_reason": "challenger won 2/3 windows, aggregate score 1070 vs champion 281 (next-candle fills; buy-and-hold over the same windows: $-34,590) (gate pass incl. two-part floor) \u2014 WOULD PROMOTE: held as PENDING KASS APPROVAL under the promotion lock; champion kept",
-  "eyes_run": 126,
-  "eyes_exam_acc": 0.5580808080808081,
-  "eyes_precision": 0.5435356200527705,
-  "eyes_wf_acc": 0.5241226449944588,
+  "driver_duel_bench_pnl": -28302.5213097887,
+  "driver_reason": "challenger won 3/3 windows, aggregate score 2392 vs champion 1395 (next-candle fills; buy-and-hold over the same windows: $-28,303) (gate pass incl. two-part floor) \u2014 WOULD PROMOTE: held as PENDING KASS APPROVAL under the promotion lock; champion kept",
+  "eyes_run": 152,
+  "eyes_exam_acc": 0.5467171717171717,
+  "eyes_precision": 0.5037593984962406,
+  "eyes_wf_acc": 0.5245659401551533,
   "source": "Lab crowning records: the PPO champion's own crowning duel (registry) and the stacker champion's crowning exam (its champion meta). The PAIR has no joint exam; this book IS its forward test."
  },
  "lineage": [
@@ -58,6 +58,13 @@
    "driver_run": 147,
    "eyes_run": 126,
    "eyes_champion": "Champion #13"
+  },
+  {
+   "era": 3,
+   "pinned_at": "2026-11-23T05:30:34.551514+00:00",
+   "driver_run": 153,
+   "eyes_run": 152,
+   "eyes_champion": "Champion #14"
   }
  ],
  "pinned": "FOLLOWS THE CROWN: the seat holds pinned byte copies of the sitting lab champions and is re-pinned by Muse at each crowning (Kass delegated crowning to Muse 2026-11-12), carry-over style -- an open position rides through a re-pin. Between crowns the pinned copies are the truth and are hash-verified on every run; a mismatch is a loud failure, never a silent fallback.",

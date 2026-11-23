@@ -16,7 +16,7 @@
    "source": "models/ppo_champion.zip"
   }
  },
- "ppo_champion_run_id": 147,
+ "ppo_champion_run_id": 153,
  "seated_by": "initial separation 2026-10-25",
  "created": "2026-10-25T22:55:10+00:00",
  "note": "The driver's seat: the exact artifacts the live loop (src/trading/live.py) loads. Seeded as byte-identical copies of the reigning champions at the lab/seat separation (Kass, 2026-10-25): the 21-feature stacker of run 40's lineage and run 44's PPO (seated by Kass's 2026-10-24 manual override). The Training Lab's champions are grading baselines only; the seat changes ONLY when Kass names a new driver. Manual procedure: models/live_seat/README.md."
