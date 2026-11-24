@@ -133,7 +133,7 @@ feed carries the count as snapshot.models_omitted; the COMPLETE
 record of every run stays in training.db, the Champions &
 Challengers workbook, and the Model Atlas. _models_index itself
 still covers ALL runs (the champs roster derives names from it).
-Row = [i, d, n, f, p, s, pl, v]:
+Row = [i, d, n, f, p, s, pl, v, x]:
   i=run id, d=date "MM-DD", n=display name (derived in compact.py from
   the run's own record: metrics.family for lab runs -- "HA-Seq v1",
   "GBM Focus <arm> -- <label>", "GBM Lag <arm> -- <label>",
@@ -161,7 +161,17 @@ Row = [i, d, n, f, p, s, pl, v]:
   pl=duel holdout P&L in whole dollars (null for the stacker; exact
   cents live in the detail rows / gate feed / training.db),
   v=recorded lab verdict
-  ("PASS" / "FAIL" / "FAIL (vacuous)"; null for nightly runs).
+  ("PASS" / "FAIL" / "FAIL (vacuous)"; null for nightly runs),
+  x=action mix (Action Mix section, Kass 2026-11-23): for PPO runs
+  {"v": "d" directional | "x" exposure, "c": [hold, buy, sell,
+  short] decision counts, "n": decisions in the last grading
+  window} when the counts recover exactly from the recorded
+  3-decimal shares (see _recover_mix_counts), {"v": ..., "f":
+  2-decimal shares, "c": null, "n": null} when they don't; null
+  for stackers (they vote, they don't act) and PPO runs with no
+  recorded challenger mix. Counts are the last grading window's
+  decisions only -- the same window the detail runs' mix/cmix
+  describe -- never a whole-history aggregate.
 
 Training recipe panel (snapshot.recipe, added 2026-10-25 -- Kass:
 "upgrade it even more so I can tweek anything we train or try"): the
@@ -1028,6 +1038,112 @@ def _mix(m: dict) -> dict:
     return {k: _n(round(v, 2)) for k, v in m.items()}
 
 
+# Action-mix vocabularies, in canonical order: the directional brain's
+# four actions, and the exposure manager's (Muse's Pick #3, run 75).
+_MIX_DIRECTIONAL = ("hold", "buy", "sell", "short")
+_MIX_EXPOSURE = ("stand_aside", "half", "full", "hold")
+
+
+def _mix_vocab(raw: dict) -> list[str] | None:
+    """The canonical key order for a recorded mix, or None for an
+    unknown vocabulary (never guessed from a partial key set)."""
+    keys = set(raw)
+    if keys <= set(_MIX_EXPOSURE) and keys - {"hold"}:
+        return list(_MIX_EXPOSURE)
+    if keys <= set(_MIX_DIRECTIONAL):
+        return list(_MIX_DIRECTIONAL)
+    return None
+
+
+def _recover_mix_counts(mix: dict, episodes) -> tuple | None:
+    """Exact decision counts behind a recorded action mix, or None.
+
+    Action Mix — every model (Kass, 2026-11-23): the grading env
+    runs 24-decision episodes (TradingEnv episode_len = 1 day x 24
+    hourly candles), so a standard duel window is 10 episodes x 24
+    = 240 decisions, and a recorded 3-decimal share recovers
+    exactly when every share has one integer preimage at that
+    total and the counts sum to it. The total comes from the run's
+    own recorded episodes (total across the 3-window duel / 3)
+    when present, else the 10-episode default -- and the exact-sum
+    check rejects a wrong total rather than guessing. Mixes stored
+    as exact fractions (never rounded, e.g. run 88's 256/264)
+    recover from their own denominator instead. Returns
+    (vocab, counts, total) or None when the counts cannot be
+    recovered exactly: the caller ships shares only, never
+    interpolated counts."""
+    vocab = _mix_vocab(mix)
+    if vocab is None:
+        return None
+    # Exact-fraction mixes: recover from their own denominator --
+    # but only when it cannot be a 3-decimal rounding (denominator
+    # not dividing 1000), else a per-mille reading would masquerade
+    # as counts (run 153's 0.742/0.004/0.129/0.125 would read as
+    # 742/4/129/125 over 1000).
+    from fractions import Fraction
+    import math
+    fracs = {}
+    exact = True
+    for k in vocab:
+        v = mix.get(k, 0.0)
+        if not isinstance(v, (int, float)):
+            return None
+        f = Fraction(v).limit_denominator(10000)
+        if float(f) != float(v):
+            exact = False
+            break
+        fracs[k] = f
+    if exact:
+        den = 1
+        for f in fracs.values():
+            den = den * f.denominator // math.gcd(den, f.denominator)
+        if den > 1 and 1000 % den != 0:
+            counts = [int(fracs[k] * den) for k in vocab]
+            if sum(counts) == den:
+                return (vocab, counts, den)
+    # Rounded-share recovery at the window total.
+    if isinstance(episodes, int) and episodes > 0 and episodes % 3 == 0:
+        total = (episodes // 3) * 24
+    else:
+        total = 240
+    counts = []
+    for k in vocab:
+        v = mix.get(k, 0.0)
+        if not isinstance(v, (int, float)):
+            return None
+        cands = [c for c in range(total + 1) if round(c / total, 3) == v]
+        if len(cands) != 1:
+            return None
+        counts.append(cands[0])
+    if sum(counts) != total:
+        return None
+    return (vocab, counts, total)
+
+
+def _index_mix(r: dict):
+    """The models-index action-mix element (9th row element) for the
+    Action Mix section: {"v": "d"|"x", "c": counts, "n": total}
+    when the counts recover exactly, {"v": ..., "f": 2-decimal
+    shares} when they don't, None for stackers (they vote, they
+    don't act) and PPO runs with no recorded challenger mix."""
+    if r["kind"] != "ppo":
+        return None
+    raw = (r.get("metrics") or {}).get("challenger", {}).get("action_mix")
+    if not raw:
+        return None
+    vocab = _mix_vocab(raw)
+    if vocab is None:
+        return None
+    got = _recover_mix_counts(
+        raw, (r.get("metrics") or {}).get("challenger", {}).get("episodes"))
+    tag = "x" if vocab == list(_MIX_EXPOSURE) else "d"
+    if got is None:
+        return {"v": tag, "f": [_mix(raw).get(k, 0) for k in vocab],
+                "c": None, "n": None}
+    _, counts, total = got
+    return {"v": tag, "c": counts, "n": total}
+
+
 def _verdict_reason_raw(r: dict, m: dict) -> str | None:
     """The run's verdict reason UNBOUNDED, exactly as recorded
     (explicit `reason` / `promotion_reason`, else reconstructed from
@@ -1408,10 +1524,13 @@ def _display_name(r: dict, version: str | None) -> str:
 
 def _model_entry(r: dict, name: str) -> list:
     """One row of the all-runs index: [id, MM-DD, display name, family
-    code, promoted, headline, P&L, recorded lab verdict]. Headline is the
-    duel aggregate score for PPO-family runs and holdout accuracy for
-    the stacker; P&L and verdict are null where the family does not
-    record them."""
+    code, promoted, headline, P&L, recorded lab verdict, action mix].
+    Headline is the duel aggregate score for PPO-family runs and holdout
+    accuracy for the stacker; P&L and verdict are null where the family
+    does not record them. Element 9 is the Action Mix section's data
+    (Kass, 2026-11-23): see _index_mix -- counts + window total when
+    exactly recovered, shares when not, null for stackers and runs
+    with no recorded mix."""
     m = r.get("metrics") or {}
     fam = m.get("family") or r["kind"]
     c = m.get("challenger") or {}
@@ -1497,7 +1616,7 @@ def _model_entry(r: dict, name: str) -> list:
                  "muse_pick13", "muse_pick14"):
         verdict = (m.get(fam) or {}).get("verdict")
     return [r["id"], r["ts"][5:10], name, _FAMILY_CODES[fam],
-            int(r["promoted"]), headline, pnl, verdict]
+            int(r["promoted"]), headline, pnl, verdict, _index_mix(r)]
 
 
 def _all_runs_desc() -> list[dict]:
@@ -2140,12 +2259,14 @@ def build_compact_training() -> dict:
 # IS the point, so it is never sliced to a tail. Instead it ships
 # in fixed-size pages through the dashboard's push_models_page
 # action ({page, pages, total, omitted, rows}); the desk assembles
-# the full index from the stored pages. 40 rows/page at ~55B/row
-# is ~2.3KB per push -- comfortably under the action-arg ceiling
+# the full index from the stored pages. 40 rows/page at ~78B/row
+# is ~3.1KB per push -- comfortably under the action-arg ceiling
 # class this dashboard has always accepted (its largest verified
 # snapshot acceptance is 7,925B) -- and the page COUNT is the only
 # thing that grows with the registry (300 runs = 8 pages), so no
-# single push ever grows again.
+# single push ever grows again. (Row size rose from ~55B when the
+# 9th element -- the action mix, Kass 2026-11-23 -- joined the row;
+# the <4000B page test below is the guard.)
 MODELS_PAGE_SIZE = 40
 
 

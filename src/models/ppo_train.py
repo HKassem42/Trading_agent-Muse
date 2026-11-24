@@ -140,8 +140,15 @@ def _resume_candidate(timesteps: int, champion_path: Path,
 
 def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: Path,
           db_path: Path, ent_coef: float = 0.01, sup=None, p_up=None,
-          feature_columns=None, telemetry: bool = True) -> Path:
+          feature_columns=None, telemetry: bool = True,
+          env_kwargs: dict | None = None) -> Path:
     """Train (or warm-start) the PPO challenger.
+
+    `env_kwargs`: LAB-ONLY TradingEnv flags (e.g. the Phase 2
+    buy-collapse fix: symmetric_exit / boundary_penalty /
+    realized_bonus). Default None == the production env. The nightly
+    job never passes this -- its train call is unchanged and its env
+    is byte-identical to before.
 
     `sup` / `p_up`: optional pre-built training frame + stacker votes. The
     nightly job passes them so it controls exactly which candles the
@@ -270,7 +277,8 @@ def train(timesteps: int, warm_start: bool, champion_path: Path, stacker_path: P
     broker = PaperBroker(work_db, starting_balance=100_000,
                          max_position_pct=0.25, stop_loss_pct=0.05)
     env = Monitor(TradingEnv(sup, p_up, broker,
-                             feature_columns=feature_columns))
+                             feature_columns=feature_columns,
+                             **(env_kwargs or {})))
 
     out = champion_path.parent / "ppo_challenger.zip"
     sidecar_path = champion_path.parent / PROGRESS_SIDECAR

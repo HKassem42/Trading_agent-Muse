@@ -21,6 +21,33 @@ should go so we get results"):
 - Sparse terminal signal (the original spec, kept): +1 if the day's net
   paper P&L > 0, else -1. The official daily verdict.
 Total episode return ~= sum of step returns + the daily verdict.
+
+LAB-ONLY buy-collapse fix (Phase 2, 2026-11-23 -- all default-off, so
+the production env is byte-identical to before; the nightly train and
+the duel grader never pass these flags):
+- symmetric_exit: BUY while short covers the WHOLE short in one
+  decision (broker.cover pct=1.0), as one SELL already exits a full
+  long. The production tranche cap (25% of equity per BUY) meant a
+  full-short exit cost up to 3 decisions vs 1 for a long exit.
+- boundary_penalty: at episode end, subtract this much if a position
+  is still open -- carrying across the day boundary used to cost
+  nothing beyond mark-to-market (the verdict scores unrealized P&L
+  and the position then vanishes at reset), so holding-to-the-stop
+  was free and covering by decision paid a fee for nothing.
+- realized_bonus: on a DECISION-close (position -> flat with no stop
+  fill), add realized_bonus * clip(realized round-trip P&L in % of
+  day-start equity, -1, 1). The trip's P&L is eq_after(close) -
+  eq_after(open): nothing else moves equity mid-trip, so this is the
+  trip's market P&L net of the exit fee. It attributes the trip's
+  outcome to the closing action -- the dense signal credits the
+  market moves while holding but the cover step itself only ever
+  showed the fee. Stop-closes get no term: the wedge between closing
+  by decision and letting the stop close it is the point.
+Action masking is deliberately NOT part of this bundle: Phase 1's
+masked rollout proved it cannot create buys (bull-window buy rate
+0.4% -> 0.4%), and SELL while flat is already behaviorally identical
+to HOLD in this env, so an env-level remap would be a no-op (see
+tests/test_ppo_buy_fix.py::test_sell_while_flat_is_hold).
 """
 
 from __future__ import annotations
@@ -52,6 +79,12 @@ class TradingEnv(gym.Env):
         min_round_trips: int = 2,
         fill_mode: str = "close",
         feature_columns: list[str] | None = None,
+        # LAB-ONLY Phase 2 buy-collapse fix (see module docstring).
+        # All default-off: a default-constructed env is the production
+        # env, byte-identical in behavior.
+        symmetric_exit: bool = False,
+        boundary_penalty: float = 0.0,
+        realized_bonus: float = 0.0,
     ) -> None:
         super().__init__()
         # Feature set (2026-10-25 generalization for the features-v6
@@ -76,6 +109,13 @@ class TradingEnv(gym.Env):
         # a timeframe where each candle carries 4x the information.
         self.min_round_trips = min_round_trips
         self._round_trips = 0
+        # LAB-ONLY Phase 2 flags (default-off == production behavior).
+        self.symmetric_exit = bool(symmetric_exit)
+        self.boundary_penalty = float(boundary_penalty)
+        self.realized_bonus = float(realized_bonus)
+        # Post-trade equity at which the current position opened (the
+        # realized-P&L term's baseline); None while flat.
+        self._open_eq: float | None = None
         # Fill timing (v4): "close" = orders fill at the decision candle's
         # close (training default; matches live, where the decision happens
         # the moment the candle closes). "next_open" = orders fill at the
@@ -137,6 +177,7 @@ class TradingEnv(gym.Env):
         self._prev_eq = self.broker.equity(price)
         self._day_start_equity = self._prev_eq
         self._round_trips = 0
+        self._open_eq = None
         return self._state(self._cursor), {}
 
     def _decision_context(self, i: int) -> str:
@@ -157,7 +198,8 @@ class TradingEnv(gym.Env):
         row = self.df.iloc[i]
         ctx = self._decision_context(i)
         atr = self._atr_pct(i)
-        held_before = abs(self.broker.btc) > 1e-10
+        btc_pre = self.broker.btc
+        held_before = abs(btc_pre) > 1e-10
 
         if self.fill_mode == "next_open" and i + 1 < len(self.df):
             # Duel/evaluation timing: the decision made on candle i fills at
@@ -170,8 +212,15 @@ class TradingEnv(gym.Env):
             high_px = float(erow["high"]) if "high" in erow else close_px
             ets = str(erow.name)
             if action == 1:
-                self.broker.buy(open_px, reason="ppo", ts=ets,
-                                atr_pct=atr, context=ctx)
+                if self.symmetric_exit and self.broker.btc < 0:
+                    # LAB-ONLY: one decision exits a full short, as one
+                    # SELL exits a full long (production: tranche-capped
+                    # cover via broker.buy, up to 3 BUYs for a full exit).
+                    self.broker.cover(open_px, reason="cover", ts=ets,
+                                      context=ctx)
+                else:
+                    self.broker.buy(open_px, reason="ppo", ts=ets,
+                                    atr_pct=atr, context=ctx)
             elif action == 2:
                 self.broker.sell(open_px, reason="ppo", ts=ets, context=ctx)
             elif action == 3:
@@ -190,8 +239,13 @@ class TradingEnv(gym.Env):
             stop_fill = self.broker.check_stop(price, ts=ts, low=low,
                                                high=high, context=ctx)
             if action == 1:
-                self.broker.buy(price, reason="ppo", ts=ts,
-                                atr_pct=atr, context=ctx)
+                if self.symmetric_exit and self.broker.btc < 0:
+                    # LAB-ONLY symmetric exit (see next_open branch).
+                    self.broker.cover(price, reason="cover", ts=ts,
+                                      context=ctx)
+                else:
+                    self.broker.buy(price, reason="ppo", ts=ts,
+                                    atr_pct=atr, context=ctx)
             elif action == 2:
                 self.broker.sell(price, reason="ppo", ts=ts, context=ctx)
             elif action == 3:
@@ -203,7 +257,9 @@ class TradingEnv(gym.Env):
         # trade: it does not satisfy the activity quota (audit 2026-10-20).
         # v5: a completed round trip in EITHER direction counts (long
         # buy->sell, short open->cover, or a through-flat action close).
-        if held_before and abs(self.broker.btc) <= 1e-10 and stop_fill is None:
+        decision_close = (held_before and abs(self.broker.btc) <= 1e-10
+                          and stop_fill is None)
+        if decision_close:
             self._round_trips += 1
 
         # Dense signal: per-step log return on equity, in percentage points,
@@ -222,6 +278,26 @@ class TradingEnv(gym.Env):
         reward = float(np.clip(step_r, -1.0, 1.0))
         self._prev_eq = eq_after
 
+        # LAB-ONLY realized-P&L term (see module docstring): a
+        # decision-close credits the closing step with the round
+        # trip's realized P&L (eq_after at close minus eq_after at
+        # open, as % of day-start equity, clipped to +/-1). A
+        # stop-close gets nothing -- the wedge is the point.
+        if decision_close and self.realized_bonus and self._open_eq is not None:
+            realized_pct = (100.0 * (eq_after - self._open_eq)
+                            / max(self._day_start_equity, 1e-9))
+            reward += self.realized_bonus * float(
+                np.clip(realized_pct, -1.0, 1.0))
+        # Track the equity at which the CURRENT position opened: it
+        # resets whenever a fresh position opens (flat before this
+        # step, or the stop closed the old one and this step's action
+        # opened a new one) and clears whenever the account is flat.
+        btc_post = self.broker.btc
+        if abs(btc_post) <= 1e-10:
+            self._open_eq = None
+        elif abs(btc_pre) <= 1e-10 or stop_fill is not None:
+            self._open_eq = eq_after
+
         self._cursor += 1
         done = (self._cursor - self._episode_start) >= self.episode_len
         done = bool(done) or self._cursor >= len(self.df) - 1
@@ -233,5 +309,10 @@ class TradingEnv(gym.Env):
             # Activity rule: trading is mandatory while learning. A flat day
             # (no round trips) can no longer tie a well-traded day.
             reward -= 0.2 * max(0, self.min_round_trips - self._round_trips)
+            # LAB-ONLY boundary penalty (see module docstring): ending
+            # the episode with an open position costs this much --
+            # carrying across the boundary is no longer free.
+            if self.boundary_penalty and abs(self.broker.btc) > 1e-10:
+                reward -= self.boundary_penalty
         obs = self._state(min(self._cursor, len(self.df) - 1))
         return obs, reward, done, False, {}

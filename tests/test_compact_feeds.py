@@ -286,7 +286,8 @@ def test_training_models_index_covers_every_run_with_correct_names():
     # snapshot carries only count-capped sections now, so its
     # plateau is ~9.5KB even at a 300-run registry -- asserted
     # here at 12,000 with headroom. Each models page (40 rows)
-    # must stay under 4,000B (measured ~2.3KB; the dashboard's
+    # must stay under 4,000B (measured ~3.1KB with the action-mix
+    # 9th element, Kass 2026-11-23; the dashboard's
     # largest verified acceptance is 7,925B, so a page keeps >2x
     # headroom no matter how large the registry grows -- the
     # page COUNT grows, never the page). The historical 16,384B
@@ -298,6 +299,101 @@ def test_training_models_index_covers_every_run_with_correct_names():
     for page in compact.build_models_pages():
         blob = json.dumps(page, separators=(",", ":"))
         assert len(blob) < 4000, f"models page too big: {len(blob)}"
+
+
+def test_action_mix_counts_recover_exactly_for_every_ppo_run():
+    """Action Mix — every model (Kass, 2026-11-23): the models index
+    carries each PPO run's action mix as exact decision COUNTS over
+    its last grading window, recovered from the registry's recorded
+    3-decimal shares — never interpolated. The grading env runs
+    24-decision episodes (TradingEnv episode_len = 1 day x 24
+    hourly candles), so a standard duel window is 10 episodes x 24
+    = 240 decisions; a mix recovers exactly when every share has
+    one integer preimage at that total and the counts sum to it.
+    Runs whose shares do not verify at any recorded total keep
+    shares only (counts null) — the section shows them honestly
+    rather than guessing. Adversarial pins: run 153 (the screenshot
+    panel: Buy 0 / Hold 74 / Sell 13 / Short 12), run 88 (exact
+    fractions over 264 decisions), run 75 (exposure vocabulary),
+    run 44 (the live-seat driver)."""
+    registry = compact._all_runs_desc()
+    # Known-unrecoverable challenger mixes: lab-study duels whose
+    # episode count the registry never recorded (runs 45-56) and run
+    # 86, whose challenger was graded off the standard path (its
+    # champion side still verifies at 240). Any other failure is a
+    # regression in the recovery itself.
+    unrecoverable = {45, 46, 50, 51, 52, 54, 55, 56, 86}
+    recovered = 0
+    for r in registry:
+        if r["kind"] != "ppo":
+            continue
+        mix = (r.get("metrics") or {}).get("challenger", {}).get("action_mix")
+        if not mix:
+            continue
+        got = compact._recover_mix_counts(mix, (r.get("metrics") or {}).get("challenger", {}).get("episodes"))
+        if r["id"] in unrecoverable:
+            assert got is None, f"run {r['id']} unexpectedly recovered: {got}"
+            continue
+        assert got is not None, f"run {r['id']} mix failed to recover: {mix}"
+        vocab, counts, total = got
+        assert sum(counts) == total
+        assert len(counts) == len(vocab)
+        recovered += 1
+    assert recovered >= 60, f"only {recovered} mixes recovered"
+    by_id = {r["id"]: r for r in registry}
+    # The screenshot: run 153's mix at promotion — Buy 0 / Hold 74 /
+    # Sell 13 / Short 12, over the 240-decision last window.
+    assert compact._recover_mix_counts(
+        by_id[153]["metrics"]["challenger"]["action_mix"], 30) == (
+        ["hold", "buy", "sell", "short"], [178, 1, 31, 30], 240)
+    # Run 88's mix is exact fractions (never rounded to 3 decimals):
+    # 256 hold + 3 buy + 0 sell + 5 short over 264 decisions.
+    assert compact._recover_mix_counts(
+        by_id[88]["metrics"]["challenger"]["action_mix"], None) == (
+        ["hold", "buy", "sell", "short"], [256, 3, 0, 5], 264)
+    # Run 75 is the exposure manager (Muse's Pick #3): its own
+    # vocabulary, same 240-decision window.
+    assert compact._recover_mix_counts(
+        by_id[75]["metrics"]["challenger"]["action_mix"], 30) == (
+        ["stand_aside", "half", "full", "hold"], [47, 12, 2, 179], 240)
+    # Run 44, the live-seat driver: Buy 0 is real, not a gap.
+    assert compact._recover_mix_counts(
+        by_id[44]["metrics"]["challenger"]["action_mix"], None) == (
+        ["hold", "buy", "sell", "short"], [149, 0, 89, 2], 240)
+
+
+def test_models_index_rows_carry_action_mix():
+    """The models index row gains a 9th element: the run's action
+    mix for the Action Mix section — counts + window total when
+    exactly recovered, 2-decimal shares when not, null for stackers
+    (they vote, they don't act) and PPO runs with no recorded mix.
+    Row length stays uniform at 9 so the client parses positionally."""
+    registry = compact._all_runs_desc()
+    by_id = {r["id"]: r for r in registry}
+    name153 = compact._display_name(by_id[153], None)
+    row153 = compact._model_entry(by_id[153], name153)
+    assert len(row153) == 9
+    assert row153[8] == {"v": "d", "c": [178, 1, 31, 30], "n": 240}
+    row45 = compact._model_entry(
+        by_id[45], compact._display_name(by_id[45], None))
+    assert len(row45) == 9
+    assert row45[8]["v"] == "d" and row45[8]["c"] is None
+    assert row45[8]["f"] == [0.2, 0.42, 0.06, 0.32]
+    row75 = compact._model_entry(
+        by_id[75], compact._display_name(by_id[75], None))
+    assert row75[8] == {"v": "x", "c": [47, 12, 2, 179], "n": 240}
+    # Stackers take no actions: no mix, never a fabricated one.
+    row152 = compact._model_entry(
+        by_id[152], compact._display_name(by_id[152], None))
+    assert len(row152) == 9 and row152[8] is None
+    # PPO runs with no recorded challenger mix: null, not zeros.
+    row47 = compact._model_entry(
+        by_id[47], compact._display_name(by_id[47], None))
+    assert len(row47) == 9 and row47[8] is None
+    # Every shipped page row carries the element (uniform shape).
+    for page in compact.build_models_pages():
+        for row in page["rows"]:
+            assert len(row) == 9, f"run {row[0]} row has {len(row)} elements"
 
 
 def test_training_feed_structure_at_current_registry():
@@ -1155,6 +1251,9 @@ def _synthetic_runs(n=300):
                          "promoted": rid % 41 == 0,
                          "metrics": {"challenger": {
                              "score": -775.11, "pnl": -1151.94,
+                             "episodes": 30,
+                             "action_mix": {"hold": 0.6, "buy": 0.1,
+                                            "sell": 0.2, "short": 0.1},
                              "mean_reward": 0.123}}})
     return runs
 

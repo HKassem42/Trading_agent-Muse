@@ -103,13 +103,13 @@ def test_master_identities_derive_from_manifests():
     assert b4["identity"]["gate_run"] is None
     desk5 = compact._champ_desk_block()
     assert b5["kind"] == "champ"
-    # RE-PINNED 2026-11-21 (run 147 crowning): Muse crowned the
-    # 2026-11-21 retrain's PPO winner run 147 as lab PPO champion
-    # and re-pinned Book #5's follows-the-crown seat (Era 2), so
-    # the Book #5 driver IS run 147; eyes unchanged (run 126).
-    assert b5["identity"]["brain_run"] == desk5["driver"]["run"] == 147
-    assert b5["identity"]["eyes_run"] == desk5["eyes"]["run"] == 126
-    assert "Champion #13" in b5["identity"]["eyes_label"]
+    # RE-PINNED 2026-11-23 (run 153 crowning): Muse crowned the
+    # 2026-11-23 retrain's PPO winner run 153 as lab PPO champion
+    # and re-pinned Book #5's follows-the-crown seat (Era 3), so
+    # the Book #5 driver IS run 153; eyes are run 152 (Champion #14).
+    assert b5["identity"]["brain_run"] == desk5["driver"]["run"] == 153
+    assert b5["identity"]["eyes_run"] == desk5["eyes"]["run"] == 152
+    assert "Champion #14" in b5["identity"]["eyes_label"]
     assert b5["identity"]["feature_set"] == desk5["eyes"]["feature_set"] == "ha10"
     assert b5["identity"]["indicators_n"] == desk5["eyes"]["n_features"] == 10
     assert b5["identity"]["gate_run"] is None
